@@ -10,6 +10,7 @@
 - Antes de escribir o modificar código, lee el plan activo indicado en el bloque `SPECKIT` al final de este archivo y los criterios de la tarea correspondiente en `docs/PLAN_CONSTRUCCION.md`.
 - Ejecuta una sola tarea `T-xx` a la vez. No avances a la siguiente hasta comprobar que todos los puntos de su criterio «Hecho cuando...» y las pruebas automáticas estén en verde.
 - Si encuentras un requisito ambiguo o un dato externo no confirmado, no lo inventes: regístralo en `docs/PREGUNTAS_ABIERTAS.md`.
+- **Modo docente y guía manual (Regla obligatoria):** En cada tarea T-xx, actúa como un profesor experto en Ingeniería de Software: al terminar cada paso explica brevemente en lenguaje sencillo qué arquitectura o patrón aplicaste y por qué; y si la tarea requiere que el desarrollador configure algo en el navegador (Supabase, MCP, Upstash, GitHub o Vercel), detente y dale primero las instrucciones paso a paso.
 
 ## 3. Reglas técnicas innegociables
 - **Dominio puro con TDD:** Todo código en `backend/app/dominio/` es puro (sin I/O, sin base de datos, sin HTTP, sin reloj del sistema) y se desarrolla escribiendo primero la prueba en `pytest` que falla, luego la implementación mínima y finalmente refactorización.
@@ -18,6 +19,7 @@
 - **Privacidad y seguridad (Ley 1581):** Jamás guardes ni registres en logs las coordenadas `lat`/`lng` del usuario. Nunca expongas `huella_red` ni las señales internas de detección al usuario.
 - **Dinero, tiempo y parámetros:** Precios siempre como entero en pesos (`precio_cop`), cálculos unitarios con `Decimal`, fechas en UTC (ISO 8601) y todos los umbrales de negocio en la tabla `config_parametro`.
 - **Idioma del código:** Comentarios, docstrings e identificadores de negocio en español sin tildes ni `ñ` (`snake_case` en Python/SQL, `camelCase`/`PascalCase` en TypeScript).
+- **Entorno local sin Docker:** El desarrollo local y las pruebas de integración se conectan directamente al proyecto de Supabase (vía MCP y variables en `.env`) y a Redis en Upstash (o mock en memoria para pruebas unitarias/carga local sin gastar cuota). No se utiliza Docker Desktop ni `docker-compose` en la máquina local. El `Dockerfile` se mantiene únicamente para el despliegue en la nube en T-50.
 
 <!-- SPECKIT START -->
 <!-- SPECKIT END -->

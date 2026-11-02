@@ -38,6 +38,8 @@ Este documento complementa a `PROYECTO.md` y constituye la especificación ejecu
     * Fechas: siempre `timestamptz` en UTC en la base de datos y cadenas ISO 8601 en UTC (`YYYY-MM-DDTHH:MM:SSZ`) en la API. Solo se formatean a `America/Bogota` al pintarse en el navegador.
     * Dinero: siempre entero estricto en pesos colombianos (`precio_cop: int`). Prohibido usar `float` para dinero o cantidades; los cálculos por unidad usan `decimal.Decimal` en Python y `numeric` en PostgreSQL.
 12. **Trazabilidad arquitectónica:** Toda decisión estructural nueva genera un archivo ADR en `docs/adr/NNNN-titulo.md`.
+13. **Modo docente y guía manual (Regla obligatoria):** En cada tarea T-xx, actúa como un profesor experto en Ingeniería de Software: al terminar cada paso explica brevemente en lenguaje sencillo qué arquitectura o patrón aplicaste y por qué; y si la tarea requiere que el desarrollador configure algo en el navegador (Supabase, MCP, Upstash, GitHub o Vercel), detente y dale primero las instrucciones paso a paso.
+14. **Entorno local sin Docker:** El entorno de desarrollo local y las pruebas de integración no utilizan Docker Desktop ni docker-compose en la PC. Se conectan directamente al proyecto de Supabase (vía MCP y variables en `.env`) y a Redis en Upstash (o mock en memoria para pruebas unitarias/carga local sin gastar cuota). El `Dockerfile` se mantiene únicamente para el despliegue en la nube en T-50.
 
 ---
 
@@ -53,7 +55,7 @@ Este documento complementa a `PROYECTO.md` y constituye la especificación ejecu
 
 ### 1.2 Salvaguardas de infraestructura para Presupuesto Costo Cero
 * **Supabase Free ($0):** 500 MB en BD, 1 GB en Storage, 5 GB de salida y 50.000 usuarios activos/mes. El job diario `ping_bd` ejecuta una consulta real a PostgreSQL para evitar la pausa automática por inactividad de 7 días, y un workflow semanal ejecuta `pg_dump` cifrado.
-* **Upstash Redis Free ($0):** 500.000 comandos/mes. Se protege mediante caché de dos niveles (L1 en memoria de 5 s + L2 en Redis de 60 s con 1 comando `HGET` por fallo de L1), límites de uso (*rate limiting*) en memoria del proceso y ejecución de pruebas de carga `k6` exclusivamente contra el contenedor Redis local de `docker-compose`.
+* **Upstash Redis Free ($0):** 500.000 comandos/mes. Se protege mediante caché de dos niveles (L1 en memoria de 5 s + L2 en Redis de 60 s con 1 comando `HGET` por fallo de L1), límites de uso (*rate limiting*) en memoria del proceso y ejecución de pruebas unitarias o de carga `k6` localmente contra un mock en memoria (o instancia local) para no agotar la cuota de Upstash.
 * **Vercel Hobby ($0) + Contenedor Docker en Railway / Contingencia ($0):** El backend se despliega con Docker estándar usando el crédito inicial de prueba de Railway ($5 USD) y puede migrarse sin cambios de código a Render Free o Fly.io (`ADR-017`).
 
 ### 1.3 Registro inicial de `docs/PREGUNTAS_ABIERTAS.md` (`POR CONFIRMAR`)
@@ -285,10 +287,11 @@ Este documento complementa a `PROYECTO.md` y constituye la especificación ejecu
 │  ├─ api/openapi.json              # Esquema OpenAPI exportado automáticamente
 │  └─ calidad/                      # trazabilidad.csv e informes EC-01 a EC-06
 ├─ infra/
-│  ├─ docker-compose.yml            # postgis/postgis:16-3.4 y redis:7-alpine
+│  ├─ docker-compose.yml            # (Opcional) Referencia de servicios, no requerido en desarrollo local sin Docker
 │  └─ k6/ec04_carga.js              # Script de prueba de carga para 500 usuarios
 ├─ scripts/
-│  ├─ dev.cmd                       # Script de automatización local para Windows CMD
+│  ├─ dev.cmd                       # Script de automatización local para Windows CMD (entorno uv)
+│  ├─ verificar_conexion.py         # Script de verificación de conexión a Supabase y Upstash
 │  ├─ migrar.py                     # Ejecutor de migraciones SQL con MIGRATIONS_DATABASE_URL
 │  ├─ semilla.py                    # Carga idempotente de CSV
 │  ├─ exportar_openapi.py           # Exporta docs/api/openapi.json sin levantar servidor
@@ -388,9 +391,14 @@ source_modules = ["app.modulos"]
 forbidden_modules = ["app.adaptadores"]
 ```
 
-### 3.3 Contenido de `infra/docker-compose.yml` y `.env.example`
+### 3.3 Entorno de Desarrollo Local sin Docker y `.env.example`
 
-**`infra/docker-compose.yml`:**
+> [!NOTE]
+> **Entorno local sin Docker Desktop:** El desarrollo local y las pruebas de integración se conectan directamente al proyecto de Supabase (PostgreSQL + PostGIS, Auth y Storage vía MCP y variables en `.env`) y a Redis en Upstash (o mock en memoria para pruebas unitarias y de carga local sin gastar cuota de comandos). No se requiere ni utiliza Docker Desktop ni `docker-compose` en la máquina local.
+> 
+> El archivo `infra/docker-compose.yml` se conserva únicamente como referencia opcional o de contingencia.
+
+**`infra/docker-compose.yml` (Opcional / Referencia):**
 ```yaml
 services:
   postgres:
@@ -432,14 +440,17 @@ volumes:
 # Entorno: local | staging | production
 ENTORNO=local
 
-# Conexión de la aplicación FastAPI (DEBE usar el rol de privilegios mínimos app_backend)
-DATABASE_URL=postgresql+asyncpg://app_backend:app_backend_local_pass@localhost:5432/comparador
+# Conexión directa a Supabase PostgreSQL para FastAPI (rol de privilegios mínimos app_backend)
+# Configurada en Supabase: Settings -> Database -> Connection string (URI)
+DATABASE_URL=postgresql+asyncpg://app_backend:[PASSWORD]@[HOST].supabase.co:5432/postgres
 
-# Conexión exclusiva para aplicar migraciones y semilla (superusuario / propietario)
-MIGRATIONS_DATABASE_URL=postgresql+asyncpg://postgres:postgres_local_password@localhost:5432/comparador
+# Conexión exclusiva para aplicar migraciones y semilla en Supabase (usuario postgres / directo)
+# Configurada en Supabase: Settings -> Database -> Connection string (Direct connection, puerto 5432)
+MIGRATIONS_DATABASE_URL=postgresql+asyncpg://postgres:[PASSWORD]@[HOST].supabase.co:5432/postgres
 
-# Caché Redis (Local en desarrollo y pruebas k6; Upstash en producción)
-REDIS_URL=redis://localhost:6379/0
+# Caché Redis: Upstash Redis (o mock en memoria para pruebas unitarias/carga sin gastar cuota)
+# Conexión TLS de Upstash: rediss://default:[TOKEN]@[ENDPOINT].upstash.io:6379
+REDIS_URL=rediss://default:token_upstash@endpoint.upstash.io:6379
 
 # Supabase Auth y Storage
 SUPABASE_URL=[https://proyecto-ejemplo.supabase.co](https://proyecto-ejemplo.supabase.co)
@@ -465,7 +476,11 @@ NEXT_PUBLIC_SUPABASE_URL=[https://proyecto-ejemplo.supabase.co](https://proyecto
 NEXT_PUBLIC_SUPABASE_ANON_KEY=reemplazar_en_entorno_real
 ```
 
-### 3.4 Contenido de `backend/Dockerfile`
+### 3.4 Contenido de `backend/Dockerfile` (Exclusivo para Despliegue en la Nube)
+
+> [!NOTE]
+> Este `Dockerfile` multi-etapa se reserva exclusivamente para el empaquetado y despliegue del backend en la nube en T-50 (Railway / Render / Fly.io). No se ejecuta ni se requiere Docker en el entorno local del desarrollador.
+
 ```dockerfile
 FROM python:3.12-slim AS builder
 WORKDIR /build
@@ -1328,7 +1343,7 @@ alter table informe_supervisor enable row level security;
 * **Rol A (Arquitectura y Dominio de Precios — Líder técnico):** Esqueleto FastAPI, dominio de unidades/vigencia/sello/orden, módulo `precios`, caché en dos niveles, `PoliticaPrecioReferencia` y ADRs.
 * **Rol B (Backend de Confianza, Cuentas y Moderación):** Dominio de anomalías/riesgo/reputación, módulos `cuentas`, `confianza`, `moderacion` y `comercial`, fotos sin EXIF y jobs internos.
 * **Rol C (Frontend Web Responsive, PWA y Usabilidad):** Esqueleto Next.js, los 15 componentes, las 7 pantallas (`S1` a `S7`), cola offline `IndexedDB`, pruebas Playwright/`axe` y protocolo `EC-01`.
-* **Rol D (Datos, DevOps y Aseguramiento de Calidad):** Docker Compose, migraciones SQL, semilla CSV, CI/CD en GitHub Actions, despliegue, pruebas `k6` (`EC-04`), simulación `EC-03` e informes ISO/IEC 25010, 25012 y 25040.
+* **Rol D (Datos, DevOps y Aseguramiento de Calidad):** Entorno local con uv y scripts, migraciones SQL en Supabase, semilla CSV, CI/CD en GitHub Actions, despliegue con Docker en la nube, pruebas `k6` (`EC-04`), simulación `EC-03` e informes ISO/IEC 25010, 25012 y 25040.
 
 ### 8.2 Olas y Tareas en Orden Estricto de Construcción
 
@@ -1336,9 +1351,9 @@ alter table informe_supervisor enable row level security;
 | ID | Tarea | Depende de | Resp. | Archivos a crear / modificar | Hecho cuando… (Criterio verificable) |
 | :--- | :--- | :--- | :---: | :--- | :--- |
 | **T-00** | Inicializar repositorio Git con GitHub Spec Kit (`agy`), crear carpetas de la Sección 3.1, guardar `PROYECTO.md`, `docs/PLAN_CONSTRUCCION.md`, `AGENTS.md` y `CLAUDE.md`, ejecutar los 4 comandos de Spec Kit (`constitution`, `specify`, `plan`, `tasks`) y proteger la rama `main` en GitHub. | — | **A + D** | `.specify/`, `.agents/`, `specs/001-nucleo-comparador/`, `PROYECTO.md`, `docs/PLAN_CONSTRUCCION.md`, `AGENTS.md`, `CLAUDE.md` | Existen los artefactos en `specs/001-nucleo-comparador/`, `git status` está limpio y `main` tiene Ruleset activo en GitHub. |
-| **T-01** | Configurar entorno local reproducible con `infra/docker-compose.yml` (PostgreSQL 16 + PostGIS 3.4 y Redis 7 Alpine), `.env.example` (Sección 3.3) y `scripts/dev.cmd`. | `T-00` | **D** | `infra/docker-compose.yml`, `.env.example`, `Makefile`, `scripts/dev.cmd` | `docker compose -f infra/docker-compose.yml up -d` deja ambos contenedores en estado `healthy`. |
+| **T-01** | Configurar entorno local reproducible sin Docker: entorno virtual de Python con uv, archivo `.env.example` (Sección 3.3), script de automatización `scripts/dev.cmd` y script `scripts/verificar_conexion.py` (verificación de conexión a Supabase y Upstash). | `T-00` | **D** | `.env.example`, `scripts/dev.cmd`, `scripts/verificar_conexion.py` | `uv venv` crea el entorno virtual, `uv pip install` instala dependencias de `pyproject.toml`, y `python scripts/verificar_conexion.py` valida conexión a Supabase y Upstash con éxito. |
 | **T-02** | Crear migración `0001_fundaciones_seguridad.sql` (Sección 4.1: extensiones, rol `app_backend` con `LOGIN`, RLS y revocación a `anon`/`authenticated`), script `scripts/migrar.py` y prueba de seguridad SQL. | `T-01` | **D** | `supabase/migrations/0001_fundaciones_seguridad.sql`, `scripts/migrar.py`, `backend/tests/integracion/test_seguridad_bd.py` | La migración aplica con `MIGRATIONS_DATABASE_URL`, la app conecta como `app_backend` y la prueba confirma que `anon`/`authenticated` no leen tablas. |
-| **T-03** | Implementar esqueleto de FastAPI: `pyproject.toml` (Sección 3.2), `Dockerfile` (Sección 3.4), `config.py`, `bd.py`, `errores.py` (RFC 9457), `logging_cfg.py` (sin `lat`/`lng`), `reloj.py`, `seguridad.py` (JWKS/HS256), `/v1/salud`, `/v1/salud/listo` y `scripts/exportar_openapi.py`. | `T-02` | **A** | `backend/pyproject.toml`, `backend/Dockerfile`, `backend/app/main.py`, `backend/app/compartido/*`, `scripts/exportar_openapi.py`, `backend/tests/integracion/test_salud_y_auth.py` | `pytest` pasa `/v1/salud`, `/v1/salud/listo` y rechazos `401`/`403`; `docker build ./backend` termina con éxito y se exporta `docs/api/openapi.json`. |
+| **T-03** | Implementar esqueleto de FastAPI: `pyproject.toml` (Sección 3.2), `Dockerfile` (Sección 3.4, reservado para despliegue en la nube en T-50), `config.py`, `bd.py`, `errores.py` (RFC 9457), `logging_cfg.py` (sin `lat`/`lng`), `reloj.py`, `seguridad.py` (JWKS/HS256), `/v1/salud`, `/v1/salud/listo` y `scripts/exportar_openapi.py`. | `T-02` | **A** | `backend/pyproject.toml`, `backend/Dockerfile`, `backend/app/main.py`, `backend/app/compartido/*`, `scripts/exportar_openapi.py`, `backend/tests/integracion/test_salud_y_auth.py` | `pytest` pasa `/v1/salud`, `/v1/salud/listo` y rechazos `401`/`403`; `Dockerfile` queda listo para el despliegue en T-50 y se exporta `docs/api/openapi.json`. |
 | **T-04** | Implementar esqueleto de Next.js (App Router, TypeScript estricto, Tailwind, `shadcn/ui`), `AppShell`, generación de cliente tipado desde `docs/api/openapi.json` y cliente de sesión Supabase Auth. | `T-03` | **C** | `frontend/package.json`, `frontend/tsconfig.json`, `frontend/src/app/layout.tsx`, `frontend/src/components/AppShell.tsx`, `frontend/src/lib/api/*` | `npm run typecheck`, `npm run lint` y `npm run build` en `frontend/` terminan con código `0`. |
 | **T-05** | Redactar documentos base de ingeniería: `ADR-001` a `ADR-018` en `docs/adr/`, diagramas C4 (C1, C2 y C3 en `docs/c4/`), `docs/PREGUNTAS_ABIERTAS.md` (con `PA-01` a `PA-04`), `docs/DECLARACION_USO_IA.md` y texto de política de tratamiento v1. | `T-00` | **A + D** | `docs/adr/0001-*.md`..`0018-*.md`, `docs/c4/*.mmd`, `docs/PREGUNTAS_ABIERTAS.md`, `docs/DECLARACION_USO_IA.md` | Existen los 18 ADRs, los 3 diagramas C4 en Mermaid y los registros formales. |
 | **T-06** | Configurar CI en GitHub Actions (`.github/workflows/ci.yml`): `ruff`, `mypy --strict`, `import-linter`, `pytest` con servicios PostGIS/Redis, verificación de `openapi.json`, `npm run build` y `docker build`. | `T-03`, `T-04` | **D** | `.github/workflows/ci.yml` | El workflow ejecuta todas las verificaciones en verde. |
@@ -1399,7 +1414,7 @@ alter table informe_supervisor enable row level security;
 | **T-50** | Desplegar el núcleo de forma reproducible (Vercel, Railway con Docker, Supabase y Upstash) y activar jobs en GitHub Actions. | `T-06`, `T-34`, `T-47` | **D** | `README.md`, `docs/despliegue.md` | Sistema operativo en URL pública y job `ping_bd` respondiendo `200 OK`. |
 | **T-51** | Implementar pruebas E2E en Playwright (consultar, reportar, moderar) y prueba parametrizada de la Matriz de Permisos de la Sección 6.5. | `T-45` | **B + C** | `frontend/tests/e2e/flujos_nucleo.spec.ts`, `backend/tests/contrato/test_matriz_permisos.py` | Los 3 flujos E2E y todas las celdas de la Matriz de Permisos 6.5 pasan en CI. |
 | **T-52** | Elaborar Informe de TDD y Análisis Estático (Entregable 9). | `T-31`, `T-51` | **D** | `docs/calidad/entregable_9_tdd_analisis_estatico.md` | Evidencia de ciclos TDD, cobertura >= 95 % en dominio y 0 hallazgos críticos en `ruff`/`mypy`/`pip-audit`. |
-| **T-53** | Ejecutar prueba de carga `EC-04` con `k6` (500 usuarios concurrentes contra Docker local) y documentar resultados. | `T-50` | **D** | `infra/k6/ec04_carga.js`, `docs/calidad/informe_ec04.md` | `p95 <= 2000 ms` y tasa de errores `< 1 %`. |
+| **T-53** | Ejecutar prueba de carga `EC-04` con `k6` (500 usuarios concurrentes con backend local y mock en memoria / Upstash según cuota) y documentar resultados. | `T-50` | **D** | `infra/k6/ec04_carga.js`, `docs/calidad/informe_ec04.md` | `p95 <= 2000 ms` y tasa de errores `< 1 %`. |
 | **T-54** | Ejecutar prueba automática de `EC-02` (100 repeticiones de cambio de precio vigente). | `T-25`, `T-50` | **A** | `backend/tests/integracion/test_ec02_actualidad.py`, `docs/calidad/informe_ec02.md` | Peor tiempo observado en las 100 repeticiones <= 60 s. |
 | **T-55** | Congelar núcleo con etiqueta Git `v1.0-nucleo` y entregar Documento de Arquitectura v1 (Entregables 5, 6 y 8). | `T-52`, `T-53`, `T-54` | **A + D** | `docs/entregable_5_arquitectura_v1.md` | Etiqueta `v1.0-nucleo` creada y documento v1 completo. |
 
@@ -1433,7 +1448,7 @@ alter table informe_supervisor enable row level security;
 ### 9.1 Estrategia de Pruebas y Cobertura
 * **Unitarias de dominio (`pytest` + `hypothesis`):** Cobertura obligatoria >= 95 % de líneas y ramas en `backend/app/dominio/`.
 * **Integración y contrato (`pytest` + `schemathesis`):** Cobertura >= 80 % en el resto del backend; prueba parametrizada de la Matriz de Permisos (Sección 6.5).
-* **Escenario de carga `infra/k6/ec04_carga.js` (`EC-04`):** Rampa de 0 a 500 VUs en 2 min, sostenimiento 5 min, pausa de 1 a 3 s. Mezcla: 60 % `GET /v1/productos`, 30 % `GET .../comparacion`, 5 % `GET /v1/establecimientos`, 5 % `POST /v1/reportes`. Umbrales: `http_req_failed < 0.01` y `http_req_duration{endpoint:comparacion} p(95) < 2000`. Se ejecuta contra el Redis local de `docker-compose`.
+* **Escenario de carga `infra/k6/ec04_carga.js` (`EC-04`):** Rampa de 0 a 500 VUs en 2 min, sostenimiento 5 min, pausa de 1 a 3 s. Mezcla: 60 % `GET /v1/productos`, 30 % `GET .../comparacion`, 5 % `GET /v1/establecimientos`, 5 % `POST /v1/reportes`. Umbrales: `http_req_failed < 0.01` y `http_req_duration{endpoint:comparacion} p(95) < 2000`. Se ejecuta contra el backend local utilizando mock en memoria para Redis (o instancia Upstash controlada) para no agotar la cuota de comandos.
 
 ### 9.2 Matriz de Calidad de Datos ISO/IEC 25012
 | Característica | Prioridad | Significado en el comparador | Mecanismo técnico que la protege |

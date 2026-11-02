@@ -129,6 +129,7 @@ Se abordan únicamente tras completar y verificar la Fase 1 (Núcleo + Módulo C
 * **Persistencia y seguridad (ADR-005, ADR-012):** Supabase (PostgreSQL + PostGIS, Auth, Storage privado). RLS habilitada sin políticas públicas: el frontend solo usa Supabase para autenticación; todo acceso a datos pasa por FastAPI con el rol `app_backend`.
 * **Caché y límites de uso (ADR-006, ADR-016):** Caché de dos niveles (L1 en memoria de 5 s + L2 en Redis de Upstash con TTL de 60 s). Límites de uso en memoria del proceso.
 * **Despliegue reproducible (ADR-008, ADR-017):** Frontend en Vercel; Backend containerizado con Docker en Railway (con portabilidad a Render Free / Fly.io); tareas programadas e integración continua en GitHub Actions.
+* **Entorno de desarrollo local sin Docker:** El desarrollo local y las pruebas de integración se conectan directamente al proyecto de Supabase (vía MCP y variables en .env) y a Redis en Upstash (o mock en memoria para pruebas unitarias/carga local sin gastar cuota). Docker Desktop y docker-compose no se utilizan en la máquina local.
 * **Metodología de desarrollo:** Desarrollo Guiado por Especificaciones (SDD) instrumentado con GitHub Spec Kit (`specify-cli`).
 
 ## 11. Entregables académicos por corte
