@@ -22,4 +22,7 @@
 - **Entorno local sin Docker:** El desarrollo local y las pruebas de integración se conectan directamente al proyecto de Supabase (vía MCP y variables en `.env`) y a Redis en Upstash (o mock en memoria para pruebas unitarias/carga local sin gastar cuota). No se utiliza Docker Desktop ni `docker-compose` en la máquina local. El `Dockerfile` se mantiene únicamente para el despliegue en la nube en T-50.
 
 <!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+at specs/001-nucleo-comparador/plan.md
 <!-- SPECKIT END -->
