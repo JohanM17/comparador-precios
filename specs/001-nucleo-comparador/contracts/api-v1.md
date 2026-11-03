@@ -23,8 +23,26 @@ Este documento describe el contrato formal de la API REST expuesta en `/v1`, sus
      "request_id": "req-9f8e7d6c-5b4a-3c2d"
    }
    ```
-5. **Autenticación**: Cabecera `Authorization: Bearer <jwt_token>` validada mediante JWKS o clave simétrica según configuración de Supabase Auth.
-6. **Idempotencia**: El endpoint `POST /v1/reportes` exige obligatoriamente la cabecera `Idempotency-Key: <uuid>`.
+5. **Autenticación**: Cabecera `Authorization: Bearer <jwt_token>` validada mediante JWKS (`SUPABASE_JWKS_URL`) o clave simétrica (`SUPABASE_JWT_SECRET`) según configuración de Supabase Auth (`PA-02`). El rol se lee exclusivamente desde la tabla `perfil` (`FR-005`).
+6. **Idempotencia y Sincronización Offline (Flujo `F4`)**: El endpoint `POST /v1/reportes` exige obligatoriamente la cabecera `Idempotency-Key: <uuid>`. En la cola offline `IndexedDB` (`cola_reportes`), el sincronizador ejecuta primero la obtención de URL firmada (`POST /v1/fotos/url-subida`) y la subida del blob WebP ($\le 300$ KB sin EXIF), persiste `foto_ruta_remota` en `IndexedDB`, y solo después invoca `POST /v1/reportes` con la `Idempotency-Key`.
+
+### 1.1 Catálogo Completo de Códigos de Error (`application/problem+json` — RFC 9457)
+
+| Código (`codigo`) | Estado HTTP | Cuándo se devuelve |
+| :--- | :---: | :--- |
+| `VALIDACION` | `422` | Esquema inválido, campo extra no permitido (`extra='forbid'`), falta `Idempotency-Key` o se pide `orden=precio` sin `presentacion_id`. |
+| `PRECIO_FUERA_DE_RANGO` | `422` | `precio_cop` es menor que `precio.min_cop` (50) o mayor que `precio.max_cop` (2.000.000). |
+| `FECHA_INVALIDA` | `422` | `observado_en` está en el futuro ($> 60$ s) o tiene más de `observado.max_antiguedad_horas` (24 h). |
+| `UNIDADES_INCOMPATIBLES` | `422` | La `unidad` de la presentación no es convertible a la `unidad_base` del producto. |
+| `ARCHIVO_INVALIDO` | `422` | La fotografía supera `foto.max_kb` (300 KB) o su tipo MIME no está en `foto.tipos`. |
+| `NO_AUTENTICADO` | `401` | Falta cabecera `Authorization: Bearer`, token malformado, firma inválida o token expirado. |
+| `PROHIBIDO` | `403` | El rol en `perfil.rol` no tiene permiso para el endpoint o el comercio intenta operar un establecimiento ajeno. |
+| `AUTORIZACION_REQUERIDA` | `403` | El usuario autenticado aún no ha registrado su aceptación de datos en `POST /v1/mi-cuenta/autorizacion`. |
+| `CUENTA_SUSPENDIDA` | `403` | `perfil.estado` es `'suspendida'` o `'bloqueada'`. |
+| `NO_ENCONTRADO` | `404` | El recurso (`producto`, `presentacion`, `establecimiento`, `caso`) no existe o está inactivo. |
+| `CONFLICTO` | `409` | Duplicado en restricción única (`alias` ya usado, `codigo_barras` repetido o presentación duplicada). |
+| `LIMITE_EXCEDIDO` | `429` | Se superó el límite de peticiones por usuario o por IP; incluye cabecera obligatoria `Retry-After`. |
+| `SERVICIO_NO_DISPONIBLE` | `503` | La base de datos PostgreSQL no responde en `/v1/salud/listo`. |
 
 ---
 
@@ -37,7 +55,7 @@ Este documento describe el contrato formal de la API REST expuesta en `/v1`, sus
     { "estado": "ok", "version": "1.0.0", "entorno": "local" }
     ```
 - **`GET /v1/salud/listo`**
-  - Verifica conectividad real con PostgreSQL y Upstash Redis.
+  - Verifica conectividad real con PostgreSQL (`200 OK` o `503 SERVICIO_NO_DISPONIBLE`) e informa el estado de Redis (`conectado`/`ok` o `degradado`).
   - *Respuesta 200 OK*:
     ```json
     { "estado": "listo", "bd": "conectado", "cache": "conectado" }
@@ -46,8 +64,8 @@ Este documento describe el contrato formal de la API REST expuesta en `/v1`, sus
 ### 2.2 Catálogo de Productos y Búsqueda
 - **`GET /v1/categorias`**
   - Lista las 10 categorías de la canasta familiar ordenadas por `orden`.
-- **`GET /v1/productos?categoria_id=1&q=arroz&limite=24&pagina=1`**
-  - Búsqueda difusa tolerante a errores ortográficos y tildes (`pg_trgm` + `unaccent`).
+- **`GET /v1/productos?categoria_id=1&q=arroz&limite=24&cursor=`**
+  - Búsqueda difusa y listado paginado por `cursor` tolerante a errores ortográficos, tildes y fracciones (`pg_trgm` + `unaccent` + `unidades.parsear_cantidad`).
 - **`GET /v1/productos/{id}`**
   - Detalle de un producto con sus presentaciones activas normalizadas.
 
@@ -118,11 +136,15 @@ Este documento describe el contrato formal de la API REST expuesta en `/v1`, sus
     }
     ```
 
-### 2.4 Establecimientos y Solicitud Pública de Corrección
-- **`GET /v1/establecimientos?municipio=Armenia&lat=4.5350&lng=-75.6750&radio_km=5.0`**
+### 2.4 Establecimientos, Solicitud Pública de Corrección y Legal
+- **`GET /v1/establecimientos?q=&tipo=&municipio=Armenia&lat=4.5350&lng=-75.6750&radio_km=5.0`**
+  - Filtra por cercanía con PostGIS y calcula `distancia_m` en memoria sin persistir ni registrar `lat`/`lng` en logs.
 - **`GET /v1/establecimientos/{id}`**
+  - Ficha del establecimiento, sus precios vigentes paginados y sus promociones activas.
 - **`POST /v1/establecimientos/{id}/solicitudes-correccion`**
-  - Formulario con *honeypot* para reportar datos erróneos del negocio. Genera un caso de moderación `solicitud_correccion`.
+  - Formulario público con *honeypot* (`{ "correo": "...", "mensaje": "...", "sitio_web_trampa": "" }`) para reportar datos erróneos del negocio. Genera un caso de moderación `solicitud_correccion`.
+- **`GET /v1/legal/politica-tratamiento`**
+  - Devuelve la versión vigente de la política de tratamiento de datos personales (Ley 1581 de 2012), su texto íntegro y el correo oficial de contacto (`CONTACTO_LEGAL_EMAIL`).
 
 ---
 
@@ -130,11 +152,11 @@ Este documento describe el contrato formal de la API REST expuesta en `/v1`, sus
 
 ### 3.1 Gestión de Cuenta y Ley 1581
 - **`POST /v1/mi-cuenta/autorizacion`**
-  - Registra el consentimiento informado. Exigido antes de cualquier reporte (`403 AUTORIZACION_REQUERIDA` si falta).
-  - *Cuerpo*: `{ "version_politica": "1.0", "alias": "juan_armenia" }`
-- **`GET /v1/mi-cuenta`**: Consulta datos personales del perfil.
+  - Crea `perfil` y registra el consentimiento previo, expreso e informado en `autorizacion_datos`. Exigido antes de cualquier reporte (`403 AUTORIZACION_REQUERIDA` si falta).
+  - *Cuerpo*: `{ "alias": "juan_armenia", "version_politica": "1.0", "acepta": true }`
+- **`GET /v1/mi-cuenta`**: Consulta datos personales del perfil, reputación, contadores ($A$, $M$) y fecha de autorización (Ley 1581 art. 8).
 - **`PATCH /v1/mi-cuenta`**: Modifica alias `{ "alias": "nuevo_alias" }`.
-- **`DELETE /v1/mi-cuenta`**: Derecho de supresión. Anonimiza reportes (`reportante_id = null`), borra fotos del bucket, asigna alias `eliminado_<hash>` y borra usuario en Supabase Auth.
+- **`DELETE /v1/mi-cuenta`**: Derecho de supresión (`FR-007`). Anonimiza reportes (`reportante_id = null`, `foto_prueba_path = null`), borra fotos del bucket, asigna alias `'eliminado_' || left(id::text, 8)`, cambia `estado = 'eliminada'`, marca `revocada_en = now()` en `autorizacion_datos` y borra la credencial en Supabase Auth.
 
 ### 3.2 Registro de Precios y Evidencias
 - **`POST /v1/fotos/url-subida`**
@@ -198,16 +220,18 @@ Este documento describe el contrato formal de la API REST expuesta en `/v1`, sus
 
 ---
 
-## 6. Matriz de Control de Acceso por Roles (RBAC)
+## 6. Matriz de Control de Acceso por Roles (RBAC — Verificada en `T-51`)
 
-| Grupo de Endpoints | Anónimo (sin JWT) | Reportante (sin autorizar Ley 1581) | Reportante (`activa`) | Moderador (`activa`) | Cuenta `suspendida` o `bloqueada` |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| `GET /v1/salud`, `/productos/*`, `/establecimientos/*` | `200` | `200` | `200` | `200` | `200` |
-| `POST /v1/establecimientos/{id}/solicitudes-correccion` | `201` | `201` | `201` | `201` | `201` |
-| `POST /v1/mi-cuenta/autorizacion` | `401` | `201` | `200` | `200` | `403 CUENTA_SUSPENDIDA` |
-| `GET /v1/mi-cuenta`, `PATCH /v1/mi-cuenta` | `401` | `403 AUTORIZACION_REQUERIDA` | `200` | `200` | `403 CUENTA_SUSPENDIDA` |
-| `DELETE /v1/mi-cuenta` | `401` | `403 AUTORIZACION_REQUERIDA` | `200` | `200` | `200` (Derecho de Ley) |
-| `POST /v1/reportes`, `/fotos/url-subida`, `/sugerencias-*` | `401` | `403 AUTORIZACION_REQUERIDA` | `201` | `201` | `403 CUENTA_SUSPENDIDA` |
-| `GET /v1/mis-reportes` | `401` | `403 AUTORIZACION_REQUERIDA` | `200` | `200` | `403 CUENTA_SUSPENDIDA` |
-| `/v1/moderacion/*` | `401` | `403 PROHIBIDO` | `403 PROHIBIDO` | `200 / 201` | `403 CUENTA_SUSPENDIDA` |
-| `POST /internal/jobs/{nombre}` | `401` (sin `X-Job-Token`) | `401` | `401` | `401` | `200` (solo con token válido) |
+| Grupo de Endpoints | Anónimo (sin JWT) | Reportante (sin autorizar Ley 1581) | Reportante (`activa`) | Comercio (`activa` y `verificado`) | Moderador (`activa`) | Cuenta `suspendida` o `bloqueada` |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| `GET /v1/salud*`, `/categorias`, `/productos/*`, `/establecimientos/*`, `/legal/*` | `200` | `200` | `200` | `200` | `200` | `200` |
+| `POST /v1/establecimientos/{id}/solicitudes-correccion` | `201` | `201` | `201` | `201` | `201` | `201` |
+| `POST /v1/mi-cuenta/autorizacion` | `401` | `201` | `200` | `200` | `200` | `403 CUENTA_SUSPENDIDA` |
+| `GET /v1/mi-cuenta`, `PATCH /v1/mi-cuenta` | `401` | `403 AUTORIZACION_REQUERIDA` | `200` | `200` | `200` | `403 CUENTA_SUSPENDIDA` (`GET` `200`) |
+| `DELETE /v1/mi-cuenta` | `401` | `403 AUTORIZACION_REQUERIDA` | `200` | `200` | `200` | `200` (Derecho de Ley) |
+| `POST /v1/reportes`, `/fotos/url-subida`, `/sugerencias-presentacion` | `401` | `403 AUTORIZACION_REQUERIDA` | `201` | `201` | `201` | `403 CUENTA_SUSPENDIDA` |
+| `GET /v1/mis-reportes` | `401` | `403 AUTORIZACION_REQUERIDA` | `200` | `200` | `200` | `403 CUENTA_SUSPENDIDA` |
+| `POST /v1/comercio/reclamos` *(Etapa 2)* | `401` | `403 AUTORIZACION_REQUERIDA` | `201` | `201` | `201` | `403 CUENTA_SUSPENDIDA` |
+| `/v1/comercio/establecimientos/{id}/*` *(Etapa 2)* | `401` | `403 PROHIBIDO` | `403 PROHIBIDO` | `200 / 201` (si es dueño, sino `404`) | `403 PROHIBIDO` | `403 CUENTA_SUSPENDIDA` |
+| `/v1/moderacion/*` | `401` | `403 PROHIBIDO` | `403 PROHIBIDO` | `403 PROHIBIDO` | `200 / 201` | `403 CUENTA_SUSPENDIDA` |
+| `POST /internal/jobs/{nombre}` | `401` (sin `X-Job-Token`) | `401` | `401` | `401` | `401` | `200` (solo con `X-Job-Token` válido) |

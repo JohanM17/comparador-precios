@@ -26,23 +26,23 @@ Este documento contiene la lista secuencial de 47 tareas atómicas de ingenierí
   - **Archivos**: `.specify/`, `.agents/`, `specs/001-nucleo-comparador/`, `PROYECTO.md`, `docs/PLAN_CONSTRUCCION.md`, `AGENTS.md`, `CLAUDE.md`
   - **Hecho cuando…**: Existen los artefactos en `specs/001-nucleo-comparador/`, `git status` está limpio y `main` tiene Ruleset activo en GitHub.
 
-- [ ] **T-01** | **Configurar entorno local reproducible sin Docker**
+- [ ] **T-01** | **Configurar entorno local reproducible sin Docker (con soporte IPv4 Session/Transaction Pooler)**
   - **Depende de**: `T-00`
   - **Resp.**: **D**
   - **Archivos**: `.env.example`, `scripts/dev.cmd`, `scripts/verificar_conexion.py`
-  - **Hecho cuando…**: `uv venv` crea el entorno virtual, `uv pip install` instala dependencias de `pyproject.toml`, `.env.example` contiene las variables directas de Supabase y Upstash, y `python scripts/verificar_conexion.py` valida conexión a Supabase y Upstash con éxito.
+  - **Hecho cuando…**: `uv venv` crea el entorno virtual, `uv pip install` instala dependencias de `pyproject.toml`, `.env.example` contiene las variables directas de Supabase (incluyendo soporte IPv4 en Windows vía Session Pooler puerto `5432` en `pooler.supabase.com` para `MIGRATIONS_DATABASE_URL` y Transaction Pooler puerto `6543` con `statement_cache_size=0` o Session Pooler para `DATABASE_URL`) y Upstash, y `python scripts/verificar_conexion.py` valida conexión a Supabase y Upstash con éxito.
 
-- [ ] **T-02** | **Crear migración `0001_fundaciones_seguridad.sql`, script `migrar.py` y prueba de seguridad SQL**
+- [ ] **T-02** | **Crear migración `0001_fundaciones_seguridad.sql` (extensiones, rol `app_backend` con `LOGIN` y RLS), script `migrar.py` y prueba de seguridad SQL**
   - **Depende de**: `T-01`
   - **Resp.**: **D**
   - **Archivos**: `supabase/migrations/0001_fundaciones_seguridad.sql`, `scripts/migrar.py`, `backend/tests/integracion/test_seguridad_bd.py`
-  - **Hecho cuando…**: La migración aplica con `MIGRATIONS_DATABASE_URL`, la app conecta como `app_backend` y la prueba confirma que `anon` y `authenticated` no leen tablas.
+  - **Hecho cuando…**: La migración crea las extensiones (`postgis`, `pg_trgm`, `unaccent`, `pgcrypto`) y el rol `app_backend` con `LOGIN` y privilegios mínimos, aplica con `MIGRATIONS_DATABASE_URL`, la app conecta como `app_backend` y la prueba confirma que `anon` y `authenticated` tienen revocado el acceso a las tablas.
 
-- [ ] **T-03** | **Implementar esqueleto de FastAPI**
+- [ ] **T-03** | **Implementar esqueleto de FastAPI (`config.py`, `bd.py`, RFC 9457, `reloj.py`, `seguridad.py`, `/v1/salud*` y exportación OpenAPI)**
   - **Depende de**: `T-02`
   - **Resp.**: **A**
-  - **Archivos**: `backend/pyproject.toml`, `backend/Dockerfile`, `backend/app/main.py`, `backend/app/compartido/*`, `scripts/exportar_openapi.py`, `backend/tests/integracion/test_salud_y_auth.py`
-  - **Hecho cuando…**: `pytest` pasa `/v1/salud`, `/v1/salud/listo` y rechazos `401`/`403`; `Dockerfile` queda listo para el despliegue en T-50 y se exporta `docs/api/openapi.json`.
+  - **Archivos**: `backend/pyproject.toml`, `backend/Dockerfile`, `backend/app/main.py`, `backend/app/config.py`, `backend/app/bd.py`, `backend/app/compartido/*`, `scripts/exportar_openapi.py`, `backend/tests/integracion/test_salud_y_auth.py`
+  - **Hecho cuando…**: `pytest` pasa `/v1/salud`, `/v1/salud/listo` y rechazos `401`/`403` leyendo rol desde `perfil` (`FR-005`); `bd.py` soporta `statement_cache_size=0` en `asyncpg` cuando se usa el puerto `6543`; `Dockerfile` queda reservado para el despliegue en T-50 y se exporta `docs/api/openapi.json`.
 
 - [ ] **T-04** | **Implementar esqueleto de Next.js**
   - **Depende de**: `T-03`
@@ -90,11 +90,11 @@ Este documento contiene la lista secuencial de 47 tareas atómicas de ingenierí
   - **Archivos**: `backend/app/dominio/unidades.py`, `backend/tests/unitarias/test_unidades.py`
   - **Hecho cuando…**: Pasan todos los casos de la tabla de la Sección 5.1, la propiedad con `hypothesis` y cobertura del 100 % en `unidades.py`.
 
-- [ ] **T-11** | **Aplicar migración `0002_catalogo_establecimientos_parametros.sql`**
+- [ ] **T-11** | **Aplicar migración `0002_catalogo_establecimientos_parametros.sql` (10 categorías y 43 parámetros en `config_parametro`)**
   - **Depende de**: `T-02`
   - **Resp.**: **D**
   - **Archivos**: `supabase/migrations/0002_catalogo_establecimientos_parametros.sql`, `backend/tests/integracion/test_migracion_0002.py`
-  - **Hecho cuando…**: La migración aplica en limpio y la prueba automática verifica que existen exactamente las 43 claves de la Sección 2.4 en `config_parametro`.
+  - **Hecho cuando…**: La migración aplica en limpio creando `categoria`, `producto`, `presentacion`, `alias_producto`, `establecimiento` y `config_parametro` con RLS activa, y la prueba automática verifica que existen las 10 categorías y exactamente las **43 claves** de la Sección 2.4 en `config_parametro`.
 
 - [ ] **T-12** | **Crear archivos CSV en `supabase/seed/` y script idempotente `scripts/semilla.py`**
   - **Depende de**: `T-10`, `T-11`
@@ -346,3 +346,37 @@ flowchart TD
 - **Completadas**: 1 (`T-00`).
 - **Pendientes**: 46 (`T-01` a `T-55`).
 - **Siguiente tarea ejecutable**: `T-01` (Configurar entorno local reproducible sin Docker con `uv`, `.env.example`, `scripts/dev.cmd` y `scripts/verificar_conexion.py`).
+
+---
+
+## Matriz de Trazabilidad de Requisitos, Historias y Criterios de Éxito (`speckit-analyze`)
+
+| Requisito / Criterio | Descripción Resumida | Historia | Tareas de Implementación y Verificación |
+| :--- | :--- | :---: | :--- |
+| **FR-001** | Unidad base única (`g`, `ml`, `unidad`) y `cantidad_base` inmutable | `US-1`, `US-5` | `T-10`, `T-11`, `T-12`, `T-15` |
+| **FR-002** | Conversión exacta `Decimal` y rechazo `422 UNIDADES_INCOMPATIBLES` | `US-1`, `US-5` | `T-10`, `T-15`, `T-16` |
+| **FR-003** | Búsqueda difusa sin tildes (`unaccent`, `pg_trgm`) y fracciones | `US-1`, `US-5` | `T-10`, `T-11`, `T-13`, `T-40` |
+| **FR-004** | Autorización previa Ley 1581 obligatoria (`403 AUTORIZACION_REQUERIDA`) | `US-2`, `US-4` | `T-21`, `T-22`, `T-44`, `T-51` |
+| **FR-005** | Rol leído exclusivamente desde tabla `perfil` (nunca `user_metadata`) | `US-3`, `US-4` | `T-03`, `T-22`, `T-51` |
+| **FR-006** | Consultar, editar alias y suprimir cuenta (`/v1/mi-cuenta`) | `US-4` | `T-22`, `T-45`, `T-46` |
+| **FR-007** | Anonimización total al borrar cuenta (`reportante_id = null`, fotos, alias) | `US-4` | `T-21`, `T-22`, `T-45` |
+| **FR-008** | `Idempotency-Key` obligatoria en `POST /v1/reportes` y Flujo `F4` offline | `US-2` | `T-21`, `T-23`, `T-43` |
+| **FR-009** | Validación de `precio_cop` entero en `[precio.min_cop, precio.max_cop]` | `US-2`, `US-3` | `T-11`, `T-23`, `T-36`, `T-43` |
+| **FR-010** | Validación temporal de `observado_en` (futuro $\le 60$ s, pasado $\le 24$ h) | `US-2`, `US-3` | `T-11`, `T-23` |
+| **FR-011** | Limpieza total de metadatos EXIF (GPS) con Pillow y WebP $\le 300$ KB | `US-2`, `US-4` | `T-27`, `T-43` |
+| **FR-012** | Inmutabilidad *append-only* en `reporte_precio` y `auditoria` (`app_backend`) | `US-2`, `US-3` | `T-02`, `T-21` |
+| **FR-013** | Selección jerárquica de referencia en 3 niveles + respaldo `sin_referencia` | `US-3` | `T-11`, `T-30`, `T-32`, `T-35` |
+| **FR-014** | Evaluación de anomalía con *z-score* modificado ($n \ge 5$) o % ($n \in \{3,4\}$) | `US-3` | `T-11`, `T-30`, `T-32`, `T-35` |
+| **FR-015** | `huella_red` con `HMAC-SHA256` rotativo diario y purga a los 30 días | `US-3`, `US-4` | `T-32`, `T-34` |
+| **FR-016** | Detección de `rafaga` y reevaluación hacia atrás en ventana de 30 min | `US-3` | `T-31`, `T-32`, `T-35` |
+| **FR-017** | Confidencialidad de señales internas (`estado_visible`: `recibido`/`en_revision`) | `US-2`, `US-3` | `T-23`, `T-32`, `T-43`, `T-45` |
+| **FR-018** | Recálculo transaccional de `precio_vigente` e invalidación de caché ($\le 60$ s) | `US-1`, `US-2` | `T-20`, `T-24`, `T-25`, `T-54` |
+| **FR-019** | Ordenamiento neutral en 2 bloques por `precio_por_base` (`EC-06`) | `US-1` | `T-20`, `T-26`, `T-41` |
+| **FR-020** | Coordenadas `lat`/`lng` procesadas solo en RAM y excluidas de BD y logs | `US-1`, `US-4` | `T-03`, `T-14`, `T-26` |
+| **FR-021** | Registro inmutable en `auditoria` por moderación, sanciones y parámetros | `US-3`, `US-5` | `T-15`, `T-16`, `T-21`, `T-33`, `T-36`, `T-45` |
+| **SC-001 (`EC-01`)** | Registro en $\le 15$ s en $\ge 80\%$ de intentos con cola offline Flujo `F4` | `US-2` | `T-07`, `T-23`, `T-27`, `T-43`, `T-47`, `T-48` |
+| **SC-002 (`EC-02`)** | Actualización y reflejo de precio vigente en $\le 60$ s (100/100 pruebas) | `US-1`, `US-2` | `T-24`, `T-25`, `T-26`, `T-54` |
+| **SC-003 (`EC-03`)** | Detección $\ge 90\%$ individual, $\ge 70\%$ grupal y $\le 10\%$ falsas alarmas | `US-3` | `T-30`, `T-31`, `T-32`, `T-35` |
+| **SC-004 (`EC-04`)** | 500 usuarios concurrentes con $p95 \le 2.0$ s y tasa de error $< 1\%$ | `US-1` | `T-25`, `T-26`, `T-50`, `T-53` |
+| **SC-005 (`EC-05`)** | 3 puntos de extensión limpios para Etapa 2 con 0 rediseños del núcleo | `US-1` | `T-05`, `T-11`, `T-24`, `T-26`, `T-55` |
+| **SC-006 (`EC-06`)** | Neutralidad comercial 100%, `promociones: []` separado e `import-linter` | `US-1` | `T-03`, `T-06`, `T-20`, `T-26`, `T-41`, `T-52` |

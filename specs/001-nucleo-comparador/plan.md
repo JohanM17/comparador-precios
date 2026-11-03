@@ -6,7 +6,7 @@
 
 ## Summary
 
-Implementación integral de la **Etapa 1 (Núcleo)** de la Plataforma Colaborativa de Comparación de Precios para Armenia y Quindío. El sistema permite a consumidores consultar y comparar precios normalizados por unidad de medida base (`kg`, `l`, `unidad`) con sellos de confiabilidad y ordenamiento neutral en dos bloques; a reportantes capturar precios frente a la góndola en $\le 15$ segundos con soporte de cola offline (`IndexedDB`) e idempotencia estricta; y a moderadores auditar reportes anómalos o ráfagas coordinadas filtradas mediante evaluación determinista jerárquica. La arquitectura es un monolito modular con backend en Python (FastAPI + uv), persistencia directa en Supabase (PostgreSQL + PostGIS, Auth, Storage) y caché de dos niveles (L1 RAM + L2 Upstash Redis), frontend PWA en Next.js (App Router), operando bajo presupuesto de costo cero sin requerir Docker local.
+Implementación integral de la **Etapa 1 (Núcleo)** de la Plataforma Colaborativa de Comparación de Precios para Armenia y Quindío. El sistema permite a consumidores consultar y comparar precios normalizados por unidad de medida base (`g`, `ml`, `unidad`, visualizados en pantalla como `kg`, `l`, `unidad`) con sellos de confiabilidad y ordenamiento neutral en dos bloques; a reportantes capturar precios frente a la góndola en $\le 15$ segundos con soporte de cola offline (`IndexedDB`, Flujo `F4`: primero foto a URL firmada y luego reporte) e idempotencia estricta; y a moderadores auditar reportes anómalos o ráfagas coordinadas filtradas mediante evaluación determinista jerárquica en 3 niveles más respaldo `sin_referencia`. La arquitectura es un monolito modular con backend en Python (FastAPI + `uv`), persistencia directa en Supabase (PostgreSQL + PostGIS con rol `app_backend` con `LOGIN`, Auth, Storage) y caché de dos niveles (L1 RAM + L2 Upstash Redis), frontend PWA en Next.js (App Router), operando bajo presupuesto de costo cero sin requerir Docker local.
 
 ## Technical Context
 
@@ -17,7 +17,10 @@ Implementación integral de la **Etapa 1 (Núcleo)** de la Plataforma Colaborati
 - *Frontend*: `next>=14.2.0`, `react>=18.3.0`, `tailwindcss>=3.4.0`, `shadcn/ui`, `lucide-react`, `idb` (cola IndexedDB en cliente).
 
 **Storage**:
-- Supabase PostgreSQL 16 + PostGIS 3.4 (conexión directa con pool y rol de privilegios mínimos `app_backend`, RLS activa sin políticas anónimas).
+- Supabase PostgreSQL 16 + PostGIS 3.4 (conexión con pool y rol de privilegios mínimos `app_backend` con `LOGIN`, RLS activa sin políticas anónimas y los 43 parámetros de negocio en `config_parametro`).
+  - **Soporte de conectividad desde redes IPv4 en Windows hacia Supabase (Supavisor Pooler)**:
+    - Para **`MIGRATIONS_DATABASE_URL`** (ejecución de migraciones SQL y semilla con usuario `postgres`): se soporta el **Session Pooler (puerto `5432` en `pooler.supabase.com`)** (`postgresql+asyncpg://postgres.<project_ref>:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:5432/postgres`), además de la conexión directa en redes con IPv6.
+    - Para **`DATABASE_URL`** (operación normal de FastAPI con rol `app_backend`): se soporta tanto el **Transaction Pooler (puerto `6543` en `pooler.supabase.com` configurando `connect_args={"statement_cache_size": 0}` en `asyncpg`)** (`postgresql+asyncpg://app_backend.<project_ref>:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres`) como el **Session Pooler (puerto `5432` en `pooler.supabase.com`)**.
 - Upstash Redis Free (L2 para caché de comparación con TTL de 60 s e invalidación transaccional inmediata `DEL cmp:{producto_id}`; mock en memoria para pruebas unitarias y de carga local).
 - Supabase Storage (Bucket privado `pruebas` con URLs firmadas de corta duración y compresión WebP sin EXIF).
 
@@ -26,7 +29,7 @@ Implementación integral de la **Etapa 1 (Núcleo)** de la Plataforma Colaborati
 - *Frontend*: `playwright>=1.47.0`, `@axe-core/playwright>=4.9.0` (auditoría automática WCAG 2.2 AA).
 
 **Target Platform**:
-- *Desarrollo Local*: Windows 11 nativo con `uv` y CMD/PowerShell, conectándose directamente a Supabase y Upstash sin Docker Desktop.
+- *Desarrollo Local*: Windows 11 nativo con `uv` y CMD/PowerShell, conectándose directamente a Supabase (vía Session Pooler `5432` / Transaction Pooler `6543` en redes IPv4) y Upstash sin Docker Desktop.
 - *Producción*: Backend containerizado multi-etapa en Railway / Render Free / Fly.io (T-50); Frontend en Vercel Hobby; Tareas programadas en GitHub Actions.
 
 **Project Type**: Monolito modular (repositorio unificado `backend/`, `frontend/`, `supabase/`, `docs/`, `scripts/`, `specs/`).
@@ -128,26 +131,42 @@ specs/001-nucleo-comparador/
 ├── frontend/
 │   ├── src/
 │   │   ├── app/                     # Next.js App Router (S1 a S7 + /offline)
-│   │   ├── components/              # Los 15 componentes reutilizables especificados
+│   │   ├── components/              # Los 15 componentes reutilizables especificados (Sección 7.3)
 │   │   └── lib/
 │   │       ├── api/                 # Cliente tipado generado desde docs/api/openapi.json
 │   │       ├── auth/                # Cliente de sesión Supabase Auth
-│   │       ├── offline/             # Cola IndexedDB (cola_reportes) y sincronizador F4
+│   │       ├── offline/             # Cola IndexedDB (cola_reportes) y sincronizador Flujo F4
 │   │       └── imagen/              # Compresión WebP <= 300 KB sin EXIF en <canvas>
+│   ├── public/                      # manifest.webmanifest e íconos PWA
+│   ├── tests/
+│   │   └── e2e/                     # Pruebas Playwright + axe-core (accesibilidad y flujos E2E)
 │   ├── package.json
 │   └── tsconfig.json
 ├── supabase/
-│   ├── migrations/                  # 0001_..., 0002_..., 0003_... (Núcleo)
-│   └── seed/                        # Archivos CSV para carga inicial
+│   ├── migrations/                  # 0001_fundaciones_seguridad.sql, 0002_..., 0003_... (Núcleo)
+│   └── seed/                        # Archivos CSV para carga inicial (~150 productos, ~30 tiendas)
+├── docs/
+│   ├── PLAN_CONSTRUCCION.md         # Especificación técnica maestra
+│   ├── PREGUNTAS_ABIERTAS.md        # Registro formal de preguntas abiertas (PA-01 a PA-04)
+│   ├── DECLARACION_USO_IA.md        # Declaración académica de asistencia de IA
+│   ├── adr/                         # ADR-001 a ADR-018 en formato MADR
+│   ├── c4/                          # Diagramas Mermaid C1, C2 y C3
+│   ├── api/openapi.json             # Esquema OpenAPI v1 exportado automáticamente
+│   └── calidad/                     # trazabilidad.csv, entregables ISO e informes EC-01 a EC-06
 ├── scripts/
 │   ├── dev.cmd                      # Automatización local Windows CMD (entorno uv)
-│   ├── verificar_conexion.py        # Verificación directa de Supabase y Upstash
+│   ├── verificar_conexion.py        # Verificación directa de Supabase (5432/6543) y Upstash
 │   ├── migrar.py                    # Aplicador de migraciones SQL con MIGRATIONS_DATABASE_URL
 │   ├── semilla.py                   # Carga idempotente de catálogos y tiendas
-│   └── exportar_openapi.py          # Generador de docs/api/openapi.json sin servidor
-└── infra/
-    ├── docker-compose.yml           # Referencia opcional (no requerido en desarrollo local)
-    └── k6/ec04_carga.js             # Script de prueba de carga 500 VUs
+│   ├── exportar_openapi.py          # Generador de docs/api/openapi.json sin servidor
+│   └── evaluar_ec03.py              # Simulación y matriz de confusión de EC-03
+├── infra/
+│   ├── docker-compose.yml           # Referencia opcional (no requerido en desarrollo local)
+│   └── k6/ec04_carga.js             # Script de prueba de carga 500 VUs (EC-04)
+└── .github/
+    └── workflows/
+        ├── ci.yml                   # Verificación continua en cada PR y push
+        └── jobs.yml                 # Tareas programadas (ping_bd, reputacion, precio_vigente, huellas)
 ```
 
 **Structure Decision**: Monolito modular con separación tajante entre dominio puro, puertos e infraestructura en backend, desacoplado del frontend Next.js a través del contrato OpenAPI exportado automáticamente.
