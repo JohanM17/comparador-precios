@@ -437,43 +437,72 @@ volumes:
 
 **`.env.example`:**
 ```ini
-# Entorno: local | staging | production
+# =================================================
+# Entorno y Servidor Backend (FastAPI)
+# =================================================
 ENTORNO=local
-
-# Conexión directa a Supabase PostgreSQL para FastAPI (rol de privilegios mínimos app_backend)
-# Configurada en Supabase: Settings -> Database -> Connection string (URI)
-DATABASE_URL=postgresql+asyncpg://app_backend:[PASSWORD]@[HOST].supabase.co:5432/postgres
-
-# Conexión exclusiva para aplicar migraciones y semilla en Supabase (usuario postgres / directo)
-# Configurada en Supabase: Settings -> Database -> Connection string (Direct connection, puerto 5432)
-MIGRATIONS_DATABASE_URL=postgresql+asyncpg://postgres:[PASSWORD]@[HOST].supabase.co:5432/postgres
-
-# Caché Redis: Upstash Redis (o mock en memoria para pruebas unitarias/carga sin gastar cuota)
-# Conexión TLS de Upstash: rediss://default:[TOKEN]@[ENDPOINT].upstash.io:6379
-REDIS_URL=rediss://default:token_upstash@endpoint.upstash.io:6379
-
-# Supabase Auth y Storage
-SUPABASE_URL=[https://proyecto-ejemplo.supabase.co](https://proyecto-ejemplo.supabase.co)
-SUPABASE_ANON_KEY=reemplazar_en_entorno_real
-SUPABASE_SERVICE_ROLE_KEY=reemplazar_en_entorno_real
-# Si SUPABASE_JWKS_URL está definida se valida con clave asimétrica; si está vacía usa SUPABASE_JWT_SECRET
-SUPABASE_JWKS_URL=
-SUPABASE_JWT_SECRET=secreto_jwt_desarrollo_local_minimo_32_bytes
-
-# Seguridad operativa y privacidad
-HUELLA_SECRETO_MAESTRO=secreto_maestro_hmac_desarrollo_local_32b
-JOB_TOKEN=token_interno_jobs_desarrollo_local
+FASTAPI_HOST=127.0.0.1
+FASTAPI_PORT=8000
 CORS_ORIGINS=["http://localhost:3000"]
 
-# Integraciones externas y contacto legal (PA-01)
+# =================================================
+# Supabase (API, Auth y Storage)
+# =================================================
+# SUPABASE_URL:              https://[PROJECT_REF].supabase.co
+# SUPABASE_ANON_KEY:         Publishable key (o clave anon pública)
+# SUPABASE_SERVICE_ROLE_KEY: Secret key (o clave service_role, NUNCA exponer al cliente)
+# SUPABASE_JWT_SECRET:       Opcional: solo para proyectos legados con HMAC.
+#                            En proyectos modernos con JWT Signing Keys (JWKS asimétrico),
+#                            dejar vacío; FastAPI valida contra el endpoint JWKS público automáticamente.
+
+SUPABASE_URL=https://tu-proyecto.supabase.co
+SUPABASE_ANON_KEY=tu-publishable-key-o-anon-key
+SUPABASE_SERVICE_ROLE_KEY=tu-secret-key-o-service-role-key
+SUPABASE_JWT_SECRET=
+SUPABASE_JWKS_URL=
+
+# =================================================
+# Base de datos (PostgreSQL con asyncpg y Pooler)
+# =================================================
+# En Windows / redes IPv4 se utiliza el Session Pooler (puerto 5432) o Transaction Pooler (puerto 6543).
+# Formato: postgresql+asyncpg://[USUARIO].[PROJECT_REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:[PUERTO]/postgres
+#
+# DATABASE_URL:             Conexión cotidiana de la API (en T-02 con rol app_backend; inicialmente con postgres)
+# MIGRATIONS_DATABASE_URL:  Conexión exclusiva con rol postgres para DDL (migraciones y semilla en puerto 5432)
+
+DATABASE_URL=postgresql+asyncpg://postgres.tu-ref:tu-password@aws-0-tu-region.pooler.supabase.com:5432/postgres
+MIGRATIONS_DATABASE_URL=postgresql+asyncpg://postgres.tu-ref:tu-password@aws-0-tu-region.pooler.supabase.com:5432/postgres
+
+# =================================================
+# Caché (Upstash Redis)
+# =================================================
+# Instancia serverless Upstash con conexión TLS
+REDIS_URL=rediss://default:tu-password@tu-endpoint.upstash.io:6379
+
+# =================================================
+# Seguridad Operativa y Privacidad (Ley 1581)
+# =================================================
+HUELLA_SECRETO_MAESTRO=secreto_maestro_hmac_desarrollo_local_32b
+JOB_TOKEN=token_interno_jobs_desarrollo_local
+
+# =================================================
+# Integraciones Externas y Contacto Legal (PA-01)
+# =================================================
 CONTACTO_LEGAL_EMAIL=por-confirmar-equipo@cue.edu.co
 OFF_USER_AGENT=ComparadorPreciosArmenia/1.0 (por-confirmar-equipo@cue.edu.co)
-GEMINI_API_KEY=
 
-# Variables públicas del Frontend Next.js
+# =================================================
+# IA Generativa (Google Gemini - Fase 2)
+# =================================================
+# GEMINI_API_KEY: Clave de API de Google AI Studio (https://aistudio.google.com/app/apikey)
+GEMINI_API_KEY=tu-gemini-api-key
+
+# =================================================
+# Frontend (Next.js - Variables Públicas en Navegador)
+# =================================================
 NEXT_PUBLIC_API_URL=http://localhost:8000
-NEXT_PUBLIC_SUPABASE_URL=[https://proyecto-ejemplo.supabase.co](https://proyecto-ejemplo.supabase.co)
-NEXT_PUBLIC_SUPABASE_ANON_KEY=reemplazar_en_entorno_real
+NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=tu-publishable-key-o-anon-key
 ```
 
 ### 3.4 Contenido de `backend/Dockerfile` (Exclusivo para Despliegue en la Nube)
