@@ -1,0 +1,87 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "comparador-precios-backend"
+version = "1.0.0"
+description = "Backend API para la plataforma colaborativa de comparacion de precios"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115.0,<1.0.0",
+  "uvicorn[standard]>=0.30.0,<1.0.0",
+  "pydantic>=2.9.0,<3.0.0",
+  "pydantic-settings>=2.5.0,<3.0.0",
+  "sqlalchemy[asyncio]>=2.0.35,<3.0.0",
+  "asyncpg>=0.29.0,<1.0.0",
+  "redis>=5.1.0,<6.0.0",
+  "httpx>=0.27.0,<1.0.0",
+  "pyjwt[crypto]>=2.9.0,<3.0.0",
+  "pillow>=10.4.0,<12.0.0",
+  "cachetools>=5.5.0,<6.0.0"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3.0",
+  "pytest-asyncio>=0.24.0",
+  "pytest-cov>=5.0.0",
+  "hypothesis>=6.112.0",
+  "schemathesis>=3.36.0",
+  "ruff>=0.6.0",
+  "mypy>=1.11.0",
+  "import-linter>=2.1",
+  "types-cachetools>=5.5.0"
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+packages = ["app"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "S", "UP"]
+ignore = ["S101"]
+
+[tool.importlinter]
+root_package = "app"
+
+[[tool.importlinter.contracts]]
+name = "Dominio es puro y no importa infraestructura ni frameworks"
+type = "forbidden"
+source_modules = ["app.dominio"]
+forbidden_modules = [
+  "app.modulos",
+  "app.adaptadores",
+  "app.puertos",
+  "app.bd",
+  "fastapi",
+  "sqlalchemy",
+  "redis",
+  "httpx"
+]
+
+[[tool.importlinter.contracts]]
+name = "Precios nunca importa el modulo comercial (EC-06)"
+type = "forbidden"
+source_modules = ["app.modulos.precios", "app.dominio"]
+forbidden_modules = ["app.modulos.comercial"]
+
+[[tool.importlinter.contracts]]
+name = "Modulos no importan adaptadores concretos directamente"
+type = "forbidden"
+source_modules = ["app.modulos"]
+forbidden_modules = ["app.adaptadores"]
+

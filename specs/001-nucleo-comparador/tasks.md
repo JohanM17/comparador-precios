@@ -26,7 +26,7 @@ Este documento contiene la lista secuencial de 47 tareas atómicas de ingenierí
   - **Archivos**: `.specify/`, `.agents/`, `specs/001-nucleo-comparador/`, `PROYECTO.md`, `docs/PLAN_CONSTRUCCION.md`, `AGENTS.md`, `CLAUDE.md`
   - **Hecho cuando…**: Existen los artefactos en `specs/001-nucleo-comparador/`, `git status` está limpio y `main` tiene Ruleset activo en GitHub.
 
-- [ ] **T-01** | **Configurar entorno local reproducible sin Docker (con soporte IPv4 Session/Transaction Pooler)**
+- [x] **T-01** | **Configurar entorno local reproducible sin Docker (con soporte IPv4 Session/Transaction Pooler)**
   - **Depende de**: `T-00`
   - **Resp.**: **D**
   - **Archivos**: `.env.example`, `scripts/dev.cmd`, `scripts/verificar_conexion.py`
@@ -343,9 +343,9 @@ flowchart TD
 ## Resumen del Alcance del Núcleo
 
 - **Total de tareas**: 47 tareas (`T-00` a `T-55`).
-- **Completadas**: 1 (`T-00`).
-- **Pendientes**: 46 (`T-01` a `T-55`).
-- **Siguiente tarea ejecutable**: `T-01` (Configurar entorno local reproducible sin Docker con `uv`, `.env.example`, `scripts/dev.cmd` y `scripts/verificar_conexion.py`).
+- **Completadas**: 2 (`T-00`, `T-01`).
+- **Pendientes**: 45 (`T-02` a `T-55`).
+- **Siguiente tarea ejecutable**: `T-02` (Crear migración `0001_fundaciones_seguridad.sql`, script `migrar.py` y prueba de seguridad SQL).
 
 ---
 
