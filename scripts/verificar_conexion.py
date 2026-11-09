@@ -23,8 +23,8 @@ def cargar_env(ruta_env: Path) -> None:
         print(f"[ERROR] No se encontro el archivo .env en: {ruta_env}")
         sys.exit(1)
 
-    with open(ruta_env, "r", encoding="utf-8") as f:
-        for num_linea, linea in enumerate(f, start=1):
+    with open(ruta_env, encoding="utf-8") as f:
+        for linea in f:
             linea = linea.strip()
             if not linea or linea.startswith("#"):
                 continue

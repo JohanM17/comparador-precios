@@ -32,7 +32,7 @@ Este documento contiene la lista secuencial de 47 tareas atómicas de ingenierí
   - **Archivos**: `.env.example`, `scripts/dev.cmd`, `scripts/verificar_conexion.py`
   - **Hecho cuando…**: `uv venv` crea el entorno virtual, `uv pip install` instala dependencias de `pyproject.toml`, `.env.example` contiene las variables directas de Supabase (incluyendo soporte IPv4 en Windows vía Session Pooler puerto `5432` en `pooler.supabase.com` para `MIGRATIONS_DATABASE_URL` y Transaction Pooler puerto `6543` con `statement_cache_size=0` o Session Pooler para `DATABASE_URL`) y Upstash, y `python scripts/verificar_conexion.py` valida conexión a Supabase y Upstash con éxito.
 
-- [ ] **T-02** | **Crear migración `0001_fundaciones_seguridad.sql` (extensiones, rol `app_backend` con `LOGIN` y RLS), script `migrar.py` y prueba de seguridad SQL**
+- [x] **T-02** | **Crear migración `0001_fundaciones_seguridad.sql` (extensiones, rol `app_backend` con `LOGIN` y RLS), script `migrar.py` y prueba de seguridad SQL**
   - **Depende de**: `T-01`
   - **Resp.**: **D**
   - **Archivos**: `supabase/migrations/0001_fundaciones_seguridad.sql`, `scripts/migrar.py`, `backend/tests/integracion/test_seguridad_bd.py`
@@ -343,9 +343,9 @@ flowchart TD
 ## Resumen del Alcance del Núcleo
 
 - **Total de tareas**: 47 tareas (`T-00` a `T-55`).
-- **Completadas**: 2 (`T-00`, `T-01`).
-- **Pendientes**: 45 (`T-02` a `T-55`).
-- **Siguiente tarea ejecutable**: `T-02` (Crear migración `0001_fundaciones_seguridad.sql`, script `migrar.py` y prueba de seguridad SQL).
+- **Completadas**: 3 (`T-00`, `T-01`, `T-02`).
+- **Pendientes**: 44 (`T-03` a `T-55`).
+- **Siguiente tarea ejecutable**: `T-03` (Implementar esqueleto de FastAPI: `config.py`, `bd.py`, RFC 9457, `reloj.py`, `seguridad.py`, `/v1/salud*` y exportación OpenAPI).
 
 ---
 

@@ -594,7 +594,9 @@ begin
 end
 $$;
 
+alter role app_backend bypassrls;
 grant usage on schema public to app_backend;
+grant app_backend to postgres;
 revoke all on all tables in schema public from anon, authenticated;
 alter default privileges in schema public revoke all on tables from anon, authenticated;
 alter default privileges in schema public grant select, insert, update, delete on tables to app_backend;
