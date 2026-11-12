@@ -62,6 +62,7 @@ ignore = ["S101"]
 
 [tool.importlinter]
 root_package = "app"
+include_external_packages = true
 
 [[tool.importlinter.contracts]]
 name = "Dominio es puro y no importa infraestructura ni frameworks"

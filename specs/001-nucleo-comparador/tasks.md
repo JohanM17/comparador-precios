@@ -38,7 +38,7 @@ Este documento contiene la lista secuencial de 47 tareas atómicas de ingenierí
   - **Archivos**: `supabase/migrations/0001_fundaciones_seguridad.sql`, `scripts/migrar.py`, `backend/tests/integracion/test_seguridad_bd.py`
   - **Hecho cuando…**: La migración crea las extensiones (`postgis`, `pg_trgm`, `unaccent`, `pgcrypto`) y el rol `app_backend` con `LOGIN` y privilegios mínimos, aplica con `MIGRATIONS_DATABASE_URL`, la app conecta como `app_backend` y la prueba confirma que `anon` y `authenticated` tienen revocado el acceso a las tablas.
 
-- [ ] **T-03** | **Implementar esqueleto de FastAPI (`config.py`, `bd.py`, RFC 9457, `reloj.py`, `seguridad.py`, `/v1/salud*` y exportación OpenAPI)**
+- [x] **T-03** | **Implementar esqueleto de FastAPI (`config.py`, `bd.py`, RFC 9457, `reloj.py`, `seguridad.py`, `/v1/salud*` y exportación OpenAPI)**
   - **Depende de**: `T-02`
   - **Resp.**: **A**
   - **Archivos**: `backend/pyproject.toml`, `backend/Dockerfile`, `backend/app/main.py`, `backend/app/config.py`, `backend/app/bd.py`, `backend/app/compartido/*`, `scripts/exportar_openapi.py`, `backend/tests/integracion/test_salud_y_auth.py`
@@ -343,9 +343,9 @@ flowchart TD
 ## Resumen del Alcance del Núcleo
 
 - **Total de tareas**: 47 tareas (`T-00` a `T-55`).
-- **Completadas**: 3 (`T-00`, `T-01`, `T-02`).
-- **Pendientes**: 44 (`T-03` a `T-55`).
-- **Siguiente tarea ejecutable**: `T-03` (Implementar esqueleto de FastAPI: `config.py`, `bd.py`, RFC 9457, `reloj.py`, `seguridad.py`, `/v1/salud*` y exportación OpenAPI).
+- **Completadas**: 4 (`T-00`, `T-01`, `T-02`, `T-03`).
+- **Pendientes**: 43 (`T-04` a `T-55`).
+- **Siguiente tarea ejecutable**: `T-04` (Implementar esqueleto de Next.js).
 
 ---
 
