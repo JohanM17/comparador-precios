@@ -84,7 +84,7 @@ Este documento contiene la lista secuencial de 47 tareas atómicas de ingenierí
 
 ### Ola 1: Catálogo Normalizado y Directorio de Establecimientos (`T-10` a `T-16`)
 
-- [ ] **T-10** | **Desarrollar con TDD `backend/app/dominio/unidades.py`**
+- [x] **T-10** | **Desarrollar con TDD `backend/app/dominio/unidades.py`**
   - **Depende de**: `T-03`
   - **Resp.**: **A**
   - **Archivos**: `backend/app/dominio/unidades.py`, `backend/tests/unitarias/test_unidades.py`
