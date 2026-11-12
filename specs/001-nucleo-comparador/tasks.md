@@ -44,7 +44,7 @@ Este documento contiene la lista secuencial de 47 tareas atómicas de ingenierí
   - **Archivos**: `backend/pyproject.toml`, `backend/Dockerfile`, `backend/app/main.py`, `backend/app/config.py`, `backend/app/bd.py`, `backend/app/compartido/*`, `scripts/exportar_openapi.py`, `backend/tests/integracion/test_salud_y_auth.py`
   - **Hecho cuando…**: `pytest` pasa `/v1/salud`, `/v1/salud/listo` y rechazos `401`/`403` leyendo rol desde `perfil` (`FR-005`); `bd.py` soporta `statement_cache_size=0` en `asyncpg` cuando se usa el puerto `6543`; `Dockerfile` queda reservado para el despliegue en T-50 y se exporta `docs/api/openapi.json`.
 
-- [ ] **T-04** | **Implementar esqueleto de Next.js**
+- [x] **T-04** | **Implementar esqueleto de Next.js**
   - **Depende de**: `T-03`
   - **Resp.**: **C**
   - **Archivos**: `frontend/package.json`, `frontend/tsconfig.json`, `frontend/src/app/layout.tsx`, `frontend/src/components/AppShell.tsx`, `frontend/src/lib/api/*`
