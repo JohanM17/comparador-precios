@@ -1,0 +1,100 @@
+name: CI - Verificación de Calidad
+
+on:
+  push:
+    branches:
+      - main
+      - 001-nucleo-comparador
+  pull_request:
+    branches:
+      - main
+      - 001-nucleo-comparador
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-calidad:
+    name: Backend - Linter, Tipado, OpenAPI y Pruebas Unitarias
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: Instalar uv (gestor de paquetes de Python)
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Configurar Python 3.12
+        run: uv python install 3.12
+
+      - name: Instalar dependencias del backend
+        run: |
+          uv venv
+          uv pip install -e "./backend[dev]"
+
+      - name: Ejecutar linter y formateador (ruff)
+        run: |
+          source .venv/bin/activate
+          ruff check backend
+          ruff format --check backend
+
+      - name: Verificación de tipos estáticos estrictos (mypy --strict)
+        run: |
+          source .venv/bin/activate
+          mypy --strict backend/app
+
+      - name: Verificación de fronteras arquitectónicas (import-linter)
+        run: |
+          source .venv/bin/activate
+          lint-imports --config backend/pyproject.toml
+
+      - name: Verificar sincronización del contrato OpenAPI (docs/api/openapi.json)
+        run: |
+          source .venv/bin/activate
+          python scripts/exportar_openapi.py
+          git diff --exit-code docs/api/openapi.json
+
+      - name: Ejecutar pruebas unitarias de dominio con pytest
+        run: |
+          source .venv/bin/activate
+          pytest backend/tests/unitarias -v
+
+  frontend-calidad:
+    name: Frontend - TypeScript Estricto, Linter y Build de Producción
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias limpias
+        run: npm ci
+
+      - name: Verificación de tipos TypeScript (tsc --noEmit)
+        run: npm run typecheck
+
+      - name: Ejecutar linter de Next.js (ESLint)
+        run: npm run lint
+
+      - name: Compilación de producción (next build)
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://pjwqpftvlglhorujhnii.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: anon-key-ci-placeholder
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+        run: npm run build

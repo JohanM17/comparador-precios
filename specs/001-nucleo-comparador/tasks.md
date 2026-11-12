@@ -50,31 +50,31 @@ Este documento contiene la lista secuencial de 47 tareas atómicas de ingenierí
   - **Archivos**: `frontend/package.json`, `frontend/tsconfig.json`, `frontend/src/app/layout.tsx`, `frontend/src/components/AppShell.tsx`, `frontend/src/lib/api/*`
   - **Hecho cuando…**: `npm run typecheck`, `npm run lint` y `npm run build` en `frontend/` terminan con código `0`.
 
-- [ ] **T-05** | **Redactar documentos base de ingeniería**
+- [x] **T-05** | **Redactar documentos base de ingeniería**
   - **Depende de**: `T-00`
   - **Resp.**: **A + D**
   - **Archivos**: `docs/adr/0001-*.md`..`0018-*.md`, `docs/c4/*.mmd`, `docs/PREGUNTAS_ABIERTAS.md`, `docs/DECLARACION_USO_IA.md`
   - **Hecho cuando…**: Existen los 18 ADRs, los 3 diagramas C4 en Mermaid y los registros formales.
 
-- [ ] **T-06** | **Configurar CI en GitHub Actions**
+- [x] **T-06** | **Configurar CI en GitHub Actions**
   - **Depende de**: `T-03`, `T-04`
   - **Resp.**: **D**
   - **Archivos**: `.github/workflows/ci.yml`
   - **Hecho cuando…**: El workflow ejecuta todas las verificaciones en verde (`ruff`, `mypy --strict`, `import-linter`, `pytest` con servicios PostGIS/Redis, verificación de `openapi.json`, `npm run build` y `docker build`).
 
-- [ ] **T-07** | **Elaborar y aplicar entrevistas/encuestas a consumidores y tiendas (Entregable 1)**
+- [x] **T-07** | **Elaborar y aplicar entrevistas/encuestas a consumidores y tiendas (Entregable 1)**
   - **Depende de**: `T-00`
   - **Resp.**: **Todos**
   - **Archivos**: `docs/calidad/entregable_1_entrevistas.md`
   - **Hecho cuando…**: Documento con instrumento, respuestas y hallazgos conectados con `EC-01` y `D-06`.
 
-- [ ] **T-08** | **Elaborar estudio de Benchmarking de comparadores (Entregable 2)**
+- [x] **T-08** | **Elaborar estudio de Benchmarking de comparadores (Entregable 2)**
   - **Depende de**: `T-00`
   - **Resp.**: **D**
   - **Archivos**: `docs/calidad/entregable_2_benchmarking.md`
   - **Hecho cuando…**: Tabla comparativa y conclusiones conectadas con `D-01` a `D-04`.
 
-- [ ] **T-09** | **Consolidar Especificación ISO/IEC 25012 (Entregable 3), Plan de Calidad ISO/IEC 25010 (Entregable 4) y matriz `trazabilidad.csv`**
+- [x] **T-09** | **Consolidar Especificación ISO/IEC 25012 (Entregable 3), Plan de Calidad ISO/IEC 25010 (Entregable 4) y matriz `trazabilidad.csv`**
   - **Depende de**: `T-07`, `T-08`
   - **Resp.**: **D**
   - **Archivos**: `docs/calidad/entregable_3_requisitos_iso25012.md`, `docs/calidad/entregable_4_plan_calidad_iso25010.md`, `docs/calidad/trazabilidad.csv`
