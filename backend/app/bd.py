@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from typing import Any
 
 from sqlalchemy import text
@@ -69,6 +70,9 @@ async def obtener_sesion() -> AsyncGenerator[AsyncSession, None]:
         # Aislamiento de privilegios minimos verificado en T-02 (ADR-012)
         await session.execute(text("SET LOCAL ROLE app_backend;"))
         yield session
+
+
+sesion_transaccional = asynccontextmanager(obtener_sesion)
 
 
 async def verificar_conexion_bd() -> bool:

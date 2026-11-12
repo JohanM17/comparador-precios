@@ -90,7 +90,7 @@ Este documento contiene la lista secuencial de 47 tareas atómicas de ingenierí
   - **Archivos**: `backend/app/dominio/unidades.py`, `backend/tests/unitarias/test_unidades.py`
   - **Hecho cuando…**: Pasan todos los casos de la tabla de la Sección 5.1, la propiedad con `hypothesis` y cobertura del 100 % en `unidades.py`.
 
-- [ ] **T-11** | **Aplicar migración `0002_catalogo_establecimientos_parametros.sql` (10 categorías y 43 parámetros en `config_parametro`)**
+- [x] **T-11** | **Aplicar migración `0002_catalogo_establecimientos_parametros.sql` (10 categorías y 43 parámetros en `config_parametro`)**
   - **Depende de**: `T-02`
   - **Resp.**: **D**
   - **Archivos**: `supabase/migrations/0002_catalogo_establecimientos_parametros.sql`, `backend/tests/integracion/test_migracion_0002.py`
@@ -136,7 +136,7 @@ Este documento contiene la lista secuencial de 47 tareas atómicas de ingenierí
   - **Archivos**: `backend/app/dominio/vigencia.py`, `backend/app/dominio/sello.py`, `backend/app/dominio/orden.py`, `backend/tests/unitarias/test_vigencia_sello_orden.py`
   - **Hecho cuando…**: Pasan todas las pruebas de 5.4 y 5.5 con `RelojFalso` y `mypy --strict` limpio.
 
-- [ ] **T-21** | **Aplicar migración `0003_cuentas_precios_moderacion_auditoria.sql` y probar inmutabilidad**
+- [x] **T-21** | **Aplicar migración `0003_cuentas_precios_moderacion_auditoria.sql` y probar inmutabilidad**
   - **Depende de**: `T-11`
   - **Resp.**: **D**
   - **Archivos**: `supabase/migrations/0003_cuentas_precios_moderacion_auditoria.sql`, `backend/tests/integracion/test_inmutabilidad_reportes.py`

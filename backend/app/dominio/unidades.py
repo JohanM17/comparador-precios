@@ -166,7 +166,7 @@ def parsear_cantidad(texto: str) -> CantidadParseada | None:
         )
 
     # Patrón 1: Multipacks formato "x6 330ml"
-    patron_multi_prefijo = re.match(r"^x(\d+)\s*(\d+(?:[.,]\d+)?)\s*([a-zA-Z]+)$", limpio)
+    patron_multi_prefijo = re.match(r"^x(\d+)\s+(\d+(?:[.,]\d+)?)\s*([a-zA-Z]+)$", limpio)
     if patron_multi_prefijo:
         mult = int(patron_multi_prefijo.group(1))
         val_str = patron_multi_prefijo.group(2).replace(",", ".")
