@@ -1,0 +1,79 @@
+flowchart TD
+  %% C4 Nivel 3: Diagrama de Componentes del Backend FastAPI
+
+  subgraph CapaPresentacion ["Capa de Presentación (Routers / API REST)"]
+    RouterSalud["Router Salud<br/>[/v1/salud, /v1/salud/listo]"]
+    RouterCatalogo["Router Catálogo<br/>[/v1/productos, /v1/categorias]"]
+    RouterPrecios["Router Precios<br/>[/v1/reportes, .../comparacion]"]
+    RouterCuentas["Router Cuentas<br/>[/v1/mi-cuenta, Ley 1581]"]
+    RouterModeracion["Router Moderación<br/>[/v1/moderacion/*]"]
+  end
+
+  subgraph CapaAplicacion ["Capa de Aplicación (Servicios de Orquestación)"]
+    ServicioPrecios["Servicio Precios<br/>[Orquesta recálculo transaccional, consulta y caché]"]
+    ServicioConfianza["Servicio Confianza<br/>[Evalúa anomalías, contexto, huellas y ráfagas]"]
+    ServicioCatalogo["Servicio Catálogo / Establecimientos<br/>[Búsquedas difusas pg_trgm y PostGIS]"]
+    ServicioCuentas["Servicio Cuentas<br/>[Gestión de perfil y anonimización de datos]"]
+  end
+
+  subgraph CapaDominioPuro ["Capa de Dominio Puro (Cero I/O, Cero Base de Datos)"]
+    DomUnidades["dominio.unidades<br/>[Conversión aritmética exacta Decimal g/ml/u]"]
+    DomVigencia["dominio.vigencia<br/>[Decaimiento exponencial y ventanas 7/30 días]"]
+    DomSello["dominio.sello<br/>[Asignación de sellos: confiable, dudoso, oficial, disputa]"]
+    DomOrden["dominio.orden<br/>[Ordenamiento en dos bloques por precio unitario base]"]
+    DomAnomalia["dominio.anomalia<br/>[Z-score modificado y desviación con 3 niveles]"]
+    DomRiesgo["dominio.riesgo<br/>[Riesgo de contexto, ráfagas y evaluación combinada]"]
+    DomReputacion["dominio.reputacion<br/>[Fórmula bayesiana de reputación (A+2)/(A+3M+4)]"]
+  end
+
+  subgraph CapaPuertos ["Puertos Hexagonales (Interfaces Abstractas)"]
+    PuertoCache["PuertoCache<br/>[obtener, guardar, invalidar]"]
+    PuertoPolitica["PoliticaPrecioReferencia<br/>[SoloUsuarios / OficialConContraste]"]
+    PuertoStorage["PuertoAlmacenamiento<br/>[generar_url_subida, eliminar]"]
+    PuertoOFF["PuertoCatalogoExterno<br/>[consultar_codigo_barras]"]
+  end
+
+  subgraph CapaAdaptadores ["Adaptadores de Infraestructura Concreta"]
+    AdaptadorCache["cache_dos_niveles.py<br/>[L1 Memoria + L2 Upstash Redis]"]
+    AdaptadorBD["bd.py / SQLAlchemy 2.0<br/>[Pooler IPv4, SET LOCAL ROLE app_backend]"]
+    AdaptadorStorage["storage_supabase.py<br/>[Limpieza EXIF y subida a Supabase S3]"]
+    AdaptadorOFF["open_food_facts.py<br/>[HTTP con Circuit Breaker y Timeout 3 s]"]
+  end
+
+  %% Relaciones de control y flujo
+  RouterPrecios --> ServicioPrecios
+  RouterPrecios --> ServicioConfianza
+  RouterCatalogo --> ServicioCatalogo
+  RouterCuentas --> ServicioCuentas
+  RouterModeracion --> ServicioConfianza
+
+  ServicioPrecios --> DomUnidades
+  ServicioPrecios --> DomVigencia
+  ServicioPrecios --> DomSello
+  ServicioPrecios --> DomOrden
+  ServicioPrecios --> PuertoPolitica
+  ServicioPrecios --> PuertoCache
+  ServicioPrecios --> AdaptadorBD
+
+  ServicioConfianza --> DomAnomalia
+  ServicioConfianza --> DomRiesgo
+  ServicioConfianza --> DomReputacion
+  ServicioConfianza --> AdaptadorBD
+
+  ServicioCatalogo --> DomUnidades
+  ServicioCatalogo --> PuertoOFF
+  ServicioCatalogo --> AdaptadorBD
+
+  ServicioCuentas --> AdaptadorBD
+  ServicioCuentas --> PuertoStorage
+
+  PuertoCache -.-> AdaptadorCache
+  PuertoStorage -.-> AdaptadorStorage
+  PuertoOFF -.-> AdaptadorOFF
+
+  %% Estilos visuales C4
+  style CapaDominioPuro fill:#dcfce7,stroke:#15803d,stroke-width:2px,color:#052e16
+  style CapaPuertos fill:#fef3c7,stroke:#b45309,stroke-width:2px,color:#451a03
+  style CapaAplicacion fill:#e0f2fe,stroke:#0369a1,stroke-width:2px,color:#082f49
+  style CapaPresentacion fill:#ede9fe,stroke:#6d28d9,stroke-width:2px,color:#2e1065
+  style CapaAdaptadores fill:#f1f5f9,stroke:#475569,stroke-width:2px,color:#0f172a

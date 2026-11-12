@@ -1,0 +1,43 @@
+flowchart TD
+  %% C4 Nivel 1: Diagrama de Contexto del Sistema
+
+  subgraph Personas ["Usuarios y Actores"]
+    Consumidor["👤 Consumidor<br/>[Familia / Ciudadano]<br/>Consulta y compara precios de la canasta básica por unidad de medida"]
+    Reportante["📱 Reportante Comunitario<br/>[Ciudadano Autenticado]<br/>Registra precios observados en góndola con fotos de prueba"]
+    Comercio["🏪 Comercio Verificado<br/>[Tienda / Supermercado]<br/>Actualiza precios oficiales de su local y publica promociones"]
+    Moderador["🛡️ Moderador / Auditor<br/>[Equipo Operativo]<br/>Resuelve casos dudosos, calibra parámetros y sanciona anomalías"]
+  end
+
+  subgraph SistemaCentral ["Límite del Sistema"]
+    Comparador["🛒 Plataforma Colaborativa de Comparación de Precios<br/>[Software System]<br/>Permite comparar precios normalizados, calcular sellos de confianza y detectar anomalías de mercado"]
+  end
+
+  subgraph SistemasExternos ["Sistemas Externos"]
+    Supabase["☁️ Supabase Platform<br/>[SaaS Externo]<br/>Autenticación de usuarios (JWT), base de datos relacional y almacenamiento de fotos"]
+    Upstash["⚡ Upstash Redis<br/>[PaaS Externo]<br/>Caché en memoria L2 de alta velocidad con TTL de 60 segundos"]
+    OpenFoodFacts["🌐 Open Food Facts<br/>[API Pública Externa]<br/>Catálogo abierto de códigos de barras y datos nutricionales de productos"]
+    OSM["🗺️ OpenStreetMap<br/>[Servicio Geográfico ODbL]<br/>Coordenadas geográficas y cartografía de referencia de Armenia"]
+  end
+
+  %% Relaciones de actores con el sistema central
+  Consumidor -->|"Consulta productos y compara precios por unidad base (HTTPS)"| Comparador
+  Reportante -->|"Envía observaciones de precios e imágenes de tiquetes (HTTPS)"| Comparador
+  Comercio -->|"Revalida precios oficiales y gestiona promociones (HTTPS)"| Comparador
+  Moderador -->|"Gestiona bandejas de moderación y auditoría (HTTPS)"| Comparador
+
+  %% Relaciones del sistema central con sistemas externos
+  Comparador -->|"Autentica sesiones y persiste datos relacionales"| Supabase
+  Comparador -->|"Lee y escribe claves de caché de comparación"| Upstash
+  Comparador -->|"Enriquece catálogo con código de barras y nutrición"| OpenFoodFacts
+  Comparador -->|"Georreferencia tiendas con atribución ODbL"| OSM
+
+  %% Estilos visuales C4
+  style Comparador fill:#1e40af,stroke:#1d4ed8,stroke-width:3px,color:#ffffff
+  style Consumidor fill:#047857,stroke:#065f46,stroke-width:2px,color:#ffffff
+  style Reportante fill:#047857,stroke:#065f46,stroke-width:2px,color:#ffffff
+  style Comercio fill:#b45309,stroke:#92400e,stroke-width:2px,color:#ffffff
+  style Moderador fill:#6b21a8,stroke:#581c87,stroke-width:2px,color:#ffffff
+  style Supabase fill:#334155,stroke:#1e293b,stroke-width:2px,color:#ffffff
+  style Upstash fill:#334155,stroke:#1e293b,stroke-width:2px,color:#ffffff
+  style OpenFoodFacts fill:#334155,stroke:#1e293b,stroke-width:2px,color:#ffffff
+  style OSM fill:#334155,stroke:#1e293b,stroke-width:2px,color:#ffffff
