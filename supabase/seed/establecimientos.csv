@@ -1,0 +1,32 @@
+nombre,tipo,cadena,direccion,barrio,municipio,departamento,lat,lng,osm_id
+Éxito Unicentro Armenia,cadena,Éxito,Cra 14 # 14N-34,Bolívar Norte,Armenia,Quindío,4.5482,-75.6631,100101
+Éxito Centro Armenia,cadena,Éxito,Cra 16 # 19-35,Centro,Armenia,Quindío,4.5332,-75.6812,100102
+Superinter Plaza Mayor,supermercado,Superinter,Calle 21 # 16-10,Centro,Armenia,Quindío,4.5321,-75.6825,100103
+Olímpica Calle 20,cadena,Olímpica,Calle 20 # 14-25,Centro,Armenia,Quindío,4.5345,-75.6798,100104
+Supermercado Ventanilla Verde,supermercado,Independiente,Cra 19 # 24-15,San José,Armenia,Quindío,4.5298,-75.6854,100105
+Tienda D1 Laureles,cadena,D1,Cra 14 # 21N-45,Laureles,Armenia,Quindío,4.5532,-75.6598,100106
+Tienda D1 Granada,cadena,D1,Cra 23 # 12-18,Granada,Armenia,Quindío,4.5398,-75.6745,100107
+Tienda D1 Calima,cadena,D1,Calle 50 # 25-10,Calima,Armenia,Quindío,4.5187,-75.7012,100108
+Tienda D1 Puerto Espejo,cadena,D1,Mz 14 Lote 2,Puerto Espejo,Armenia,Quindío,4.5123,-75.7089,100109
+Tiendas Ara Cuyabro,cadena,Ara,Cra 19 # 35-20,El Cuyabro,Armenia,Quindío,4.5245,-75.6912,100110
+Tiendas Ara La Castellana,cadena,Ara,Calle 10N # 12-30,La Castellana,Armenia,Quindío,4.5445,-75.6645,100111
+Tiendas Ara La Isabela,cadena,Ara,Mz B Casa 12,La Isabela,Armenia,Quindío,4.5156,-75.7045,100112
+Tiendas Ara Sesenta Casas,cadena,Ara,Cra 25 # 40-15,Sesenta Casas,Armenia,Quindío,4.5278,-75.6967,100113
+Supermercado Laureles Express,minimercado,Independiente,Cra 13 # 22N-10,Laureles,Armenia,Quindío,4.5541,-75.6587,100114
+Minimercado Los Profesionales,minimercado,Independiente,Calle 3N # 17-20,Profesionales,Armenia,Quindío,4.5412,-75.6698,100115
+Minimercado La Huerta del Parque,minimercado,Independiente,Cra 18 # 15-40,El Bosque,Armenia,Quindío,4.5367,-75.6789,100116
+Supermercado El Recreo,minimercado,Independiente,Cra 21A # 38-12,El Recreo,Armenia,Quindío,4.5267,-75.6934,100117
+Minimercado Providencia,minimercado,Independiente,Calle 9N # 14-50,Providencia,Armenia,Quindío,4.5432,-75.6654,100118
+Minimercado La Patria,minimercado,Independiente,Mz 8 Casa 1,La Patria,Armenia,Quindío,4.5212,-75.7056,100119
+Minimercado Los Álamos,minimercado,Independiente,Calle 15N # 19-05,Los Álamos,Armenia,Quindío,4.5498,-75.6678,100120
+Tienda La Esquina de Doña Rosa,tienda_barrio,Independiente,Calle 11 # 24-05,Granada,Armenia,Quindío,4.5387,-75.6756,100121
+Abarrotes El Triunfo,tienda_barrio,Independiente,Cra 17 # 28-30,San Antonio,Armenia,Quindío,4.5289,-75.6845,100122
+Tienda Don Carlos El Calima,tienda_barrio,Independiente,Calle 52 # 26-14,Calima,Armenia,Quindío,4.5178,-75.7023,100123
+Tienda La Bendición de Dios,tienda_barrio,Independiente,Mz 4 Casa 18,Puerto Espejo,Armenia,Quindío,4.5115,-75.7095,100124
+Tienda El Mirador del Quindío,tienda_barrio,Independiente,Cra 14 # 25N-12,Laureles,Armenia,Quindío,4.5567,-75.6578,100125
+Abarrotes y Verduras Central,tienda_barrio,Independiente,Calle 23 # 18-45,Centro,Armenia,Quindío,4.5312,-75.6834,100126
+Tienda La Colmena Familiar,tienda_barrio,Independiente,Cra 22 # 15-28,Palacio,Armenia,Quindío,4.5376,-75.6778,100127
+Tienda La Sultana del Café,tienda_barrio,Independiente,Calle 48 # 24-30,Los Naranjos,Armenia,Quindío,4.5201,-75.6989,100128
+Abarrotes Don Julio Siete de Agosto,tienda_barrio,Independiente,Cra 27 # 32-10,Siete de Agosto,Armenia,Quindío,4.5256,-75.6978,100129
+Tienda Mi Vecina La Milagrosa,tienda_barrio,Independiente,Calle 36 # 22-15,La Milagrosa,Armenia,Quindío,4.5271,-75.6923,100130
+

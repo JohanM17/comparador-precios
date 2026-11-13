@@ -1,0 +1,106 @@
+producto_nombre,marca,valor_cantidad,unidad,multiplicador,etiqueta,codigo_barras
+Arroz blanco tradicional,Roa,1,kg,1,Bolsa 1 kg Arroz Roa,7702011001015
+Arroz blanco tradicional,Diana,1,kg,1,Bolsa 1 kg Arroz Diana,7702011001022
+Arroz blanco tradicional,Florhuila,500,g,1,Bolsa 500 g Arroz Florhuila,7702011001039
+Arroz blanco tradicional,D1,1,kg,1,Bolsa 1 kg Arroz D1,7702011001046
+Arroz parbolizado,Roa,1,kg,1,Bolsa 1 kg Arroz Parbolizado Roa,7702011001053
+Frijol cargamanto rojo,Diana,500,g,1,Bolsa 500 g Frijol Rojo Diana,7702011002012
+Frijol cargamanto rojo,La Soberana,500,g,1,Bolsa 500 g Frijol La Soberana,7702011002029
+Lentejas seleccionadas,Diana,500,g,1,Bolsa 500 g Lentejas Diana,7702011003019
+Lentejas seleccionadas,Aburrá,500,g,1,Bolsa 500 g Lentejas Aburrá,7702011003026
+Garbanzos,Diana,500,g,1,Bolsa 500 g Garbanzos Diana,7702011004016
+Espagueti tradicional,Doria,500,g,1,Bolsa 500 g Espagueti Doria,7702011005013
+Espagueti tradicional,Comarrico,500,g,1,Bolsa 500 g Espagueti Comarrico,7702011005020
+Macarrones cortos,Doria,250,g,1,Bolsa 250 g Macarrón Doria,7702011005037
+Leche entera pasteurizada,Colanta,1,l,1,Bolsa 1 Litro Leche Entera Colanta,7702011006010
+Leche entera pasteurizada,Alquería,1,l,1,Bolsa 1 Litro Leche Entera Alquería,7702011006027
+Leche entera pasteurizada,Alpina,1,l,1,Bolsa 1 Litro Leche Entera Alpina,7702011006034
+Leche entera pasteurizada,De la Cuesta,900,ml,1,Bolsa 900 ml Leche De la Cuesta,7702011006041
+Leche deslactosada,Alquería,1,l,1,Bolsa 1 Litro Leche Deslactosada Alquería,7702011006058
+Leche deslactosada,Colanta,1,l,1,Bolsa 1 Litro Leche Deslactosada Colanta,7702011006065
+Leche en polvo entera,Klim,400,g,1,Lata 400 g Leche en Polvo Klim,7702011006072
+Leche condensada,La Lechera,395,g,1,Lata 395 g Leche Condensada La Lechera,7702011006089
+Huevos rojos tipo AA,Santa Reyes,30,unidad,1,Panal 30 Huevos AA Santa Reyes,7702011007017
+Huevos rojos tipo AA,Kikes,30,unidad,1,Panal 30 Huevos AA Kikes,7702011007024
+Huevos rojos tipo A,Granja Local,12,unidad,1,Cubeta 12 Huevos Tipo A,7702011007031
+Queso campesino fresco,Colanta,500,g,1,Bloque 500 g Queso Campesino Colanta,7702011008014
+Quesillo bloque,Alpina,400,g,1,Bloque 400 g Quesillo Alpina,7702011008021
+Mantequilla de vaca con sal,Colanta,250,g,1,Barra 250 g Mantequilla Colanta,7702011009011
+Yogur sabor a fresa,Alpina,1,l,1,Garrafa 1 Litro Yogur Fresa Alpina,7702011010017
+Kumis tradicional,Colanta,1,l,1,Bolsa 1 Litro Kumis Colanta,7702011010024
+Aceite vegetal de soya,Premier,900,ml,1,Botella 900 ml Aceite Premier,7702011011014
+Aceite vegetal de soya,Diana,1000,ml,1,Botella 1 Litro Aceite Diana,7702011011021
+Aceite de palma refinado,Oliosoya,900,ml,1,Botella 900 ml Aceite Oliosoya,7702011011038
+Aceite de girasol,Girasoli,1,l,1,Botella 1 Litro Aceite Girasol,7702011011045
+Sal yodada y fluorada,Refisal,1,kg,1,Bolsa 1 kg Sal Marina Refisal,7702011012011
+Sal yodada y fluorada,Cisne,1,kg,1,Bolsa 1 kg Sal Cisne,7702011012028
+Azúcar blanco refinado,Incauca,1,kg,1,Bolsa 1 kg Azúcar Blanco Incauca,7702011013018
+Azúcar blanco refinado,Manuelita,1,kg,1,Bolsa 1 kg Azúcar Blanco Manuelita,7702011013025
+Azúcar moreno sulfitado,Riopaila,1,kg,1,Bolsa 1 kg Azúcar Morena Riopaila,7702011013032
+Panela en bloque cuadrada,El Trébol,500,g,1,Atado 500 g Panela Cuadrada,7702011014015
+Panela redonda tradicional,La Cabaña,1,kg,1,Atado 1 kg Panela Redonda,7702011014022
+Panela pulverizada,Doña Panela,500,g,1,Doypack 500 g Panela Doña Panela,7702011014039
+Café molido tostado suave,Sello Rojo,500,g,1,Bolsa 500 g Café Sello Rojo,7702011015012
+Café molido tradicional fuerte,Águila Roja,500,g,1,Bolsa 500 g Café Águila Roja,7702011015029
+Café soluble instantáneo,Colcafé,170,g,1,Frasco 170 g Café Soluble Colcafé,7702011015036
+Chocolate de mesa con azúcar,Corona,500,g,1,Pastilla 500 g Chocolate Corona,7702011016019
+Chocolate de mesa con azúcar,Luker,500,g,1,Pastilla 500 g Chocolate Luker,7702011016026
+Chocolate amargo para taza,Cruz,250,g,1,Caja 250 g Chocolate Cruz,7702011016033
+Avena en hojuelas entera,Quaker,500,g,1,Bolsa 500 g Avena Quaker,7702011017016
+Avena molida,Quaker,400,g,1,Bolsa 400 g Avena Molida Quaker,7702011017023
+Té negro en bolsitas,Lipton,25,unidad,1,Caja 25 Bolsitas Té Lipton,7702011018013
+Agua sin gas embotellada,Cristal,600,ml,1,Botella 600 ml Agua Cristal,7702011019010
+Agua sin gas embotellada,Brisa,600,ml,1,Botella 600 ml Agua Brisa,7702011019027
+Harina de trigo fortificada,Haz de Oros,1,kg,1,Bolsa 1 kg Harina Haz de Oros,7702011020016
+Harina de maíz precocida blanca,P.A.N.,1,kg,1,Paquete 1 kg Harina P.A.N. Blanca,7702011021013
+Harina de maíz precocida blanca,Doñarepa,1,kg,1,Paquete 1 kg Doñarepa Blanca,7702011021020
+Harina de maíz precocida amarilla,Promasa,1,kg,1,Paquete 1 kg Harina Amarilla,7702011021037
+Fécula de maíz tradicional,Maizena,380,g,1,Caja 380 g Fécula Maizena,7702011022010
+Pan tajado blanco de molde,Bimbo,450,g,1,Bolsa 450 g Pan Blanco Bimbo,7702011023017
+Pan tajado blanco de molde,Comapan,450,g,1,Bolsa 450 g Pan Blanco Comapan,7702011023024
+Pan tajado integral con semillas,Bimbo,500,g,1,Bolsa 500 g Pan Integral Bimbo,7702011023031
+Arepas de chócolo redondas,Doña Aleja,5,unidad,1,Paquete 5 Arepas Chócolo,7702011024014
+Arepas de maíz blanco tela,El Paisa,10,unidad,1,Paquete 10 Arepas Tela,7702011024021
+Galletas de soda saladas,Noel,250,g,1,Taco 250 g Galletas Soda Noel,7702011025011
+Galletas de soda saladas,Saltín Noel,300,g,1,Taco x3 Galletas Saltín 300 g,7702011025028
+Atún en lomitos en aceite,Van Camp's,184,g,1,Lata 184 g Atún Van Camps Aceite,7702011026018
+Atún en lomitos en agua,Van Camp's,184,g,1,Lata 184 g Atún Van Camps Agua,7702011026025
+Atún en lomitos en aceite,Isabel,160,g,1,Lata 160 g Atún Isabel Aceite,7702011026032
+Sardinas en salsa de tomate,Vikingo,425,g,1,Lata 425 g Sardinas Vikingo,7702011027015
+Maíz dulce tierno desgranado,Zenú,250,g,1,Lata 250 g Maíz Dulce Zenú,7702011028012
+Salsa de tomate tradicional,Fruco,400,g,1,Doypack 400 g Salsa Fruco,7702011029019
+Salsa de tomate tradicional,San Jorge,400,g,1,Doypack 400 g Salsa San Jorge,7702011029026
+Mayonesa clásica con limón,Fruco,380,g,1,Doypack 380 g Mayonesa Fruco,7702011030015
+Pechuga de pollo fresca,Friko,1,kg,1,Bandeja 1 kg Pechuga Friko,7702011031012
+Pechuga de pollo fresca,Bucanero,1,kg,1,Bandeja 1 kg Pechuga Bucanero,7702011031029
+Muslos y contramuslos de pollo,Friko,1,kg,1,Bandeja 1 kg Pernil Friko,7702011031036
+Carne molida de res magra,Carnicería Local,500,g,1,Paquete 500 g Carne Molida Res,7702011032019
+Carne de res para asar cadera,Carnicería Local,1,kg,1,Kilo Carne de Res Cadera,7702011032026
+Lomo de cerdo fresco,Porkcolombia,1,kg,1,Kilo Lomo de Cerdo Fresco,7702011033016
+Salchichas tradicionales tipo manguera,Zenú,500,g,1,Paquete 500 g Salchicha Zenú,7702011034013
+Jamón de pierna seleccionado,Pietrán,450,g,1,Paquete 450 g Jamón Pietrán,7702011035010
+Plátano verde dominico hartón,Plaza Mercar,1,kg,1,Kilo Plátano Verde Fresco,7702011036017
+Papa negra pastusa,Plaza Mercar,1,kg,1,Bolsa 1 kg Papa Pastusa,7702011037014
+Papa criolla amarilla,Plaza Mercar,1,kg,1,Bolsa 1 kg Papa Criolla,7702011037021
+Tomate chonto fresco maduro,Plaza Mercar,1,kg,1,Bolsa 1 kg Tomate Chonto,7702011038011
+Cebolla cabezona blanca,Plaza Mercar,1,kg,1,Bolsa 1 kg Cebolla Blanca,7702011039018
+Jabón en barra para lavar ropa,Rey,300,g,1,Barra 300 g Jabón Azul Rey,7702011040014
+Jabón en barra para lavar ropa,Varela,300,g,1,Barra 300 g Jabón Varela,7702011040021
+Detergente en polvo multiusos,Ariel,1,kg,1,Bolsa 1 kg Detergente Ariel,7702011041011
+Detergente en polvo multiusos,Fabuloso,1,kg,1,Bolsa 1 kg Detergente Fab,7702011041028
+Blanqueador desinfectante con cloro,Clorox,1000,ml,1,Botella 1 Litro Clorox,7702011042018
+Blanqueador desinfectante con cloro,Límpido,1000,ml,1,Botella 1 Litro Límpido,7702011042025
+Limpiador líquido desinfectante pisos,Fabuloso,1000,ml,1,Botella 1 Litro Fabuloso Lavanda,7702011043015
+Jabón líquido lavaplatos loza,Axion,750,ml,1,Botella 750 ml Axion Limón,7702011044012
+Crema lavaplatos con esponja,Axion,450,g,1,Pote 450 g Crema Axion,7702011044029
+Papel higiénico rollo doble hoja,Familia,4,unidad,1,Empaque 4 Rollos Familia,7702011045019
+Papel higiénico rollo doble hoja,Elite,12,unidad,1,Mega Pack 12 Rollos Elite,7702011045026
+Jabón de tocador en barra cremosa,Palmolive,110,g,3,Pack x3 Jabones Palmolive 110g,7702011046016
+Jabón de tocador en barra cremosa,Protex,110,g,3,Pack x3 Jabones Protex Avena,7702011046023
+Champú anticaspa hidratante,Head and Shoulders,375,ml,1,Frasco 375 ml H and S,7702011047013
+Crema dental protección anticaries,Colgate,100,g,1,Tubo 100 g Colgate Triple Acción,7702011048010
+Crema dental protección anticaries,Colgate,150,g,1,Tubo 150 g Colgate Total 12,7702011048027
+Cepillo dental cerdas medianas,Oral-B,2,unidad,1,Blister x2 Cepillos Oral B,7702011049017
+Desodorante en roll-on masculino,Speed Stick,50,ml,1,Roll-on 50 ml Speed Stick,7702011050013
+Toallas higiénicas normales con alas,Nosotras,10,unidad,1,Paquete 10 Toallas Nosotras,7702011051010
+

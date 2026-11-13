@@ -96,7 +96,7 @@ Este documento contiene la lista secuencial de 47 tareas atómicas de ingenierí
   - **Archivos**: `supabase/migrations/0002_catalogo_establecimientos_parametros.sql`, `backend/tests/integracion/test_migracion_0002.py`
   - **Hecho cuando…**: La migración aplica en limpio creando `categoria`, `producto`, `presentacion`, `alias_producto`, `establecimiento` y `config_parametro` con RLS activa, y la prueba automática verifica que existen las 10 categorías y exactamente las **43 claves** de la Sección 2.4 en `config_parametro`.
 
-- [ ] **T-12** | **Crear archivos CSV en `supabase/seed/` y script idempotente `scripts/semilla.py`**
+- [x] **T-12** | **Crear archivos CSV en `supabase/seed/` y script idempotente `scripts/semilla.py`**
   - **Depende de**: `T-10`, `T-11`
   - **Resp.**: **D**
   - **Archivos**: `supabase/seed/*.csv`, `scripts/semilla.py`, `backend/tests/integracion/test_semilla.py`

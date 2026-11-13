@@ -8,10 +8,11 @@ from uuid import uuid4
 
 import jwt
 import pytest
+from httpx import ASGITransport, AsyncClient
+
 from app.compartido.logging_cfg import FiltroPrivacidadLey1581
 from app.config import obtener_configuracion
 from app.main import app
-from httpx import ASGITransport, AsyncClient
 
 RUTA_PERFIL = "/v1/auth/perfil-actual"
 RUTA_MODERADOR = "/v1/auth/solo-moderador"

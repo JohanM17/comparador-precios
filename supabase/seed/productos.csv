@@ -1,0 +1,130 @@
+nombre,categoria_id,unidad_base
+Arroz blanco tradicional,1,g
+Arroz parbolizado,1,g
+Arroz integral,1,g
+Frijol cargamanto rojo,1,g
+Frijol cargamanto blanco,1,g
+Frijol bola roja,1,g
+Lentejas seleccionadas,1,g
+Garbanzos,1,g
+Arveja verde seca,1,g
+Arveja amarilla,1,g
+Espagueti tradicional,1,g
+Macarrones cortos,1,g
+Fideos para sopa,1,g
+Pasta conchitas,1,g
+Pasta tallarines,1,g
+Leche entera pasteurizada,2,ml
+Leche deslactosada,2,ml
+Leche semidescremada,2,ml
+Leche en polvo entera,2,g
+Leche condensada,2,g
+Huevos rojos tipo AA,2,unidad
+Huevos rojos tipo A,2,unidad
+Huevos rojos tipo extra,2,unidad
+Queso campesino fresco,2,g
+Quesillo bloque,2,g
+Queso cuajada tradicional,2,g
+Mantequilla de vaca con sal,2,g
+Mantequilla de vaca sin sal,2,g
+Yogur sabor a fresa,2,ml
+Yogur sabor a melocotón,2,ml
+Kumis tradicional,2,ml
+Aceite vegetal de soya,3,ml
+Aceite de palma refinado,3,ml
+Aceite de girasol,3,ml
+Aceite de oliva virgen extra,3,ml
+Sal yodada y fluorada,3,g
+Sal marina gruesa,3,g
+Azúcar blanco refinado,3,g
+Azúcar moreno sulfitado,3,g
+Panela en bloque cuadrada,3,g
+Panela redonda tradicional,3,g
+Panela pulverizada,3,g
+Café molido tostado suave,4,g
+Café molido tradicional fuerte,4,g
+Café soluble instantáneo,4,g
+Chocolate de mesa con azúcar,4,g
+Chocolate amargo para taza,4,g
+Avena en hojuelas entera,4,g
+Avena molida,4,g
+Té negro en bolsitas,4,unidad
+Té verde en bolsitas,4,unidad
+Agua sin gas embotellada,4,ml
+Agua con gas,4,ml
+Harina de trigo fortificada,5,g
+Harina de maíz precocida blanca,5,g
+Harina de maíz precocida amarilla,5,g
+Fécula de maíz tradicional,5,g
+Pan tajado blanco de molde,5,g
+Pan tajado integral con semillas,5,g
+Arepas de chócolo redondas,5,unidad
+Arepas de maíz blanco tela,5,unidad
+Tostadas de trigo horneadas,5,g
+Galletas de soda saladas,5,g
+Atún en lomitos en aceite,6,g
+Atún en lomitos en agua,6,g
+Sardinas en salsa de tomate,6,g
+Maíz dulce tierno desgranado,6,g
+Arveja con zanahoria en lata,6,g
+Champiñones laminados en conserva,6,g
+Pasta de tomate concentrada,6,g
+Salsa de tomate tradicional,6,g
+Mayonesa clásica con limón,6,g
+Mostaza suave preparada,6,g
+Pechuga de pollo fresca,7,g
+Muslos y contramuslos de pollo,7,g
+Pollo entero fresco con vísceras,7,g
+Carne molida de res magra,7,g
+Carne de res para asar cadera,7,g
+Costilla de res para sancocho,7,g
+Lomo de cerdo fresco,7,g
+Costilla de cerdo carnuda,7,g
+Carne de cerdo molida,7,g
+Salchichas tradicionales tipo manguera,7,g
+Jamón de pierna seleccionado,7,g
+Mortadela de pollo,7,g
+Plátano verde dominico hartón,8,g
+Plátano maduro hartón,8,g
+Papa negra pastusa,8,g
+Papa criolla amarilla,8,g
+Yuca fresca para cocer,8,g
+Cebolla cabezona blanca,8,g
+Cebolla cabezona roja,8,g
+Cebolla larga junca,8,g
+Tomate chonto fresco maduro,8,g
+Zanahoria fresca lavada,8,g
+Aguacate papelillo fresco,8,unidad
+Limón tahití verde jugoso,8,g
+Bananos criollos maduros,8,g
+Naranja valencia para jugo,8,g
+Guayaba coronilla dulce,8,g
+Jabón en barra para lavar ropa,9,g
+Detergente en polvo multiusos,9,g
+Detergente líquido concentrado,9,ml
+Blanqueador desinfectante con cloro,9,ml
+Suavizante de telas aroma floral,9,ml
+Limpiador líquido desinfectante pisos,9,ml
+Jabón líquido lavaplatos loza,9,ml
+Crema lavaplatos con esponja,9,g
+Esponja abrasiva multiusos,9,unidad
+Limpión bayetilla de algodón,9,unidad
+Papel higiénico rollo doble hoja,9,unidad
+Toallas de papel absorbente cocina,9,unidad
+Bolsas de basura calibre mediano,9,unidad
+Fósforos caja de madera,9,unidad
+Jabón de tocador en barra cremosa,10,g
+Champú anticaspa hidratante,10,ml
+Acondicionador para el cabello,10,ml
+Crema dental protección anticaries,10,g
+Cepillo dental cerdas medianas,10,unidad
+Desodorante en roll-on masculino,10,ml
+Desodorante en roll-on femenino,10,ml
+Toallas higiénicas normales con alas,10,unidad
+Protectores diarios sin perfume,10,unidad
+Crema corporal humectante,10,ml
+Alcohol etílico al 70 por ciento,10,ml
+Copitos de algodón punta suave,10,unidad
+Máquina de afeitar doble hoja,10,unidad
+Pañitos húmedos limpiadores sin alcohol,10,unidad
+

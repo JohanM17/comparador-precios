@@ -68,9 +68,7 @@ async def test_extensiones_instaladas(conexion_bd: asyncpg.Connection) -> None:
 
 async def test_rol_app_backend_existe(conexion_bd: asyncpg.Connection) -> None:
     """Verifica que el rol de aplicacion app_backend exista en pg_roles."""
-    fila = await conexion_bd.fetchrow(
-        "SELECT rolname FROM pg_roles WHERE rolname = 'app_backend';"
-    )
+    fila = await conexion_bd.fetchrow("SELECT rolname FROM pg_roles WHERE rolname = 'app_backend';")
     assert fila is not None, "El rol 'app_backend' no existe en pg_roles"
     assert fila["rolname"] == "app_backend"
 
