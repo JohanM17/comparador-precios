@@ -1,6 +1,24 @@
 {
   "components": {
     "schemas": {
+      "ActualizarAliasEntrada": {
+        "additionalProperties": false,
+        "description": "Entrada para modificar el alias publico del usuario.",
+        "properties": {
+          "alias": {
+            "maxLength": 30,
+            "minLength": 3,
+            "pattern": "^[a-zA-Z0-9_.-]+$",
+            "title": "Alias",
+            "type": "string"
+          }
+        },
+        "required": [
+          "alias"
+        ],
+        "title": "ActualizarAliasEntrada",
+        "type": "object"
+      },
       "AprobarSugerenciaEntrada": {
         "additionalProperties": false,
         "description": "Datos para que el moderador apruebe e incorpore la sugerencia al catalogo.",
@@ -58,6 +76,73 @@
           "unidad"
         ],
         "title": "AprobarSugerenciaEntrada",
+        "type": "object"
+      },
+      "AutorizacionEntrada": {
+        "additionalProperties": false,
+        "description": "Entrada para registrar el consentimiento previo e informado del titular.",
+        "properties": {
+          "acepta": {
+            "title": "Acepta",
+            "type": "boolean"
+          },
+          "alias": {
+            "maxLength": 30,
+            "minLength": 3,
+            "pattern": "^[a-zA-Z0-9_.-]+$",
+            "title": "Alias",
+            "type": "string"
+          },
+          "version_politica": {
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Version Politica",
+            "type": "string"
+          }
+        },
+        "required": [
+          "alias",
+          "version_politica",
+          "acepta"
+        ],
+        "title": "AutorizacionEntrada",
+        "type": "object"
+      },
+      "AutorizacionRespuesta": {
+        "additionalProperties": false,
+        "description": "Confirmacion del registro de autorizacion de datos personales.",
+        "properties": {
+          "aceptada_en": {
+            "format": "date-time",
+            "title": "Aceptada En",
+            "type": "string"
+          },
+          "alias": {
+            "title": "Alias",
+            "type": "string"
+          },
+          "mensaje": {
+            "title": "Mensaje",
+            "type": "string"
+          },
+          "usuario_id": {
+            "format": "uuid",
+            "title": "Usuario Id",
+            "type": "string"
+          },
+          "version_politica": {
+            "title": "Version Politica",
+            "type": "string"
+          }
+        },
+        "required": [
+          "usuario_id",
+          "alias",
+          "version_politica",
+          "aceptada_en",
+          "mensaje"
+        ],
+        "title": "AutorizacionRespuesta",
         "type": "object"
       },
       "CategoriaRespuesta": {
@@ -173,6 +258,32 @@
           "codigo"
         ],
         "title": "DetalleProblema",
+        "type": "object"
+      },
+      "EliminarCuentaRespuesta": {
+        "additionalProperties": false,
+        "description": "Respuesta al ejercicio del derecho de supresion y anonimizacion.",
+        "properties": {
+          "estado": {
+            "title": "Estado",
+            "type": "string"
+          },
+          "mensaje": {
+            "title": "Mensaje",
+            "type": "string"
+          },
+          "usuario_id": {
+            "format": "uuid",
+            "title": "Usuario Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mensaje",
+          "usuario_id",
+          "estado"
+        ],
+        "title": "EliminarCuentaRespuesta",
         "type": "object"
       },
       "EstablecimientoActualizarEntrada": {
@@ -648,6 +759,116 @@
           "datos"
         ],
         "title": "ListaProductosRespuesta",
+        "type": "object"
+      },
+      "PerfilUsuarioRespuesta": {
+        "additionalProperties": false,
+        "description": "Datos del perfil y vigencia de autorizacion del usuario.",
+        "properties": {
+          "alias": {
+            "title": "Alias",
+            "type": "string"
+          },
+          "autorizacion_vigente": {
+            "additionalProperties": true,
+            "title": "Autorizacion Vigente",
+            "type": "object"
+          },
+          "creado_en": {
+            "format": "date-time",
+            "title": "Creado En",
+            "type": "string"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "estado": {
+            "title": "Estado",
+            "type": "string"
+          },
+          "reportes_corroborados": {
+            "title": "Reportes Corroborados",
+            "type": "integer"
+          },
+          "reportes_malos_confirmados": {
+            "title": "Reportes Malos Confirmados",
+            "type": "integer"
+          },
+          "reputacion": {
+            "title": "Reputacion",
+            "type": "string"
+          },
+          "rol": {
+            "title": "Rol",
+            "type": "string"
+          },
+          "usuario_id": {
+            "format": "uuid",
+            "title": "Usuario Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "usuario_id",
+          "alias",
+          "rol",
+          "estado",
+          "reputacion",
+          "reportes_corroborados",
+          "reportes_malos_confirmados",
+          "autorizacion_vigente",
+          "creado_en"
+        ],
+        "title": "PerfilUsuarioRespuesta",
+        "type": "object"
+      },
+      "PoliticaTratamientoRespuesta": {
+        "additionalProperties": false,
+        "description": "Informacion publica de la politica de tratamiento de datos personales.",
+        "properties": {
+          "contacto_legal_email": {
+            "title": "Contacto Legal Email",
+            "type": "string"
+          },
+          "derechos_arco": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Derechos Arco",
+            "type": "array"
+          },
+          "finalidades": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Finalidades",
+            "type": "array"
+          },
+          "texto_completo": {
+            "title": "Texto Completo",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "texto_completo",
+          "finalidades",
+          "contacto_legal_email",
+          "derechos_arco"
+        ],
+        "title": "PoliticaTratamientoRespuesta",
         "type": "object"
       },
       "PrecioVigenteResumen": {
@@ -1227,6 +1448,34 @@
         "title": "RespuestaSalud",
         "type": "object"
       },
+      "RespuestaUrlSubida": {
+        "additionalProperties": false,
+        "description": "Respuesta con la ruta asignada y la URL firmada temporal.",
+        "properties": {
+          "expira_en": {
+            "default": 300,
+            "description": "Tiempo de expiracion de la URL en segundos (5 minutos)",
+            "title": "Expira En",
+            "type": "integer"
+          },
+          "ruta": {
+            "description": "Ruta de destino dentro del bucket pruebas",
+            "title": "Ruta",
+            "type": "string"
+          },
+          "url_firmada": {
+            "description": "URL con token de subida temporal",
+            "title": "Url Firmada",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ruta",
+          "url_firmada"
+        ],
+        "title": "RespuestaUrlSubida",
+        "type": "object"
+      },
       "RespuestaUsuario": {
         "properties": {
           "email": {
@@ -1323,6 +1572,39 @@
           "mensaje"
         ],
         "title": "SolicitudCorreccionRespuesta",
+        "type": "object"
+      },
+      "SolicitudUrlSubida": {
+        "additionalProperties": false,
+        "description": "Cuerpo de solicitud para obtener una URL firmada de subida a Storage.",
+        "properties": {
+          "nombre_archivo": {
+            "description": "Nombre original o propuesto del archivo de imagen",
+            "maxLength": 255,
+            "minLength": 3,
+            "title": "Nombre Archivo",
+            "type": "string"
+          },
+          "tamano_bytes": {
+            "description": "Tamano del archivo en bytes (maximo 300 KB)",
+            "exclusiveMinimum": 0.0,
+            "maximum": 307200.0,
+            "title": "Tamano Bytes",
+            "type": "integer"
+          },
+          "tipo_mime": {
+            "description": "Tipo MIME de la imagen (solo image/jpeg o image/webp)",
+            "pattern": "^(image/jpeg|image/webp)$",
+            "title": "Tipo Mime",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nombre_archivo",
+          "tipo_mime",
+          "tamano_bytes"
+        ],
+        "title": "SolicitudUrlSubida",
         "type": "object"
       },
       "SugerenciaPresentacionEntrada": {
@@ -1858,6 +2140,304 @@
         "summary": "Enviar solicitud ciudadana de correccion de datos",
         "tags": [
           "establecimientos"
+        ]
+      }
+    },
+    "/v1/fotos/url-subida": {
+      "post": {
+        "description": "Genera una URL firmada de subida temporal a Storage Supabase bucket pruebas (T-27).",
+        "operationId": "generar_url_subida_foto_v1_fotos_url_subida_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitudUrlSubida"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUrlSubida"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generar URL firmada para subir fotografia de prueba",
+        "tags": [
+          "Fotos y Evidencias"
+        ]
+      }
+    },
+    "/v1/legal/politica-tratamiento": {
+      "get": {
+        "description": "Retorna la version vigente, finalidades y correo de atencion de derechos ARCO.",
+        "operationId": "consultar_politica_tratamiento_v1_legal_politica_tratamiento_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PoliticaTratamientoRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Politica publica de tratamiento de datos personales",
+        "tags": [
+          "Cuentas y Privacidad"
+        ]
+      }
+    },
+    "/v1/mi-cuenta": {
+      "delete": {
+        "description": "Anonimiza todos los reportes, fotos y da de baja la cuenta (FR-007).",
+        "operationId": "eliminar_cuenta_usuario_v1_mi_cuenta_delete",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EliminarCuentaRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ejercicio del derecho de supresion y anonimizacion irreversible",
+        "tags": [
+          "Cuentas y Privacidad"
+        ]
+      },
+      "get": {
+        "description": "Retorna el perfil del usuario autenticado; exige consentimiento activo.",
+        "operationId": "obtener_perfil_usuario_v1_mi_cuenta_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerfilUsuarioRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Consultar perfil del titular y autorizacion vigente",
+        "tags": [
+          "Cuentas y Privacidad"
+        ]
+      },
+      "patch": {
+        "description": "Modifica el alias publico verificando unicidad.",
+        "operationId": "actualizar_alias_usuario_v1_mi_cuenta_patch",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActualizarAliasEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerfilUsuarioRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Actualizar alias publico del titular",
+        "tags": [
+          "Cuentas y Privacidad"
+        ]
+      }
+    },
+    "/v1/mi-cuenta/autorizacion": {
+      "post": {
+        "description": "Registra el consentimiento expreso e informado de un reportante autenticado.",
+        "operationId": "registrar_autorizacion_usuario_v1_mi_cuenta_autorizacion_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutorizacionEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutorizacionRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Registrar autorizacion previa de tratamiento de datos",
+        "tags": [
+          "Cuentas y Privacidad"
         ]
       }
     },

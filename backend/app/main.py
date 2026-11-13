@@ -12,6 +12,7 @@ from fastapi.openapi.utils import get_openapi
 from pydantic import BaseModel
 
 from app.adaptadores.open_food_facts import AdaptadorOpenFoodFacts
+from app.adaptadores.storage_supabase import AdaptadorStorageSupabase
 from app.bd import cerrar_conexiones, verificar_conexion_bd
 from app.compartido.errores import (
     DetalleProblema,
@@ -26,7 +27,19 @@ from app.compartido.logging_cfg import (
 from app.compartido.seguridad import UsuarioAutenticado, requiere_rol, requiere_usuario
 from app.config import obtener_configuracion
 from app.modulos.catalogo.api import router as catalogo_router
+from app.modulos.cuentas.api import (
+    obtener_puerto_almacenamiento as obtener_almacenamiento_cuentas,
+)
+from app.modulos.cuentas.api import (
+    router as cuentas_router,
+)
 from app.modulos.establecimientos.api import router as establecimientos_router
+from app.modulos.fotos.api import (
+    obtener_puerto_almacenamiento as obtener_almacenamiento_fotos,
+)
+from app.modulos.fotos.api import (
+    router as fotos_router,
+)
 from app.modulos.moderacion.api import (
     obtener_puerto_catalogo,
 )
@@ -149,11 +162,16 @@ def create_app() -> FastAPI:
         }
 
     adaptador_off = AdaptadorOpenFoodFacts()
+    adaptador_storage = AdaptadorStorageSupabase()
     app.dependency_overrides[obtener_puerto_catalogo] = lambda: adaptador_off
+    app.dependency_overrides[obtener_almacenamiento_cuentas] = lambda: adaptador_storage
+    app.dependency_overrides[obtener_almacenamiento_fotos] = lambda: adaptador_storage
 
     v1_router.include_router(catalogo_router)
     v1_router.include_router(establecimientos_router)
     v1_router.include_router(moderacion_router)
+    v1_router.include_router(cuentas_router)
+    v1_router.include_router(fotos_router)
     app.include_router(v1_router)
 
     def custom_openapi() -> dict[str, Any]:

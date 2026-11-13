@@ -118,6 +118,94 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/fotos/url-subida": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generar URL firmada para subir fotografia de prueba
+         * @description Genera una URL firmada de subida temporal a Storage Supabase bucket pruebas (T-27).
+         */
+        post: operations["generar_url_subida_foto_v1_fotos_url_subida_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/legal/politica-tratamiento": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Politica publica de tratamiento de datos personales
+         * @description Retorna la version vigente, finalidades y correo de atencion de derechos ARCO.
+         */
+        get: operations["consultar_politica_tratamiento_v1_legal_politica_tratamiento_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/mi-cuenta": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Consultar perfil del titular y autorizacion vigente
+         * @description Retorna el perfil del usuario autenticado; exige consentimiento activo.
+         */
+        get: operations["obtener_perfil_usuario_v1_mi_cuenta_get"];
+        put?: never;
+        post?: never;
+        /**
+         * Ejercicio del derecho de supresion y anonimizacion irreversible
+         * @description Anonimiza todos los reportes, fotos y da de baja la cuenta (FR-007).
+         */
+        delete: operations["eliminar_cuenta_usuario_v1_mi_cuenta_delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Actualizar alias publico del titular
+         * @description Modifica el alias publico verificando unicidad.
+         */
+        patch: operations["actualizar_alias_usuario_v1_mi_cuenta_patch"];
+        trace?: never;
+    };
+    "/v1/mi-cuenta/autorizacion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Registrar autorizacion previa de tratamiento de datos
+         * @description Registra el consentimiento expreso e informado de un reportante autenticado.
+         */
+        post: operations["registrar_autorizacion_usuario_v1_mi_cuenta_autorizacion_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/moderacion/catalogo-externo": {
         parameters: {
             query?: never;
@@ -397,6 +485,14 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
+         * ActualizarAliasEntrada
+         * @description Entrada para modificar el alias publico del usuario.
+         */
+        ActualizarAliasEntrada: {
+            /** Alias */
+            alias: string;
+        };
+        /**
          * AprobarSugerenciaEntrada
          * @description Datos para que el moderador apruebe e incorpore la sugerencia al catalogo.
          */
@@ -414,6 +510,40 @@ export interface components {
             unidad: string;
             /** Valor Cantidad */
             valor_cantidad: number | string;
+        };
+        /**
+         * AutorizacionEntrada
+         * @description Entrada para registrar el consentimiento previo e informado del titular.
+         */
+        AutorizacionEntrada: {
+            /** Acepta */
+            acepta: boolean;
+            /** Alias */
+            alias: string;
+            /** Version Politica */
+            version_politica: string;
+        };
+        /**
+         * AutorizacionRespuesta
+         * @description Confirmacion del registro de autorizacion de datos personales.
+         */
+        AutorizacionRespuesta: {
+            /**
+             * Aceptada En
+             * Format: date-time
+             */
+            aceptada_en: string;
+            /** Alias */
+            alias: string;
+            /** Mensaje */
+            mensaje: string;
+            /**
+             * Usuario Id
+             * Format: uuid
+             */
+            usuario_id: string;
+            /** Version Politica */
+            version_politica: string;
         };
         /**
          * CategoriaRespuesta
@@ -466,6 +596,21 @@ export interface components {
             title: string;
             /** Type */
             type: string;
+        };
+        /**
+         * EliminarCuentaRespuesta
+         * @description Respuesta al ejercicio del derecho de supresion y anonimizacion.
+         */
+        EliminarCuentaRespuesta: {
+            /** Estado */
+            estado: string;
+            /** Mensaje */
+            mensaje: string;
+            /**
+             * Usuario Id
+             * Format: uuid
+             */
+            usuario_id: string;
         };
         /**
          * EstablecimientoActualizarEntrada
@@ -627,6 +772,56 @@ export interface components {
             siguiente_cursor?: string | null;
             /** Total Estimado */
             total_estimado?: number | null;
+        };
+        /**
+         * PerfilUsuarioRespuesta
+         * @description Datos del perfil y vigencia de autorizacion del usuario.
+         */
+        PerfilUsuarioRespuesta: {
+            /** Alias */
+            alias: string;
+            /** Autorizacion Vigente */
+            autorizacion_vigente: {
+                [key: string]: unknown;
+            };
+            /**
+             * Creado En
+             * Format: date-time
+             */
+            creado_en: string;
+            /** Email */
+            email?: string | null;
+            /** Estado */
+            estado: string;
+            /** Reportes Corroborados */
+            reportes_corroborados: number;
+            /** Reportes Malos Confirmados */
+            reportes_malos_confirmados: number;
+            /** Reputacion */
+            reputacion: string;
+            /** Rol */
+            rol: string;
+            /**
+             * Usuario Id
+             * Format: uuid
+             */
+            usuario_id: string;
+        };
+        /**
+         * PoliticaTratamientoRespuesta
+         * @description Informacion publica de la politica de tratamiento de datos personales.
+         */
+        PoliticaTratamientoRespuesta: {
+            /** Contacto Legal Email */
+            contacto_legal_email: string;
+            /** Derechos Arco */
+            derechos_arco: string[];
+            /** Finalidades */
+            finalidades: string[];
+            /** Texto Completo */
+            texto_completo: string;
+            /** Version */
+            version: string;
         };
         /**
          * PrecioVigenteResumen
@@ -850,6 +1045,28 @@ export interface components {
             /** Version */
             version: string;
         };
+        /**
+         * RespuestaUrlSubida
+         * @description Respuesta con la ruta asignada y la URL firmada temporal.
+         */
+        RespuestaUrlSubida: {
+            /**
+             * Expira En
+             * @description Tiempo de expiracion de la URL en segundos (5 minutos)
+             * @default 300
+             */
+            expira_en: number;
+            /**
+             * Ruta
+             * @description Ruta de destino dentro del bucket pruebas
+             */
+            ruta: string;
+            /**
+             * Url Firmada
+             * @description URL con token de subida temporal
+             */
+            url_firmada: string;
+        };
         /** RespuestaUsuario */
         RespuestaUsuario: {
             /** Email */
@@ -885,6 +1102,27 @@ export interface components {
             id?: string | null;
             /** Mensaje */
             mensaje: string;
+        };
+        /**
+         * SolicitudUrlSubida
+         * @description Cuerpo de solicitud para obtener una URL firmada de subida a Storage.
+         */
+        SolicitudUrlSubida: {
+            /**
+             * Nombre Archivo
+             * @description Nombre original o propuesto del archivo de imagen
+             */
+            nombre_archivo: string;
+            /**
+             * Tamano Bytes
+             * @description Tamano del archivo en bytes (maximo 300 KB)
+             */
+            tamano_bytes: number;
+            /**
+             * Tipo Mime
+             * @description Tipo MIME de la imagen (solo image/jpeg o image/webp)
+             */
+            tipo_mime: string;
         };
         /**
          * SugerenciaPresentacionEntrada
@@ -1113,6 +1351,193 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SolicitudCorreccionRespuesta"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generar_url_subida_foto_v1_fotos_url_subida_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SolicitudUrlSubida"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RespuestaUrlSubida"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    consultar_politica_tratamiento_v1_legal_politica_tratamiento_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PoliticaTratamientoRespuesta"];
+                };
+            };
+        };
+    };
+    obtener_perfil_usuario_v1_mi_cuenta_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PerfilUsuarioRespuesta"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    eliminar_cuenta_usuario_v1_mi_cuenta_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EliminarCuentaRespuesta"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    actualizar_alias_usuario_v1_mi_cuenta_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActualizarAliasEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PerfilUsuarioRespuesta"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    registrar_autorizacion_usuario_v1_mi_cuenta_autorizacion_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutorizacionEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutorizacionRespuesta"];
                 };
             };
             /** @description Validation Error */

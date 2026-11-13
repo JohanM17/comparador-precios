@@ -130,7 +130,7 @@ Este documento contiene la lista secuencial de 47 tareas atómicas de ingenierí
 
 ### Ola 2: Reportes, Vigencia, Caché y Comparación (`T-20` a `T-27`) — US-1, US-2
 
-- [ ] **T-20** | **Desarrollar con TDD `vigencia.py`, `sello.py` y `orden.py`**
+- [x] **T-20** | **Desarrollar con TDD `vigencia.py`, `sello.py` y `orden.py`**
   - **Depende de**: `T-10`
   - **Resp.**: **A**
   - **Archivos**: `backend/app/dominio/vigencia.py`, `backend/app/dominio/sello.py`, `backend/app/dominio/orden.py`, `backend/tests/unitarias/test_vigencia_sello_orden.py`
@@ -142,7 +142,7 @@ Este documento contiene la lista secuencial de 47 tareas atómicas de ingenierí
   - **Archivos**: `supabase/migrations/0003_cuentas_precios_moderacion_auditoria.sql`, `backend/tests/integracion/test_inmutabilidad_reportes.py`
   - **Hecho cuando…**: El trigger y los permisos de `app_backend` bloquean cualquier `DELETE` sobre `reporte_precio` y `auditoria` y cualquier `UPDATE` de `precio_cop`.
 
-- [ ] **T-22** | **Implementar módulo `cuentas` y autorización Ley 1581**
+- [x] **T-22** | **Implementar módulo `cuentas` y autorización Ley 1581**
   - **Depende de**: `T-03`, `T-21`
   - **Resp.**: **B**
   - **Archivos**: `backend/app/modulos/cuentas/*`, `backend/tests/integracion/test_cuentas_ley1581.py`
@@ -172,7 +172,7 @@ Este documento contiene la lista secuencial de 47 tareas atómicas de ingenierí
   - **Archivos**: `backend/app/modulos/precios/api.py`, `backend/tests/integracion/test_comparacion_ec06.py`
   - **Hecho cuando…**: Cumple el contrato JSON de 6.4 y pasa la prueba de neutralidad `EC-06`.
 
-- [ ] **T-27** | **Implementar subida de fotos de prueba (`POST /v1/fotos/url-subida`) y limpieza de metadatos EXIF con Pillow**
+- [x] **T-27** | **Implementar subida de fotos de prueba (`POST /v1/fotos/url-subida`) y limpieza de metadatos EXIF con Pillow**
   - **Depende de**: `T-23`
   - **Resp.**: **B**
   - **Archivos**: `backend/app/puertos/almacenamiento.py`, `backend/app/adaptadores/storage_supabase.py`, `backend/tests/unitarias/test_limpieza_exif.py`
@@ -182,13 +182,13 @@ Este documento contiene la lista secuencial de 47 tareas atómicas de ingenierí
 
 ### Ola 3: Detección de Anomalías, Reputación y Moderación (`T-30` a `T-36`) — US-3
 
-- [ ] **T-30** | **Desarrollar con TDD `backend/app/dominio/anomalia.py`**
+- [x] **T-30** | **Desarrollar con TDD `backend/app/dominio/anomalia.py`**
   - **Depende de**: `T-10`
   - **Resp.**: **B**
   - **Archivos**: `backend/app/dominio/anomalia.py`, `backend/tests/unitarias/test_anomalia.py`
   - **Hecho cuando…**: Pasan todos los casos de la tabla de la Sección 5.3 (3 niveles jerárquicos + respaldo `sin_referencia`, z-score modificado y desviación porcentual).
 
-- [ ] **T-31** | **Desarrollar con TDD `riesgo.py` y `reputacion.py`**
+- [x] **T-31** | **Desarrollar con TDD `riesgo.py` y `reputacion.py`**
   - **Depende de**: `T-30`
   - **Resp.**: **B**
   - **Archivos**: `backend/app/dominio/riesgo.py`, `backend/app/dominio/reputacion.py`, `backend/tests/unitarias/test_riesgo_reputacion.py`

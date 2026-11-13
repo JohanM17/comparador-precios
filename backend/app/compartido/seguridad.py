@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bd import obtener_sesion
 from app.compartido.errores import (
+    AutorizacionRequeridaError,
     CuentaSuspendidaError,
     NoAutenticadoError,
     ProhibidoError,
@@ -132,3 +133,21 @@ def requiere_rol(*roles_permitidos: str) -> Any:
         return usuario
 
     return _verificador_rol
+
+
+async def requiere_autorizacion_datos(
+    usuario: Annotated[UsuarioAutenticado, Depends(requiere_usuario)],
+    sesion: Annotated[AsyncSession, Depends(obtener_sesion)],
+) -> UsuarioAutenticado:
+    """Valida que el usuario tenga autorizacion previa y expresa segun Ley 1581 (FR-006)."""
+    sql = text("""
+        SELECT 1 FROM public.autorizacion_datos
+        WHERE usuario_id = :uid AND revocada_en IS NULL
+        LIMIT 1;
+    """)
+    fila = (await sesion.execute(sql, {"uid": usuario.id})).fetchone()
+    if not fila:
+        raise AutorizacionRequeridaError(
+            "Se requiere autorizacion previa y expresa segun Ley 1581 para realizar esta accion."
+        )
+    return usuario
