@@ -46,6 +46,10 @@ class ParametrosDominio:
     peso_con_foto: float = 1.2
     cache_ttl_segundos: int = 60
     cache_l1_segundos: int = 5
+    limite_escrituras_ip_min: int = 20
+    limite_reportes_hora_nuevo: int = 20
+    limite_reportes_hora_normal: int = 60
+    limite_reportes_dia: int = 200
     limite_fotos_hora_usuario: int = 30
     foto_max_kb: int = 300
     foto_tipos: list[str] = field(default_factory=lambda: ["image/webp", "image/jpeg"])
@@ -77,6 +81,12 @@ class ParametrosDominio:
             "sello.min_fuentes": "sello_min_fuentes",
             "sello.dispersion_max": "sello_dispersion_max",
             "peso.con_foto": "peso_con_foto",
+            "rafaga.ventana_min": "rafaga_ventana_min",
+            "rafaga.min_cuentas": "rafaga_min_cuentas",
+            "limite.escrituras_ip_min": "limite_escrituras_ip_min",
+            "limite.reportes_hora_nuevo": "limite_reportes_hora_nuevo",
+            "limite.reportes_hora_normal": "limite_reportes_hora_normal",
+            "limite.reportes_dia": "limite_reportes_dia",
             "limite.fotos_hora_usuario": "limite_fotos_hora_usuario",
             "foto.max_kb": "foto_max_kb",
             "foto.tipos": "foto_tipos",
