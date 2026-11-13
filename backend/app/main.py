@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from pydantic import BaseModel
 
+from app.adaptadores.cache_dos_niveles import CacheDosNiveles
 from app.adaptadores.open_food_facts import AdaptadorOpenFoodFacts
 from app.adaptadores.storage_supabase import AdaptadorStorageSupabase
 from app.bd import cerrar_conexiones, verificar_conexion_bd
@@ -45,6 +46,12 @@ from app.modulos.moderacion.api import (
 )
 from app.modulos.moderacion.api import (
     router as moderacion_router,
+)
+from app.modulos.precios.api import (
+    obtener_puerto_cache,
+)
+from app.modulos.precios.api import (
+    router as precios_router,
 )
 
 
@@ -163,15 +170,18 @@ def create_app() -> FastAPI:
 
     adaptador_off = AdaptadorOpenFoodFacts()
     adaptador_storage = AdaptadorStorageSupabase()
+    adaptador_cache = CacheDosNiveles()
     app.dependency_overrides[obtener_puerto_catalogo] = lambda: adaptador_off
     app.dependency_overrides[obtener_almacenamiento_cuentas] = lambda: adaptador_storage
     app.dependency_overrides[obtener_almacenamiento_fotos] = lambda: adaptador_storage
+    app.dependency_overrides[obtener_puerto_cache] = lambda: adaptador_cache
 
     v1_router.include_router(catalogo_router)
     v1_router.include_router(establecimientos_router)
     v1_router.include_router(moderacion_router)
     v1_router.include_router(cuentas_router)
     v1_router.include_router(fotos_router)
+    v1_router.include_router(precios_router)
     app.include_router(v1_router)
 
     def custom_openapi() -> dict[str, Any]:

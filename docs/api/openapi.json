@@ -208,6 +208,127 @@
         "title": "ConsultaCatalogoExternoRespuesta",
         "type": "object"
       },
+      "CrearReporteEntrada": {
+        "additionalProperties": false,
+        "description": "Cuerpo de solicitud para registrar un nuevo reporte de precio (Flujo F2).",
+        "properties": {
+          "establecimiento_id": {
+            "format": "uuid",
+            "title": "Establecimiento Id",
+            "type": "string"
+          },
+          "foto_ruta": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Foto Ruta"
+          },
+          "observado_en": {
+            "format": "date-time",
+            "title": "Observado En",
+            "type": "string"
+          },
+          "precio_cop": {
+            "description": "Precio total en pesos colombianos COP",
+            "title": "Precio Cop",
+            "type": "integer"
+          },
+          "presentacion_id": {
+            "format": "uuid",
+            "title": "Presentacion Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "presentacion_id",
+          "establecimiento_id",
+          "precio_cop",
+          "observado_en"
+        ],
+        "title": "CrearReporteEntrada",
+        "type": "object"
+      },
+      "CrearReporteRespuesta": {
+        "additionalProperties": false,
+        "description": "Respuesta HTTP para POST /v1/reportes.",
+        "properties": {
+          "datos": {
+            "$ref": "#/components/schemas/DatosReporteRespuesta"
+          }
+        },
+        "required": [
+          "datos"
+        ],
+        "title": "CrearReporteRespuesta",
+        "type": "object"
+      },
+      "DatosComparacion": {
+        "additionalProperties": false,
+        "description": "Cuerpo de datos del comparador neutral.",
+        "properties": {
+          "meta": {
+            "$ref": "#/components/schemas/MetaComparacion"
+          },
+          "producto": {
+            "$ref": "#/components/schemas/ProductoComparacion"
+          },
+          "promociones": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Promociones",
+            "type": "array"
+          },
+          "resultados": {
+            "items": {
+              "$ref": "#/components/schemas/ItemResultadoComparacion"
+            },
+            "title": "Resultados",
+            "type": "array"
+          }
+        },
+        "required": [
+          "producto",
+          "resultados",
+          "meta"
+        ],
+        "title": "DatosComparacion",
+        "type": "object"
+      },
+      "DatosReporteRespuesta": {
+        "additionalProperties": false,
+        "description": "Detalle visible del reporte registrado.",
+        "properties": {
+          "estado_visible": {
+            "description": "'recibido' o 'en_revision'",
+            "title": "Estado Visible",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "mensaje": {
+            "title": "Mensaje",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "estado_visible",
+          "mensaje"
+        ],
+        "title": "DatosReporteRespuesta",
+        "type": "object"
+      },
       "DetalleProblema": {
         "additionalProperties": false,
         "description": "Estructura de error estandar segun RFC 9457 (application/problem+json).",
@@ -258,6 +379,59 @@
           "codigo"
         ],
         "title": "DetalleProblema",
+        "type": "object"
+      },
+      "ElementoReportePropio": {
+        "additionalProperties": false,
+        "description": "Fila en el historial de reportes del propio usuario.",
+        "properties": {
+          "creado_en": {
+            "format": "date-time",
+            "title": "Creado En",
+            "type": "string"
+          },
+          "establecimiento_nombre": {
+            "title": "Establecimiento Nombre",
+            "type": "string"
+          },
+          "estado_visible": {
+            "title": "Estado Visible",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "observado_en": {
+            "format": "date-time",
+            "title": "Observado En",
+            "type": "string"
+          },
+          "precio_cop": {
+            "title": "Precio Cop",
+            "type": "integer"
+          },
+          "presentacion_etiqueta": {
+            "title": "Presentacion Etiqueta",
+            "type": "string"
+          },
+          "producto_nombre": {
+            "title": "Producto Nombre",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "producto_nombre",
+          "presentacion_etiqueta",
+          "establecimiento_nombre",
+          "precio_cop",
+          "observado_en",
+          "creado_en",
+          "estado_visible"
+        ],
+        "title": "ElementoReportePropio",
         "type": "object"
       },
       "EliminarCuentaRespuesta": {
@@ -403,6 +577,65 @@
           }
         },
         "title": "EstablecimientoActualizarEntrada",
+        "type": "object"
+      },
+      "EstablecimientoComparacion": {
+        "additionalProperties": false,
+        "description": "Detalle del comercio en una fila de comparacion.",
+        "properties": {
+          "barrio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barrio"
+          },
+          "direccion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Direccion"
+          },
+          "distancia_m": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distancia M"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "tipo": {
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "tipo"
+        ],
+        "title": "EstablecimientoComparacion",
         "type": "object"
       },
       "EstablecimientoCrearEntrada": {
@@ -698,6 +931,86 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "ItemResultadoComparacion": {
+        "additionalProperties": false,
+        "description": "Fila del comparador de precios (Bloque 1 o Bloque 2).",
+        "properties": {
+          "con_foto_prueba": {
+            "default": false,
+            "title": "Con Foto Prueba",
+            "type": "boolean"
+          },
+          "es_bloque_secundario": {
+            "default": false,
+            "title": "Es Bloque Secundario",
+            "type": "boolean"
+          },
+          "establecimiento": {
+            "$ref": "#/components/schemas/EstablecimientoComparacion"
+          },
+          "motivo_sello": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo Sello"
+          },
+          "n_fuentes": {
+            "title": "N Fuentes",
+            "type": "integer"
+          },
+          "n_reportes_validos": {
+            "title": "N Reportes Validos",
+            "type": "integer"
+          },
+          "precio_cop": {
+            "title": "Precio Cop",
+            "type": "integer"
+          },
+          "precio_oficial_cop": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio Oficial Cop"
+          },
+          "precio_por_unidad": {
+            "$ref": "#/components/schemas/PrecioUnidad"
+          },
+          "presentacion": {
+            "$ref": "#/components/schemas/PresentacionComparacion"
+          },
+          "sello": {
+            "title": "Sello",
+            "type": "string"
+          },
+          "ultimo_reporte_en": {
+            "format": "date-time",
+            "title": "Ultimo Reporte En",
+            "type": "string"
+          }
+        },
+        "required": [
+          "establecimiento",
+          "presentacion",
+          "precio_cop",
+          "precio_por_unidad",
+          "sello",
+          "n_reportes_validos",
+          "n_fuentes",
+          "ultimo_reporte_en"
+        ],
+        "title": "ItemResultadoComparacion",
+        "type": "object"
+      },
       "ListaEstablecimientosRespuesta": {
         "additionalProperties": false,
         "description": "Listado paginado de establecimientos comerciales.",
@@ -759,6 +1072,77 @@
           "datos"
         ],
         "title": "ListaProductosRespuesta",
+        "type": "object"
+      },
+      "MetaComparacion": {
+        "additionalProperties": false,
+        "description": "Metadatos de ordenamiento, frescura y neutralidad comercial (EC-06).",
+        "properties": {
+          "bloques": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Bloques",
+            "type": "array"
+          },
+          "criterio_orden": {
+            "title": "Criterio Orden",
+            "type": "string"
+          },
+          "datos_de_demostracion": {
+            "default": false,
+            "title": "Datos De Demostracion",
+            "type": "boolean"
+          },
+          "generado_en": {
+            "title": "Generado En",
+            "type": "string"
+          },
+          "texto_neutralidad": {
+            "title": "Texto Neutralidad",
+            "type": "string"
+          }
+        },
+        "required": [
+          "criterio_orden",
+          "texto_neutralidad",
+          "bloques",
+          "generado_en"
+        ],
+        "title": "MetaComparacion",
+        "type": "object"
+      },
+      "MisReportesRespuesta": {
+        "additionalProperties": false,
+        "description": "Respuesta paginada para GET /v1/mis-reportes.",
+        "properties": {
+          "datos": {
+            "items": {
+              "$ref": "#/components/schemas/ElementoReportePropio"
+            },
+            "title": "Datos",
+            "type": "array"
+          },
+          "limite": {
+            "title": "Limite",
+            "type": "integer"
+          },
+          "pagina": {
+            "title": "Pagina",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "datos",
+          "total",
+          "pagina",
+          "limite"
+        ],
+        "title": "MisReportesRespuesta",
         "type": "object"
       },
       "PerfilUsuarioRespuesta": {
@@ -869,6 +1253,26 @@
           "derechos_arco"
         ],
         "title": "PoliticaTratamientoRespuesta",
+        "type": "object"
+      },
+      "PrecioUnidad": {
+        "additionalProperties": false,
+        "description": "Precio unitario normalizado para comparacion equitativa.",
+        "properties": {
+          "por": {
+            "title": "Por",
+            "type": "string"
+          },
+          "valor_cop": {
+            "title": "Valor Cop",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "valor_cop",
+          "por"
+        ],
+        "title": "PrecioUnidad",
         "type": "object"
       },
       "PrecioVigenteResumen": {
@@ -1004,6 +1408,43 @@
           }
         },
         "title": "PresentacionActualizarEntrada",
+        "type": "object"
+      },
+      "PresentacionComparacion": {
+        "additionalProperties": false,
+        "description": "Detalle de presentacion de producto en comparacion.",
+        "properties": {
+          "cantidad_base": {
+            "title": "Cantidad Base",
+            "type": "number"
+          },
+          "etiqueta": {
+            "title": "Etiqueta",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "marca": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Marca"
+          }
+        },
+        "required": [
+          "id",
+          "etiqueta",
+          "cantidad_base"
+        ],
+        "title": "PresentacionComparacion",
         "type": "object"
       },
       "PresentacionCrearEntrada": {
@@ -1214,6 +1655,50 @@
         "title": "ProductoActualizarEntrada",
         "type": "object"
       },
+      "ProductoComparacion": {
+        "additionalProperties": false,
+        "description": "Encabezado de producto comparado.",
+        "properties": {
+          "categoria_id": {
+            "title": "Categoria Id",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "presentaciones": {
+            "items": {
+              "$ref": "#/components/schemas/PresentacionComparacion"
+            },
+            "title": "Presentaciones",
+            "type": "array"
+          },
+          "unidad_base": {
+            "title": "Unidad Base",
+            "type": "string"
+          },
+          "unidad_visualizacion": {
+            "title": "Unidad Visualizacion",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "categoria_id",
+          "unidad_base",
+          "unidad_visualizacion",
+          "presentaciones"
+        ],
+        "title": "ProductoComparacion",
+        "type": "object"
+      },
       "ProductoCrearEntrada": {
         "additionalProperties": false,
         "description": "Entrada para crear un nuevo producto en el catalogo.",
@@ -1400,6 +1885,20 @@
           "motivo"
         ],
         "title": "RechazarSugerenciaEntrada",
+        "type": "object"
+      },
+      "RespuestaComparacion": {
+        "additionalProperties": false,
+        "description": "Respuesta completa de GET /v1/productos/{id}/comparacion.",
+        "properties": {
+          "datos": {
+            "$ref": "#/components/schemas/DatosComparacion"
+          }
+        },
+        "required": [
+          "datos"
+        ],
+        "title": "RespuestaComparacion",
         "type": "object"
       },
       "RespuestaListo": {
@@ -2441,6 +2940,78 @@
         ]
       }
     },
+    "/v1/mis-reportes": {
+      "get": {
+        "operationId": "mis_reportes_v1_mis_reportes_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "pagina",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Pagina",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limite",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limite",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MisReportesRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Consultar historial propio de reportes con estado visible",
+        "tags": [
+          "Precios y Comparaciones"
+        ]
+      }
+    },
     "/v1/moderacion/catalogo-externo": {
       "get": {
         "description": "Consulta Open Food Facts con Circuit Breaker en memoria.",
@@ -3190,6 +3761,199 @@
         "summary": "Ficha tecnica del producto",
         "tags": [
           "catalogo"
+        ]
+      }
+    },
+    "/v1/productos/{id}/comparacion": {
+      "get": {
+        "operationId": "comparar_precios_producto_v1_productos__id__comparacion_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "presentacion_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Presentacion Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "orden",
+            "required": false,
+            "schema": {
+              "default": "precio_unitario",
+              "title": "Orden",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "lat",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lat"
+            }
+          },
+          {
+            "in": "query",
+            "name": "lng",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lng"
+            }
+          },
+          {
+            "in": "query",
+            "name": "radio_km",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Radio Km"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaComparacion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Comparador publico neutral de precios en dos bloques (Flujo F1)",
+        "tags": [
+          "Precios y Comparaciones"
+        ]
+      }
+    },
+    "/v1/reportes": {
+      "post": {
+        "operationId": "crear_reporte_v1_reportes_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearReporteEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrearReporteRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Registrar un reporte de precio con idempotencia (Flujo F2)",
+        "tags": [
+          "Precios y Comparaciones"
         ]
       }
     },

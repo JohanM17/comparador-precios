@@ -206,6 +206,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/mis-reportes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Consultar historial propio de reportes con estado visible */
+        get: operations["mis_reportes_v1_mis_reportes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/moderacion/catalogo-externo": {
         parameters: {
             query?: never;
@@ -426,6 +443,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/productos/{id}/comparacion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Comparador publico neutral de precios en dos bloques (Flujo F1) */
+        get: operations["comparar_precios_producto_v1_productos__id__comparacion_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/reportes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Registrar un reporte de precio con idempotencia (Flujo F2) */
+        post: operations["crear_reporte_v1_reportes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/salud": {
         parameters: {
             query?: never;
@@ -575,6 +626,73 @@ export interface components {
             } | null;
         };
         /**
+         * CrearReporteEntrada
+         * @description Cuerpo de solicitud para registrar un nuevo reporte de precio (Flujo F2).
+         */
+        CrearReporteEntrada: {
+            /**
+             * Establecimiento Id
+             * Format: uuid
+             */
+            establecimiento_id: string;
+            /** Foto Ruta */
+            foto_ruta?: string | null;
+            /**
+             * Observado En
+             * Format: date-time
+             */
+            observado_en: string;
+            /**
+             * Precio Cop
+             * @description Precio total en pesos colombianos COP
+             */
+            precio_cop: number;
+            /**
+             * Presentacion Id
+             * Format: uuid
+             */
+            presentacion_id: string;
+        };
+        /**
+         * CrearReporteRespuesta
+         * @description Respuesta HTTP para POST /v1/reportes.
+         */
+        CrearReporteRespuesta: {
+            datos: components["schemas"]["DatosReporteRespuesta"];
+        };
+        /**
+         * DatosComparacion
+         * @description Cuerpo de datos del comparador neutral.
+         */
+        DatosComparacion: {
+            meta: components["schemas"]["MetaComparacion"];
+            producto: components["schemas"]["ProductoComparacion"];
+            /** Promociones */
+            promociones?: {
+                [key: string]: unknown;
+            }[];
+            /** Resultados */
+            resultados: components["schemas"]["ItemResultadoComparacion"][];
+        };
+        /**
+         * DatosReporteRespuesta
+         * @description Detalle visible del reporte registrado.
+         */
+        DatosReporteRespuesta: {
+            /**
+             * Estado Visible
+             * @description 'recibido' o 'en_revision'
+             */
+            estado_visible: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Mensaje */
+            mensaje: string;
+        };
+        /**
          * DetalleProblema
          * @description Estructura de error estandar segun RFC 9457 (application/problem+json).
          */
@@ -596,6 +714,37 @@ export interface components {
             title: string;
             /** Type */
             type: string;
+        };
+        /**
+         * ElementoReportePropio
+         * @description Fila en el historial de reportes del propio usuario.
+         */
+        ElementoReportePropio: {
+            /**
+             * Creado En
+             * Format: date-time
+             */
+            creado_en: string;
+            /** Establecimiento Nombre */
+            establecimiento_nombre: string;
+            /** Estado Visible */
+            estado_visible: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Observado En
+             * Format: date-time
+             */
+            observado_en: string;
+            /** Precio Cop */
+            precio_cop: number;
+            /** Presentacion Etiqueta */
+            presentacion_etiqueta: string;
+            /** Producto Nombre */
+            producto_nombre: string;
         };
         /**
          * EliminarCuentaRespuesta
@@ -635,6 +784,27 @@ export interface components {
             nombre?: string | null;
             /** Tipo */
             tipo?: string | null;
+        };
+        /**
+         * EstablecimientoComparacion
+         * @description Detalle del comercio en una fila de comparacion.
+         */
+        EstablecimientoComparacion: {
+            /** Barrio */
+            barrio?: string | null;
+            /** Direccion */
+            direccion?: string | null;
+            /** Distancia M */
+            distancia_m?: number | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Nombre */
+            nombre: string;
+            /** Tipo */
+            tipo: string;
         };
         /**
          * EstablecimientoCrearEntrada
@@ -752,6 +922,42 @@ export interface components {
             detail?: components["schemas"]["ValidationError"][];
         };
         /**
+         * ItemResultadoComparacion
+         * @description Fila del comparador de precios (Bloque 1 o Bloque 2).
+         */
+        ItemResultadoComparacion: {
+            /**
+             * Con Foto Prueba
+             * @default false
+             */
+            con_foto_prueba: boolean;
+            /**
+             * Es Bloque Secundario
+             * @default false
+             */
+            es_bloque_secundario: boolean;
+            establecimiento: components["schemas"]["EstablecimientoComparacion"];
+            /** Motivo Sello */
+            motivo_sello?: string | null;
+            /** N Fuentes */
+            n_fuentes: number;
+            /** N Reportes Validos */
+            n_reportes_validos: number;
+            /** Precio Cop */
+            precio_cop: number;
+            /** Precio Oficial Cop */
+            precio_oficial_cop?: number | null;
+            precio_por_unidad: components["schemas"]["PrecioUnidad"];
+            presentacion: components["schemas"]["PresentacionComparacion"];
+            /** Sello */
+            sello: string;
+            /**
+             * Ultimo Reporte En
+             * Format: date-time
+             */
+            ultimo_reporte_en: string;
+        };
+        /**
          * ListaEstablecimientosRespuesta
          * @description Listado paginado de establecimientos comerciales.
          */
@@ -772,6 +978,39 @@ export interface components {
             siguiente_cursor?: string | null;
             /** Total Estimado */
             total_estimado?: number | null;
+        };
+        /**
+         * MetaComparacion
+         * @description Metadatos de ordenamiento, frescura y neutralidad comercial (EC-06).
+         */
+        MetaComparacion: {
+            /** Bloques */
+            bloques: string[];
+            /** Criterio Orden */
+            criterio_orden: string;
+            /**
+             * Datos De Demostracion
+             * @default false
+             */
+            datos_de_demostracion: boolean;
+            /** Generado En */
+            generado_en: string;
+            /** Texto Neutralidad */
+            texto_neutralidad: string;
+        };
+        /**
+         * MisReportesRespuesta
+         * @description Respuesta paginada para GET /v1/mis-reportes.
+         */
+        MisReportesRespuesta: {
+            /** Datos */
+            datos: components["schemas"]["ElementoReportePropio"][];
+            /** Limite */
+            limite: number;
+            /** Pagina */
+            pagina: number;
+            /** Total */
+            total: number;
         };
         /**
          * PerfilUsuarioRespuesta
@@ -824,6 +1063,16 @@ export interface components {
             version: string;
         };
         /**
+         * PrecioUnidad
+         * @description Precio unitario normalizado para comparacion equitativa.
+         */
+        PrecioUnidad: {
+            /** Por */
+            por: string;
+            /** Valor Cop */
+            valor_cop: number;
+        };
+        /**
          * PrecioVigenteResumen
          * @description Resumen de un precio vigente en un establecimiento.
          */
@@ -871,6 +1120,23 @@ export interface components {
             marca?: string | null;
             /** Valor Cantidad */
             valor_cantidad?: number | string | null;
+        };
+        /**
+         * PresentacionComparacion
+         * @description Detalle de presentacion de producto en comparacion.
+         */
+        PresentacionComparacion: {
+            /** Cantidad Base */
+            cantidad_base: number;
+            /** Etiqueta */
+            etiqueta: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Marca */
+            marca?: string | null;
         };
         /**
          * PresentacionCrearEntrada
@@ -951,6 +1217,27 @@ export interface components {
             nombre?: string | null;
         };
         /**
+         * ProductoComparacion
+         * @description Encabezado de producto comparado.
+         */
+        ProductoComparacion: {
+            /** Categoria Id */
+            categoria_id: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Nombre */
+            nombre: string;
+            /** Presentaciones */
+            presentaciones: components["schemas"]["PresentacionComparacion"][];
+            /** Unidad Base */
+            unidad_base: string;
+            /** Unidad Visualizacion */
+            unidad_visualizacion: string;
+        };
+        /**
          * ProductoCrearEntrada
          * @description Entrada para crear un nuevo producto en el catalogo.
          */
@@ -1026,6 +1313,13 @@ export interface components {
         RechazarSugerenciaEntrada: {
             /** Motivo */
             motivo: string;
+        };
+        /**
+         * RespuestaComparacion
+         * @description Respuesta completa de GET /v1/productos/{id}/comparacion.
+         */
+        RespuestaComparacion: {
+            datos: components["schemas"]["DatosComparacion"];
         };
         /** RespuestaListo */
         RespuestaListo: {
@@ -1551,6 +1845,40 @@ export interface operations {
             };
         };
     };
+    mis_reportes_v1_mis_reportes_get: {
+        parameters: {
+            query?: {
+                pagina?: number;
+                limite?: number;
+            };
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MisReportesRespuesta"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     consultar_catalogo_externo_endpoint_v1_moderacion_catalogo_externo_get: {
         parameters: {
             query: {
@@ -1946,6 +2274,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProductoDetalleRespuesta"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    comparar_precios_producto_v1_productos__id__comparacion_get: {
+        parameters: {
+            query?: {
+                presentacion_id?: string | null;
+                orden?: string;
+                lat?: number | null;
+                lng?: number | null;
+                radio_km?: number | null;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RespuestaComparacion"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    crear_reporte_v1_reportes_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CrearReporteEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CrearReporteRespuesta"];
                 };
             };
             /** @description Validation Error */

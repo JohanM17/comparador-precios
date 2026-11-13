@@ -148,25 +148,25 @@ Este documento contiene la lista secuencial de 47 tareas atómicas de ingenierí
   - **Archivos**: `backend/app/modulos/cuentas/*`, `backend/tests/integracion/test_cuentas_ley1581.py`
   - **Hecho cuando…**: Al borrar una cuenta, sus reportes quedan con `reportante_id = null`, sin fotos y con alias anonimizado.
 
-- [ ] **T-23** | **Implementar `POST /v1/reportes` hasta el paso 4 de F2 y `GET /v1/mis-reportes`**
+- [x] **T-23** | **Implementar `POST /v1/reportes` hasta el paso 4 de F2 y `GET /v1/mis-reportes`**
   - **Depende de**: `T-20`, `T-21`, `T-22`
   - **Resp.**: **A**
   - **Archivos**: `backend/app/compartido/limites.py`, `backend/app/modulos/precios/*`, `backend/tests/integracion/test_crear_reporte_idempotencia.py`
   - **Hecho cuando…**: Reintentar con la misma `Idempotency-Key` devuelve `200 OK` sin duplicar; fuera de rango da `422 PRECIO_FUERA_DE_RANGO`; exceso da `429` con `Retry-After`.
 
-- [ ] **T-24** | **Implementar `PoliticaPrecioReferencia` (`SoloUsuarios`), recálculo transaccional y job `reconstruir_precio_vigente`**
+- [x] **T-24** | **Implementar `PoliticaPrecioReferencia` (`SoloUsuarios`), recálculo transaccional y job `reconstruir_precio_vigente`**
   - **Depende de**: `T-20`, `T-23`
   - **Resp.**: **A**
   - **Archivos**: `backend/app/puertos/politica_precio.py`, `backend/app/modulos/precios/servicio.py`, `backend/tests/integracion/test_precio_vigente_equivalencia.py`
   - **Hecho cuando…**: Reconstruir `precio_vigente` desde cero produce exactamente las mismas filas y valores que el cálculo incremental.
 
-- [ ] **T-25** | **Implementar `PuertoCache` y `cache_dos_niveles.py`**
+- [x] **T-25** | **Implementar `PuertoCache` y `cache_dos_niveles.py`**
   - **Depende de**: `T-24`
   - **Resp.**: **A**
   - **Archivos**: `backend/app/puertos/cache.py`, `backend/app/adaptadores/cache_dos_niveles.py`, `backend/tests/integracion/test_cache_comparacion.py`
   - **Hecho cuando…**: Con Redis detenido la API responde desde PostgreSQL sin error 500; jamás sirve un valor con más de 60 s.
 
-- [ ] **T-26** | **Implementar `GET /v1/productos/{id}/comparacion`**
+- [x] **T-26** | **Implementar `GET /v1/productos/{id}/comparacion`**
   - **Depende de**: `T-20`, `T-25`
   - **Resp.**: **A**
   - **Archivos**: `backend/app/modulos/precios/api.py`, `backend/tests/integracion/test_comparacion_ec06.py`
@@ -194,7 +194,7 @@ Este documento contiene la lista secuencial de 47 tareas atómicas de ingenierí
   - **Archivos**: `backend/app/dominio/riesgo.py`, `backend/app/dominio/reputacion.py`, `backend/tests/unitarias/test_riesgo_reputacion.py`
   - **Hecho cuando…**: 1.000 ejecuciones iguales dan el mismo resultado; cobertura de `backend/app/dominio/` $\ge 95\%$.
 
-- [ ] **T-32** | **Integrar evaluación completa en `POST /v1/reportes`, `huella_red` con HMAC y detección de `rafaga`**
+- [x] **T-32** | **Integrar evaluación completa en `POST /v1/reportes`, `huella_red` con HMAC y detección de `rafaga`**
   - **Depende de**: `T-31`, `T-23`
   - **Resp.**: **B**
   - **Archivos**: `backend/app/compartido/huella.py`, `backend/app/modulos/confianza/servicio.py`, `backend/tests/integracion/test_rafaga_y_anomalia.py`
