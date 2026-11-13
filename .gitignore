@@ -20,6 +20,7 @@ node_modules/
 frontend/node_modules/
 frontend/.next/
 frontend/out/
+*.tsbuildinfo
 
 # Preferencias locales de agentes
 CLAUDE.local.md
