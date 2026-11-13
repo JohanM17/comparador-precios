@@ -61,9 +61,7 @@ def _mapear_producto_resumen(p: dict[str, Any]) -> ProductoResumen:
     uv = resolver_unidad_visualizacion(ub)
     precio_desde: int | None = None
     if p.get("min_precio_base") is not None:
-        precio_valor, _ = calcular_precio_visualizacion(
-            Decimal(str(p["min_precio_base"])), ub
-        )
+        precio_valor, _ = calcular_precio_visualizacion(Decimal(str(p["min_precio_base"])), ub)
         precio_desde = precio_valor
 
     presentaciones = [PresentacionResumen.model_validate(pr) for pr in p.get("presentaciones", [])]

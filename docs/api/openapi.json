@@ -1,6 +1,579 @@
 {
   "components": {
     "schemas": {
+      "AprobarSugerenciaEntrada": {
+        "additionalProperties": false,
+        "description": "Datos para que el moderador apruebe e incorpore la sugerencia al catalogo.",
+        "properties": {
+          "codigo_barras": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{8,14}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codigo Barras"
+          },
+          "marca": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Marca"
+          },
+          "multiplicador": {
+            "default": 1,
+            "minimum": 1.0,
+            "title": "Multiplicador",
+            "type": "integer"
+          },
+          "unidad": {
+            "pattern": "^(g|kg|lb|ml|l|unidad|docena)$",
+            "title": "Unidad",
+            "type": "string"
+          },
+          "valor_cantidad": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Valor Cantidad"
+          }
+        },
+        "required": [
+          "valor_cantidad",
+          "unidad"
+        ],
+        "title": "AprobarSugerenciaEntrada",
+        "type": "object"
+      },
+      "CategoriaRespuesta": {
+        "additionalProperties": false,
+        "description": "Representacion de una categoria de producto.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "orden": {
+            "default": 0,
+            "title": "Orden",
+            "type": "integer"
+          },
+          "padre_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Padre Id"
+          }
+        },
+        "required": [
+          "id",
+          "nombre"
+        ],
+        "title": "CategoriaRespuesta",
+        "type": "object"
+      },
+      "ConsultaCatalogoExternoRespuesta": {
+        "additionalProperties": false,
+        "description": "Resultado de consultar un codigo de barras en fuentes externas.",
+        "properties": {
+          "encontrado": {
+            "title": "Encontrado",
+            "type": "boolean"
+          },
+          "producto": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Producto"
+          }
+        },
+        "required": [
+          "encontrado"
+        ],
+        "title": "ConsultaCatalogoExternoRespuesta",
+        "type": "object"
+      },
+      "DetalleProblema": {
+        "additionalProperties": false,
+        "description": "Estructura de error estandar segun RFC 9457 (application/problem+json).",
+        "properties": {
+          "codigo": {
+            "title": "Codigo",
+            "type": "string"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "instance": {
+            "title": "Instance",
+            "type": "string"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Request Id"
+          },
+          "status": {
+            "title": "Status",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail",
+          "instance",
+          "codigo"
+        ],
+        "title": "DetalleProblema",
+        "type": "object"
+      },
+      "EstablecimientoActualizarEntrada": {
+        "additionalProperties": false,
+        "description": "Entrada para modificar datos de un establecimiento.",
+        "properties": {
+          "activo": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activo"
+          },
+          "barrio": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barrio"
+          },
+          "cadena": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cadena"
+          },
+          "direccion": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 3,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Direccion"
+          },
+          "estado_verificacion": {
+            "anyOf": [
+              {
+                "pattern": "^(sin_dueno|pendiente|verificado)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estado Verificacion"
+          },
+          "lat": {
+            "anyOf": [
+              {
+                "maximum": 90.0,
+                "minimum": -90.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lat"
+          },
+          "lng": {
+            "anyOf": [
+              {
+                "maximum": 180.0,
+                "minimum": -180.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lng"
+          },
+          "nombre": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 2,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre"
+          },
+          "tipo": {
+            "anyOf": [
+              {
+                "pattern": "^(tienda_barrio|minimercado|supermercado|cadena)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo"
+          }
+        },
+        "title": "EstablecimientoActualizarEntrada",
+        "type": "object"
+      },
+      "EstablecimientoCrearEntrada": {
+        "additionalProperties": false,
+        "description": "Entrada para alta de un establecimiento georreferenciado.",
+        "properties": {
+          "activo": {
+            "default": true,
+            "title": "Activo",
+            "type": "boolean"
+          },
+          "barrio": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barrio"
+          },
+          "cadena": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cadena"
+          },
+          "departamento": {
+            "default": "Quindío",
+            "maxLength": 80,
+            "title": "Departamento",
+            "type": "string"
+          },
+          "direccion": {
+            "maxLength": 200,
+            "minLength": 3,
+            "title": "Direccion",
+            "type": "string"
+          },
+          "lat": {
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Lat",
+            "type": "number"
+          },
+          "lng": {
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Lng",
+            "type": "number"
+          },
+          "municipio": {
+            "default": "Armenia",
+            "maxLength": 80,
+            "title": "Municipio",
+            "type": "string"
+          },
+          "nombre": {
+            "maxLength": 120,
+            "minLength": 2,
+            "title": "Nombre",
+            "type": "string"
+          },
+          "tipo": {
+            "pattern": "^(tienda_barrio|minimercado|supermercado|cadena)$",
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nombre",
+          "tipo",
+          "direccion",
+          "lat",
+          "lng"
+        ],
+        "title": "EstablecimientoCrearEntrada",
+        "type": "object"
+      },
+      "EstablecimientoDetalleRespuesta": {
+        "additionalProperties": false,
+        "description": "Ficha completa de un establecimiento con sus precios vigentes.",
+        "properties": {
+          "activo": {
+            "title": "Activo",
+            "type": "boolean"
+          },
+          "barrio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barrio"
+          },
+          "cadena": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cadena"
+          },
+          "departamento": {
+            "title": "Departamento",
+            "type": "string"
+          },
+          "direccion": {
+            "title": "Direccion",
+            "type": "string"
+          },
+          "distancia_m": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distancia M"
+          },
+          "estado_verificacion": {
+            "title": "Estado Verificacion",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "lat": {
+            "title": "Lat",
+            "type": "number"
+          },
+          "lng": {
+            "title": "Lng",
+            "type": "number"
+          },
+          "municipio": {
+            "title": "Municipio",
+            "type": "string"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "precios_vigentes": {
+            "items": {
+              "$ref": "#/components/schemas/PrecioVigenteResumen"
+            },
+            "title": "Precios Vigentes",
+            "type": "array"
+          },
+          "tipo": {
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "tipo",
+          "direccion",
+          "municipio",
+          "departamento",
+          "lat",
+          "lng",
+          "estado_verificacion",
+          "activo"
+        ],
+        "title": "EstablecimientoDetalleRespuesta",
+        "type": "object"
+      },
+      "EstablecimientoResumen": {
+        "additionalProperties": false,
+        "description": "Resumen de informacion publica de un establecimiento.",
+        "properties": {
+          "activo": {
+            "default": true,
+            "title": "Activo",
+            "type": "boolean"
+          },
+          "barrio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barrio"
+          },
+          "cadena": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cadena"
+          },
+          "departamento": {
+            "title": "Departamento",
+            "type": "string"
+          },
+          "direccion": {
+            "title": "Direccion",
+            "type": "string"
+          },
+          "distancia_m": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distancia M"
+          },
+          "estado_verificacion": {
+            "title": "Estado Verificacion",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "lat": {
+            "title": "Lat",
+            "type": "number"
+          },
+          "lng": {
+            "title": "Lng",
+            "type": "number"
+          },
+          "municipio": {
+            "title": "Municipio",
+            "type": "string"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "tipo": {
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "tipo",
+          "direccion",
+          "municipio",
+          "departamento",
+          "lat",
+          "lng",
+          "estado_verificacion"
+        ],
+        "title": "EstablecimientoResumen",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -12,6 +585,600 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "ListaEstablecimientosRespuesta": {
+        "additionalProperties": false,
+        "description": "Listado paginado de establecimientos comerciales.",
+        "properties": {
+          "datos": {
+            "items": {
+              "$ref": "#/components/schemas/EstablecimientoResumen"
+            },
+            "title": "Datos",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "datos",
+          "total"
+        ],
+        "title": "ListaEstablecimientosRespuesta",
+        "type": "object"
+      },
+      "ListaProductosRespuesta": {
+        "additionalProperties": false,
+        "description": "Respuesta paginada del buscador de productos.",
+        "properties": {
+          "datos": {
+            "items": {
+              "$ref": "#/components/schemas/ProductoResumen"
+            },
+            "title": "Datos",
+            "type": "array"
+          },
+          "siguiente_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Siguiente Cursor"
+          },
+          "total_estimado": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Estimado"
+          }
+        },
+        "required": [
+          "datos"
+        ],
+        "title": "ListaProductosRespuesta",
+        "type": "object"
+      },
+      "PrecioVigenteResumen": {
+        "additionalProperties": false,
+        "description": "Resumen de un precio vigente en un establecimiento.",
+        "properties": {
+          "motivo_sello": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo Sello"
+          },
+          "precio_cop": {
+            "title": "Precio Cop",
+            "type": "integer"
+          },
+          "precio_por_base": {
+            "title": "Precio Por Base",
+            "type": "string"
+          },
+          "presentacion_etiqueta": {
+            "title": "Presentacion Etiqueta",
+            "type": "string"
+          },
+          "presentacion_id": {
+            "format": "uuid",
+            "title": "Presentacion Id",
+            "type": "string"
+          },
+          "producto_id": {
+            "format": "uuid",
+            "title": "Producto Id",
+            "type": "string"
+          },
+          "producto_nombre": {
+            "title": "Producto Nombre",
+            "type": "string"
+          },
+          "sello": {
+            "title": "Sello",
+            "type": "string"
+          },
+          "ultimo_reporte_en": {
+            "format": "date-time",
+            "title": "Ultimo Reporte En",
+            "type": "string"
+          }
+        },
+        "required": [
+          "presentacion_id",
+          "producto_id",
+          "producto_nombre",
+          "presentacion_etiqueta",
+          "precio_cop",
+          "precio_por_base",
+          "sello",
+          "ultimo_reporte_en"
+        ],
+        "title": "PrecioVigenteResumen",
+        "type": "object"
+      },
+      "PresentacionActualizarEntrada": {
+        "additionalProperties": false,
+        "description": "Entrada para actualizar una presentacion (prohibe alterar cantidad_base).",
+        "properties": {
+          "activa": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activa"
+          },
+          "cantidad_base": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cantidad Base"
+          },
+          "codigo_barras": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{8,14}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codigo Barras"
+          },
+          "marca": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Marca"
+          },
+          "valor_cantidad": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor Cantidad"
+          }
+        },
+        "title": "PresentacionActualizarEntrada",
+        "type": "object"
+      },
+      "PresentacionCrearEntrada": {
+        "additionalProperties": false,
+        "description": "Entrada para crear una presentacion comercial calculando cantidad_base.",
+        "properties": {
+          "codigo_barras": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{8,14}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codigo Barras"
+          },
+          "fuente_catalogo": {
+            "default": "manual",
+            "pattern": "^(manual|semilla|open_food_facts)$",
+            "title": "Fuente Catalogo",
+            "type": "string"
+          },
+          "marca": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Marca"
+          },
+          "multiplicador": {
+            "default": 1,
+            "minimum": 1.0,
+            "title": "Multiplicador",
+            "type": "integer"
+          },
+          "producto_id": {
+            "format": "uuid",
+            "title": "Producto Id",
+            "type": "string"
+          },
+          "unidad": {
+            "pattern": "^(g|kg|lb|ml|l|unidad|docena)$",
+            "title": "Unidad",
+            "type": "string"
+          },
+          "valor_cantidad": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Valor Cantidad"
+          }
+        },
+        "required": [
+          "producto_id",
+          "valor_cantidad",
+          "unidad"
+        ],
+        "title": "PresentacionCrearEntrada",
+        "type": "object"
+      },
+      "PresentacionResumen": {
+        "additionalProperties": false,
+        "description": "Detalle resumido de una presentacion comercial.",
+        "properties": {
+          "activa": {
+            "default": true,
+            "title": "Activa",
+            "type": "boolean"
+          },
+          "cantidad_base": {
+            "title": "Cantidad Base",
+            "type": "string"
+          },
+          "codigo_barras": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codigo Barras"
+          },
+          "etiqueta": {
+            "title": "Etiqueta",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "marca": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Marca"
+          },
+          "multiplicador": {
+            "default": 1,
+            "title": "Multiplicador",
+            "type": "integer"
+          },
+          "producto_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Producto Id"
+          },
+          "unidad": {
+            "title": "Unidad",
+            "type": "string"
+          },
+          "valor_cantidad": {
+            "title": "Valor Cantidad",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "etiqueta",
+          "valor_cantidad",
+          "unidad",
+          "cantidad_base"
+        ],
+        "title": "PresentacionResumen",
+        "type": "object"
+      },
+      "ProductoActualizarEntrada": {
+        "additionalProperties": false,
+        "description": "Entrada para actualizar campos de un producto.",
+        "properties": {
+          "activo": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activo"
+          },
+          "categoria_id": {
+            "anyOf": [
+              {
+                "maximum": 10.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categoria Id"
+          },
+          "imagen_url": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imagen Url"
+          },
+          "nombre": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 2,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre"
+          }
+        },
+        "title": "ProductoActualizarEntrada",
+        "type": "object"
+      },
+      "ProductoCrearEntrada": {
+        "additionalProperties": false,
+        "description": "Entrada para crear un nuevo producto en el catalogo.",
+        "properties": {
+          "categoria_id": {
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Categoria Id",
+            "type": "integer"
+          },
+          "imagen_url": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imagen Url"
+          },
+          "nombre": {
+            "maxLength": 120,
+            "minLength": 2,
+            "title": "Nombre",
+            "type": "string"
+          },
+          "unidad_base": {
+            "pattern": "^(g|ml|unidad)$",
+            "title": "Unidad Base",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nombre",
+          "categoria_id",
+          "unidad_base"
+        ],
+        "title": "ProductoCrearEntrada",
+        "type": "object"
+      },
+      "ProductoDetalleRespuesta": {
+        "additionalProperties": false,
+        "description": "Ficha tecnica completa de un producto con sus presentaciones.",
+        "properties": {
+          "activo": {
+            "title": "Activo",
+            "type": "boolean"
+          },
+          "categoria_id": {
+            "title": "Categoria Id",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "imagen_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imagen Url"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "presentaciones": {
+            "items": {
+              "$ref": "#/components/schemas/PresentacionResumen"
+            },
+            "title": "Presentaciones",
+            "type": "array"
+          },
+          "unidad_base": {
+            "title": "Unidad Base",
+            "type": "string"
+          },
+          "unidad_visualizacion": {
+            "title": "Unidad Visualizacion",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "categoria_id",
+          "unidad_base",
+          "unidad_visualizacion",
+          "activo"
+        ],
+        "title": "ProductoDetalleRespuesta",
+        "type": "object"
+      },
+      "ProductoResumen": {
+        "additionalProperties": false,
+        "description": "Resumen de un producto para listados y busqueda.",
+        "properties": {
+          "categoria_id": {
+            "title": "Categoria Id",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "imagen_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imagen Url"
+          },
+          "n_tiendas_con_precio": {
+            "default": 0,
+            "title": "N Tiendas Con Precio",
+            "type": "integer"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "precio_desde_por_unidad_cop": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio Desde Por Unidad Cop"
+          },
+          "presentaciones": {
+            "items": {
+              "$ref": "#/components/schemas/PresentacionResumen"
+            },
+            "title": "Presentaciones",
+            "type": "array"
+          },
+          "unidad_base": {
+            "title": "Unidad Base",
+            "type": "string"
+          },
+          "unidad_visualizacion": {
+            "title": "Unidad Visualizacion",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "categoria_id",
+          "unidad_base",
+          "unidad_visualizacion"
+        ],
+        "title": "ProductoResumen",
+        "type": "object"
+      },
+      "RechazarSugerenciaEntrada": {
+        "additionalProperties": false,
+        "description": "Motivo de rechazo de una sugerencia de presentacion.",
+        "properties": {
+          "motivo": {
+            "maxLength": 500,
+            "minLength": 5,
+            "title": "Motivo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "motivo"
+        ],
+        "title": "RechazarSugerenciaEntrada",
         "type": "object"
       },
       "RespuestaListo": {
@@ -88,6 +1255,148 @@
           "rol"
         ],
         "title": "RespuestaUsuario",
+        "type": "object"
+      },
+      "SolicitudCorreccionEntrada": {
+        "additionalProperties": false,
+        "description": "Formulario publico de solicitud de correccion de datos de tienda.",
+        "properties": {
+          "correo": {
+            "maxLength": 120,
+            "minLength": 5,
+            "title": "Correo",
+            "type": "string"
+          },
+          "mensaje": {
+            "maxLength": 1000,
+            "minLength": 10,
+            "title": "Mensaje",
+            "type": "string"
+          },
+          "sitio_web_trampa": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Honeypot antispam",
+            "title": "Sitio Web Trampa"
+          }
+        },
+        "required": [
+          "correo",
+          "mensaje"
+        ],
+        "title": "SolicitudCorreccionEntrada",
+        "type": "object"
+      },
+      "SolicitudCorreccionRespuesta": {
+        "additionalProperties": false,
+        "description": "Respuesta tras procesar una solicitud de correccion.",
+        "properties": {
+          "estado": {
+            "title": "Estado",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "mensaje": {
+            "title": "Mensaje",
+            "type": "string"
+          }
+        },
+        "required": [
+          "estado",
+          "mensaje"
+        ],
+        "title": "SolicitudCorreccionRespuesta",
+        "type": "object"
+      },
+      "SugerenciaPresentacionEntrada": {
+        "additionalProperties": false,
+        "description": "Entrada para reportar una sugerencia de nueva variante comercial.",
+        "properties": {
+          "codigo_barras": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{8,14}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codigo Barras"
+          },
+          "marca": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Marca"
+          },
+          "producto_id": {
+            "format": "uuid",
+            "title": "Producto Id",
+            "type": "string"
+          },
+          "texto_libre": {
+            "maxLength": 200,
+            "minLength": 3,
+            "title": "Texto Libre",
+            "type": "string"
+          },
+          "unidad": {
+            "anyOf": [
+              {
+                "pattern": "^(g|kg|lb|ml|l|unidad|docena)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad"
+          },
+          "valor_cantidad": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor Cantidad"
+          }
+        },
+        "required": [
+          "producto_id",
+          "texto_libre"
+        ],
+        "title": "SugerenciaPresentacionEntrada",
         "type": "object"
       },
       "ValidationError": {
@@ -231,6 +1540,1079 @@
         "summary": "Solo Moderador"
       }
     },
+    "/v1/categorias": {
+      "get": {
+        "description": "Retorna las 10 categorias oficiales de la canasta familiar ordenadas.",
+        "operationId": "listar_todas_las_categorias_v1_categorias_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CategoriaRespuesta"
+                  },
+                  "title": "Response Listar Todas Las Categorias V1 Categorias Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Listar categorias de productos",
+        "tags": [
+          "catalogo"
+        ]
+      }
+    },
+    "/v1/establecimientos": {
+      "get": {
+        "description": "Filtra establecimientos por texto, tipo y calcula distancia_m con PostGIS.",
+        "operationId": "listar_establecimientos_publicos_v1_establecimientos_get",
+        "parameters": [
+          {
+            "description": "Nombre o direccion",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Nombre o direccion",
+              "title": "Q"
+            }
+          },
+          {
+            "description": "tipo_establecimiento",
+            "in": "query",
+            "name": "tipo",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "tipo_establecimiento",
+              "title": "Tipo"
+            }
+          },
+          {
+            "description": "Municipio",
+            "in": "query",
+            "name": "municipio",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": "Armenia",
+              "description": "Municipio",
+              "title": "Municipio"
+            }
+          },
+          {
+            "description": "Latitud",
+            "in": "query",
+            "name": "lat",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 90.0,
+                  "minimum": -90.0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Latitud",
+              "title": "Lat"
+            }
+          },
+          {
+            "description": "Longitud",
+            "in": "query",
+            "name": "lng",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 180.0,
+                  "minimum": -180.0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Longitud",
+              "title": "Lng"
+            }
+          },
+          {
+            "description": "Radio en kilometros",
+            "in": "query",
+            "name": "radio_km",
+            "required": false,
+            "schema": {
+              "default": 10.0,
+              "description": "Radio en kilometros",
+              "exclusiveMinimum": 0.0,
+              "maximum": 100.0,
+              "title": "Radio Km",
+              "type": "number"
+            }
+          },
+          {
+            "description": "Limite de registros",
+            "in": "query",
+            "name": "limite",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Limite de registros",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limite",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListaEstablecimientosRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Directorio de establecimientos con filtro espacial",
+        "tags": [
+          "establecimientos"
+        ]
+      }
+    },
+    "/v1/establecimientos/{id}": {
+      "get": {
+        "description": "Devuelve los datos de la tienda y sus precios vigentes activos.",
+        "operationId": "obtener_detalle_establecimiento_v1_establecimientos__id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Latitud",
+            "in": "query",
+            "name": "lat",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 90.0,
+                  "minimum": -90.0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Latitud",
+              "title": "Lat"
+            }
+          },
+          {
+            "description": "Longitud",
+            "in": "query",
+            "name": "lng",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 180.0,
+                  "minimum": -180.0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Longitud",
+              "title": "Lng"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstablecimientoDetalleRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ficha del establecimiento y precios vigentes",
+        "tags": [
+          "establecimientos"
+        ]
+      }
+    },
+    "/v1/establecimientos/{id}/solicitudes-correccion": {
+      "post": {
+        "description": "Recibe reporte ciudadano de datos erroneros de tienda y abre caso de moderacion.",
+        "operationId": "enviar_solicitud_correccion_tienda_v1_establecimientos__id__solicitudes_correccion_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitudCorreccionEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudCorreccionRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Enviar solicitud ciudadana de correccion de datos",
+        "tags": [
+          "establecimientos"
+        ]
+      }
+    },
+    "/v1/moderacion/catalogo-externo": {
+      "get": {
+        "description": "Consulta Open Food Facts con Circuit Breaker en memoria.",
+        "operationId": "consultar_catalogo_externo_endpoint_v1_moderacion_catalogo_externo_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "codigo_barras",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9]{8,14}$",
+              "title": "Codigo Barras",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsultaCatalogoExternoRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Consultar producto por codigo de barras en fuentes externas",
+        "tags": [
+          "moderacion"
+        ]
+      }
+    },
+    "/v1/moderacion/establecimientos": {
+      "post": {
+        "description": "Da de alta una tienda georreferenciada con auditoria.",
+        "operationId": "crear_establecimiento_moderacion_v1_moderacion_establecimientos_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EstablecimientoCrearEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Crear Establecimiento Moderacion V1 Moderacion Establecimientos Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Crear establecimiento en directorio",
+        "tags": [
+          "moderacion"
+        ]
+      }
+    },
+    "/v1/moderacion/establecimientos/{id}": {
+      "patch": {
+        "description": "Actualiza datos y geometria espacial de establecimiento.",
+        "operationId": "actualizar_establecimiento_moderacion_v1_moderacion_establecimientos__id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EstablecimientoActualizarEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Actualizar Establecimiento Moderacion V1 Moderacion Establecimientos  Id  Patch",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Actualizar datos de establecimiento",
+        "tags": [
+          "moderacion"
+        ]
+      }
+    },
+    "/v1/moderacion/presentaciones": {
+      "post": {
+        "description": "Calcula cantidad_base con el dominio e inserta presentacion.",
+        "operationId": "crear_presentacion_moderacion_v1_moderacion_presentaciones_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresentacionCrearEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Crear Presentacion Moderacion V1 Moderacion Presentaciones Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Crear presentacion calculando cantidad_base",
+        "tags": [
+          "moderacion"
+        ]
+      }
+    },
+    "/v1/moderacion/presentaciones/{id}": {
+      "patch": {
+        "description": "Actualiza presentacion y rechaza taxativamente cualquier cambio a cantidad_base.",
+        "operationId": "actualizar_presentacion_moderacion_v1_moderacion_presentaciones__id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresentacionActualizarEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Actualizar Presentacion Moderacion V1 Moderacion Presentaciones  Id  Patch",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Actualizar presentacion comercial",
+        "tags": [
+          "moderacion"
+        ]
+      }
+    },
+    "/v1/moderacion/productos": {
+      "post": {
+        "description": "Crea un producto nuevo en el catalogo y asienta en auditoria.",
+        "operationId": "crear_producto_moderacion_v1_moderacion_productos_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductoCrearEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Crear Producto Moderacion V1 Moderacion Productos Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Crear producto en catalogo",
+        "tags": [
+          "moderacion"
+        ]
+      }
+    },
+    "/v1/moderacion/productos/{id}": {
+      "patch": {
+        "description": "Actualiza campos de un producto y registra antes/despues en auditoria.",
+        "operationId": "actualizar_producto_moderacion_v1_moderacion_productos__id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductoActualizarEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Actualizar Producto Moderacion V1 Moderacion Productos  Id  Patch",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Actualizar producto en catalogo",
+        "tags": [
+          "moderacion"
+        ]
+      }
+    },
+    "/v1/moderacion/sugerencias/{id}/aprobar": {
+      "post": {
+        "description": "Aprueba la sugerencia creando la presentacion oficial con auditoria.",
+        "operationId": "aprobar_sugerencia_presentacion_v1_moderacion_sugerencias__id__aprobar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AprobarSugerenciaEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Aprobar Sugerencia Presentacion V1 Moderacion Sugerencias  Id  Aprobar Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Aprobar sugerencia de presentacion",
+        "tags": [
+          "moderacion"
+        ]
+      }
+    },
+    "/v1/moderacion/sugerencias/{id}/rechazar": {
+      "post": {
+        "description": "Rechaza la sugerencia archivando el motivo en auditoria.",
+        "operationId": "rechazar_sugerencia_presentacion_v1_moderacion_sugerencias__id__rechazar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RechazarSugerenciaEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Rechazar Sugerencia Presentacion V1 Moderacion Sugerencias  Id  Rechazar Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rechazar sugerencia de presentacion",
+        "tags": [
+          "moderacion"
+        ]
+      }
+    },
+    "/v1/productos": {
+      "get": {
+        "description": "Busca productos tolerando tildes, mayusculas y fracciones de cantidad.",
+        "operationId": "buscar_productos_catalogo_v1_productos_get",
+        "parameters": [
+          {
+            "description": "Texto o cantidad (ej. arroz 1/2 kilo)",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Texto o cantidad (ej. arroz 1/2 kilo)",
+              "title": "Q"
+            }
+          },
+          {
+            "description": "Filtrar por categoria",
+            "in": "query",
+            "name": "categoria_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por categoria",
+              "title": "Categoria Id"
+            }
+          },
+          {
+            "description": "Cantidad maxima de resultados",
+            "in": "query",
+            "name": "limite",
+            "required": false,
+            "schema": {
+              "default": 24,
+              "description": "Cantidad maxima de resultados",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limite",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Paginador por cursor",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Paginador por cursor",
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListaProductosRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Buscador difuso de productos",
+        "tags": [
+          "catalogo"
+        ]
+      }
+    },
+    "/v1/productos/{id}": {
+      "get": {
+        "description": "Devuelve la ficha del producto y sus presentaciones activas.",
+        "operationId": "obtener_detalle_producto_v1_productos__id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductoDetalleRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ficha tecnica del producto",
+        "tags": [
+          "catalogo"
+        ]
+      }
+    },
     "/v1/salud": {
       "get": {
         "operationId": "salud_v1_salud_get",
@@ -265,6 +2647,68 @@
           }
         },
         "summary": "Readiness probe"
+      }
+    },
+    "/v1/sugerencias-presentacion": {
+      "post": {
+        "description": "Registra sugerencia previa validacion de autorizacion Ley 1581.",
+        "operationId": "enviar_sugerencia_presentacion_v1_sugerencias_presentacion_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SugerenciaPresentacionEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Enviar Sugerencia Presentacion V1 Sugerencias Presentacion Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Enviar sugerencia de nueva presentacion comercial",
+        "tags": [
+          "moderacion"
+        ]
       }
     }
   }

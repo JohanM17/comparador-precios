@@ -8,10 +8,13 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from pydantic import BaseModel
 
+from app.adaptadores.open_food_facts import AdaptadorOpenFoodFacts
 from app.bd import cerrar_conexiones, verificar_conexion_bd
 from app.compartido.errores import (
+    DetalleProblema,
     ServicioNoDisponibleError,
     registrar_manejadores_errores,
 )
@@ -24,6 +27,12 @@ from app.compartido.seguridad import UsuarioAutenticado, requiere_rol, requiere_
 from app.config import obtener_configuracion
 from app.modulos.catalogo.api import router as catalogo_router
 from app.modulos.establecimientos.api import router as establecimientos_router
+from app.modulos.moderacion.api import (
+    obtener_puerto_catalogo,
+)
+from app.modulos.moderacion.api import (
+    router as moderacion_router,
+)
 
 
 class RespuestaSalud(BaseModel):
@@ -139,9 +148,30 @@ def create_app() -> FastAPI:
             "rol": usuario.rol,
         }
 
+    adaptador_off = AdaptadorOpenFoodFacts()
+    app.dependency_overrides[obtener_puerto_catalogo] = lambda: adaptador_off
+
     v1_router.include_router(catalogo_router)
     v1_router.include_router(establecimientos_router)
+    v1_router.include_router(moderacion_router)
     app.include_router(v1_router)
+
+    def custom_openapi() -> dict[str, Any]:
+        if app.openapi_schema:
+            return app.openapi_schema
+        schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            openapi_version=app.openapi_version,
+            description=app.description,
+            routes=app.routes,
+        )
+        schemas = schema.setdefault("components", {}).setdefault("schemas", {})
+        schemas["DetalleProblema"] = DetalleProblema.model_json_schema()
+        app.openapi_schema = schema
+        return app.openapi_schema
+
+    app.openapi = custom_openapi  # type: ignore[method-assign]
     return app
 
 

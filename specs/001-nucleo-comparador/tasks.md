@@ -114,13 +114,13 @@ Este documento contiene la lista secuencial de 47 tareas atómicas de ingenierí
   - **Archivos**: `backend/app/modulos/establecimientos/*`, `backend/tests/integracion/test_api_establecimientos.py`
   - **Hecho cuando…**: Filtra por `radio_km` y calcula `distancia_m` sin registrar `lat`/`lng` en logs; la solicitud de corrección abre caso en moderación.
 
-- [ ] **T-15** | **Implementar endpoints de moderación de catálogo/tiendas y adaptador `open_food_facts.py`**
+- [x] **T-15** | **Implementar endpoints de moderación de catálogo/tiendas y adaptador `open_food_facts.py`**
   - **Depende de**: `T-13`, `T-14`
   - **Resp.**: **B**
   - **Archivos**: `backend/app/puertos/catalogo_externo.py`, `backend/app/adaptadores/open_food_facts.py`, `backend/app/modulos/moderacion/*`, `backend/tests/integracion/test_moderacion_catalogo.py`
   - **Hecho cuando…**: Crear presentación calcula `cantidad_base` con `dominio.unidades`, prohíbe editar `cantidad_base` y registra en `auditoria`.
 
-- [ ] **T-16** | **Implementar `POST /v1/sugerencias-presentacion` y su aprobación en moderación**
+- [x] **T-16** | **Implementar `POST /v1/sugerencias-presentacion` y su aprobación en moderación**
   - **Depende de**: `T-15`
   - **Resp.**: **B**
   - **Archivos**: `backend/app/modulos/catalogo/api.py`, `backend/tests/integracion/test_sugerencias_presentacion.py`
