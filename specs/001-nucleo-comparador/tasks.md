@@ -102,13 +102,13 @@ Este documento contiene la lista secuencial de 47 tareas atómicas de ingenierí
   - **Archivos**: `supabase/seed/*.csv`, `scripts/semilla.py`, `backend/tests/integracion/test_semilla.py`
   - **Hecho cuando…**: Correr `python scripts/semilla.py` dos veces seguidas no duplica filas y deja el catálogo poblado (~150 productos, ~30 establecimientos de Armenia).
 
-- [ ] **T-13** | **Implementar lectura de `catalogo`**
+- [x] **T-13** | **Implementar lectura de `catalogo`**
   - **Depende de**: `T-12`
   - **Resp.**: **A**
   - **Archivos**: `backend/app/modulos/catalogo/*`, `backend/tests/integracion/test_api_catalogo.py`
   - **Hecho cuando…**: Buscar `"arroz 1/2 kilo"` encuentra `"Arroz blanco"` con sus presentaciones en $< 300$ ms.
 
-- [ ] **T-14** | **Implementar `establecimientos`**
+- [x] **T-14** | **Implementar `establecimientos`**
   - **Depende de**: `T-12`
   - **Resp.**: **A**
   - **Archivos**: `backend/app/modulos/establecimientos/*`, `backend/tests/integracion/test_api_establecimientos.py`

@@ -22,6 +22,8 @@ from app.compartido.logging_cfg import (
 )
 from app.compartido.seguridad import UsuarioAutenticado, requiere_rol, requiere_usuario
 from app.config import obtener_configuracion
+from app.modulos.catalogo.api import router as catalogo_router
+from app.modulos.establecimientos.api import router as establecimientos_router
 
 
 class RespuestaSalud(BaseModel):
@@ -137,6 +139,8 @@ def create_app() -> FastAPI:
             "rol": usuario.rol,
         }
 
+    v1_router.include_router(catalogo_router)
+    v1_router.include_router(establecimientos_router)
     app.include_router(v1_router)
     return app
 
