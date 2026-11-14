@@ -200,25 +200,25 @@ Este documento contiene la lista secuencial de 47 tareas atómicas de ingenierí
   - **Archivos**: `backend/app/compartido/huella.py`, `backend/app/modulos/confianza/servicio.py`, `backend/tests/integracion/test_rafaga_y_anomalia.py`
   - **Hecho cuando…**: 3 cuentas nuevas desde la misma huella hacia una tienda en 30 min quedan todas en `dudoso`, abren caso `rafaga` y no alteran `precio_vigente`.
 
-- [ ] **T-33** | **Implementar endpoints de moderación de casos, sanciones, apelaciones y auditoría**
+- [x] **T-33** | **Implementar endpoints de moderación de casos, sanciones, apelaciones y auditoría**
   - **Depende de**: `T-32`
   - **Resp.**: **B**
   - **Archivos**: `backend/app/modulos/moderacion/*`, `backend/tests/integracion/test_flujo_moderacion.py`
   - **Hecho cuando…**: `confirmar` rechaza reporte y suma $M+1$; `descartar` acepta y recalcula `precio_vigente`; `sancionar` suspende; todo queda en `auditoria`.
 
-- [ ] **T-34** | **Implementar jobs internos `POST /internal/jobs/{nombre}` con `X-Job-Token` y `.github/workflows/jobs.yml`**
+- [x] **T-34** | **Implementar jobs internos `POST /internal/jobs/{nombre}` con `X-Job-Token` y `.github/workflows/jobs.yml`**
   - **Depende de**: `T-31`, `T-24`
   - **Resp.**: **B + D**
   - **Archivos**: `backend/app/tareas/router_jobs.py`, `.github/workflows/jobs.yml`, `backend/tests/integracion/test_jobs_internos.py`
   - **Hecho cuando…**: `limpiar_huellas` anula huellas $> 30$ días y `recalcular_reputacion` actualiza perfiles correctamente.
 
-- [ ] **T-35** | **Implementar `scripts/evaluar_ec03.py` y calibrar parámetros frente a `EC-03`**
+- [x] **T-35** | **Implementar `scripts/evaluar_ec03.py` y calibrar parámetros frente a `EC-03`**
   - **Depende de**: `T-32`
   - **Resp.**: **B + D**
   - **Archivos**: `scripts/evaluar_ec03.py`, `docs/calidad/informe_ec03.md`
   - **Hecho cuando…**: Detección individual $\ge 90\%$ (9/10), grupal $\ge 70\%$ (7/10) y falsas alarmas $\le 10\%$ (1/10).
 
-- [ ] **T-36** | **Implementar `GET` y `PUT /v1/moderacion/parametros`**
+- [x] **T-36** | **Implementar `GET` y `PUT /v1/moderacion/parametros`**
   - **Depende de**: `T-33`
   - **Resp.**: **B**
   - **Archivos**: `backend/app/modulos/moderacion/api.py`, `backend/tests/integracion/test_parametros_negocio.py`
