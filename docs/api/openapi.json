@@ -19,6 +19,37 @@
         "title": "ActualizarAliasEntrada",
         "type": "object"
       },
+      "ActualizarParametrosEntrada": {
+        "additionalProperties": false,
+        "properties": {
+          "parametros": {
+            "additionalProperties": true,
+            "title": "Parametros",
+            "type": "object"
+          }
+        },
+        "required": [
+          "parametros"
+        ],
+        "title": "ActualizarParametrosEntrada",
+        "type": "object"
+      },
+      "ApelacionSancionEntrada": {
+        "additionalProperties": false,
+        "properties": {
+          "apelacion": {
+            "maxLength": 1000,
+            "minLength": 5,
+            "title": "Apelacion",
+            "type": "string"
+          }
+        },
+        "required": [
+          "apelacion"
+        ],
+        "title": "ApelacionSancionEntrada",
+        "type": "object"
+      },
       "AprobarSugerenciaEntrada": {
         "additionalProperties": false,
         "description": "Datos para que el moderador apruebe e incorpore la sugerencia al catalogo.",
@@ -145,6 +176,128 @@
         "title": "AutorizacionRespuesta",
         "type": "object"
       },
+      "CasoDetalleRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "creado_en": {
+            "format": "date-time",
+            "title": "Creado En",
+            "type": "string"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision"
+          },
+          "detalle": {
+            "additionalProperties": true,
+            "title": "Detalle",
+            "type": "object"
+          },
+          "estado": {
+            "title": "Estado",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "moderador_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Moderador Id"
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota"
+          },
+          "prioridad": {
+            "title": "Prioridad",
+            "type": "integer"
+          },
+          "referencia_datos": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referencia Datos"
+          },
+          "referencia_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referencia Id"
+          },
+          "referencia_tabla": {
+            "title": "Referencia Tabla",
+            "type": "string"
+          },
+          "resuelto_en": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resuelto En"
+          },
+          "tipo": {
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "tipo",
+          "referencia_tabla",
+          "referencia_id",
+          "detalle",
+          "prioridad",
+          "estado",
+          "decision",
+          "moderador_id",
+          "nota",
+          "creado_en",
+          "resuelto_en"
+        ],
+        "title": "CasoDetalleRespuesta",
+        "type": "object"
+      },
       "CategoriaRespuesta": {
         "additionalProperties": false,
         "description": "Representacion de una categoria de producto.",
@@ -266,6 +419,45 @@
           "datos"
         ],
         "title": "CrearReporteRespuesta",
+        "type": "object"
+      },
+      "CrearSancionEntrada": {
+        "additionalProperties": false,
+        "properties": {
+          "dias_suspension": {
+            "anyOf": [
+              {
+                "maximum": 365.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dias Suspension"
+          },
+          "motivo": {
+            "maxLength": 500,
+            "minLength": 5,
+            "title": "Motivo",
+            "type": "string"
+          },
+          "tipo": {
+            "enum": [
+              "advertencia",
+              "suspension",
+              "bloqueo"
+            ],
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tipo",
+          "motivo"
+        ],
+        "title": "CrearSancionEntrada",
         "type": "object"
       },
       "DatosComparacion": {
@@ -931,6 +1123,99 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "ItemAuditoriaRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "accion": {
+            "title": "Accion",
+            "type": "string"
+          },
+          "actor_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Id"
+          },
+          "antes": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Antes"
+          },
+          "creado_en": {
+            "format": "date-time",
+            "title": "Creado En",
+            "type": "string"
+          },
+          "despues": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Despues"
+          },
+          "entidad": {
+            "title": "Entidad",
+            "type": "string"
+          },
+          "entidad_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entidad Id"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "rol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rol"
+          }
+        },
+        "required": [
+          "id",
+          "actor_id",
+          "rol",
+          "accion",
+          "entidad",
+          "entidad_id",
+          "antes",
+          "despues",
+          "creado_en"
+        ],
+        "title": "ItemAuditoriaRespuesta",
+        "type": "object"
+      },
       "ItemResultadoComparacion": {
         "additionalProperties": false,
         "description": "Fila del comparador de precios (Bloque 1 o Bloque 2).",
@@ -1011,6 +1296,50 @@
         "title": "ItemResultadoComparacion",
         "type": "object"
       },
+      "ListaAuditoriaRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "datos": {
+            "items": {
+              "$ref": "#/components/schemas/ItemAuditoriaRespuesta"
+            },
+            "title": "Datos",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "datos",
+          "total"
+        ],
+        "title": "ListaAuditoriaRespuesta",
+        "type": "object"
+      },
+      "ListaCasosRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "datos": {
+            "items": {
+              "$ref": "#/components/schemas/CasoDetalleRespuesta"
+            },
+            "title": "Datos",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "datos",
+          "total"
+        ],
+        "title": "ListaCasosRespuesta",
+        "type": "object"
+      },
       "ListaEstablecimientosRespuesta": {
         "additionalProperties": false,
         "description": "Listado paginado de establecimientos comerciales.",
@@ -1032,6 +1361,23 @@
           "total"
         ],
         "title": "ListaEstablecimientosRespuesta",
+        "type": "object"
+      },
+      "ListaParametrosRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "datos": {
+            "items": {
+              "$ref": "#/components/schemas/ParametroItem"
+            },
+            "title": "Datos",
+            "type": "array"
+          }
+        },
+        "required": [
+          "datos"
+        ],
+        "title": "ListaParametrosRespuesta",
         "type": "object"
       },
       "ListaProductosRespuesta": {
@@ -1143,6 +1489,45 @@
           "limite"
         ],
         "title": "MisReportesRespuesta",
+        "type": "object"
+      },
+      "ParametroItem": {
+        "additionalProperties": false,
+        "properties": {
+          "actualizado_en": {
+            "format": "date-time",
+            "title": "Actualizado En",
+            "type": "string"
+          },
+          "clave": {
+            "title": "Clave",
+            "type": "string"
+          },
+          "descripcion": {
+            "title": "Descripcion",
+            "type": "string"
+          },
+          "rango_valido": {
+            "title": "Rango Valido",
+            "type": "string"
+          },
+          "tipo": {
+            "title": "Tipo",
+            "type": "string"
+          },
+          "valor": {
+            "title": "Valor"
+          }
+        },
+        "required": [
+          "clave",
+          "valor",
+          "descripcion",
+          "tipo",
+          "rango_valido",
+          "actualizado_en"
+        ],
+        "title": "ParametroItem",
         "type": "object"
       },
       "PerfilUsuarioRespuesta": {
@@ -1887,6 +2272,68 @@
         "title": "RechazarSugerenciaEntrada",
         "type": "object"
       },
+      "ResolverApelacionEntrada": {
+        "additionalProperties": false,
+        "properties": {
+          "aprobar": {
+            "title": "Aprobar",
+            "type": "boolean"
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota"
+          }
+        },
+        "required": [
+          "aprobar"
+        ],
+        "title": "ResolverApelacionEntrada",
+        "type": "object"
+      },
+      "ResolverCasoEntrada": {
+        "additionalProperties": false,
+        "properties": {
+          "decision": {
+            "enum": [
+              "confirmar",
+              "descartar",
+              "sancionar"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "nota": {
+            "maxLength": 1000,
+            "minLength": 3,
+            "title": "Nota",
+            "type": "string"
+          },
+          "sancion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CrearSancionEntrada"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "decision",
+          "nota"
+        ],
+        "title": "ResolverCasoEntrada",
+        "type": "object"
+      },
       "RespuestaComparacion": {
         "additionalProperties": false,
         "description": "Respuesta completa de GET /v1/productos/{id}/comparacion.",
@@ -2003,6 +2450,51 @@
           "rol"
         ],
         "title": "RespuestaUsuario",
+        "type": "object"
+      },
+      "SancionDirectaEntrada": {
+        "additionalProperties": false,
+        "properties": {
+          "dias_suspension": {
+            "anyOf": [
+              {
+                "maximum": 365.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dias Suspension"
+          },
+          "motivo": {
+            "maxLength": 500,
+            "minLength": 5,
+            "title": "Motivo",
+            "type": "string"
+          },
+          "tipo": {
+            "enum": [
+              "advertencia",
+              "suspension",
+              "bloqueo"
+            ],
+            "title": "Tipo",
+            "type": "string"
+          },
+          "usuario_id": {
+            "format": "uuid",
+            "title": "Usuario Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "usuario_id",
+          "tipo",
+          "motivo"
+        ],
+        "title": "SancionDirectaEntrada",
         "type": "object"
       },
       "SolicitudCorreccionEntrada": {
@@ -2178,6 +2670,87 @@
           "texto_libre"
         ],
         "title": "SugerenciaPresentacionEntrada",
+        "type": "object"
+      },
+      "UsuarioModeracionRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "alias": {
+            "title": "Alias",
+            "type": "string"
+          },
+          "conteo_reportes": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Conteo Reportes",
+            "type": "object"
+          },
+          "creado_en": {
+            "format": "date-time",
+            "title": "Creado En",
+            "type": "string"
+          },
+          "estado": {
+            "title": "Estado",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "reportes_corroborados": {
+            "title": "Reportes Corroborados",
+            "type": "integer"
+          },
+          "reportes_malos_confirmados": {
+            "title": "Reportes Malos Confirmados",
+            "type": "integer"
+          },
+          "reputacion": {
+            "title": "Reputacion",
+            "type": "number"
+          },
+          "rol": {
+            "title": "Rol",
+            "type": "string"
+          },
+          "sanciones": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Sanciones",
+            "type": "array"
+          },
+          "suspendida_hasta": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suspendida Hasta"
+          }
+        },
+        "required": [
+          "id",
+          "alias",
+          "rol",
+          "estado",
+          "suspendida_hasta",
+          "reputacion",
+          "reportes_corroborados",
+          "reportes_malos_confirmados",
+          "creado_en",
+          "sanciones",
+          "conteo_reportes"
+        ],
+        "title": "UsuarioModeracionRespuesta",
         "type": "object"
       },
       "ValidationError": {
@@ -3012,6 +3585,377 @@
         ]
       }
     },
+    "/v1/moderacion/auditoria": {
+      "get": {
+        "operationId": "listar_auditoria_v1_moderacion_auditoria_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "entidad",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Entidad"
+            }
+          },
+          {
+            "in": "query",
+            "name": "accion",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Accion"
+            }
+          },
+          {
+            "in": "query",
+            "name": "actor_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Actor Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limite",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limite",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListaAuditoriaRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Consultar bitacora de auditoria",
+        "tags": [
+          "Moderacion de Casos y Parametros"
+        ]
+      }
+    },
+    "/v1/moderacion/casos": {
+      "get": {
+        "operationId": "listar_casos_v1_moderacion_casos_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "estado",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Estado"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tipo",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tipo"
+            }
+          },
+          {
+            "in": "query",
+            "name": "prioridad",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 5,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Prioridad"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limite",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limite",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListaCasosRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Listar casos de moderacion",
+        "tags": [
+          "Moderacion de Casos y Parametros"
+        ]
+      }
+    },
+    "/v1/moderacion/casos/{id}": {
+      "get": {
+        "operationId": "obtener_caso_v1_moderacion_casos__id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CasoDetalleRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Detalle de caso de moderacion",
+        "tags": [
+          "Moderacion de Casos y Parametros"
+        ]
+      }
+    },
+    "/v1/moderacion/casos/{id}/resolver": {
+      "post": {
+        "operationId": "resolver_caso_v1_moderacion_casos__id__resolver_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolverCasoEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CasoDetalleRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resolver caso de moderacion",
+        "tags": [
+          "Moderacion de Casos y Parametros"
+        ]
+      }
+    },
     "/v1/moderacion/catalogo-externo": {
       "get": {
         "description": "Consulta Open Food Facts con Circuit Breaker en memoria.",
@@ -3203,6 +4147,112 @@
         "summary": "Actualizar datos de establecimiento",
         "tags": [
           "moderacion"
+        ]
+      }
+    },
+    "/v1/moderacion/parametros": {
+      "get": {
+        "operationId": "listar_parametros_v1_moderacion_parametros_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListaParametrosRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Consultar los 43 parametros de negocio",
+        "tags": [
+          "Moderacion de Casos y Parametros"
+        ]
+      },
+      "put": {
+        "operationId": "actualizar_parametros_v1_moderacion_parametros_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActualizarParametrosEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListaParametrosRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Actualizar parametros de negocio",
+        "tags": [
+          "Moderacion de Casos y Parametros"
         ]
       }
     },
@@ -3474,6 +4524,298 @@
         ]
       }
     },
+    "/v1/moderacion/recalcular-precio-vigente": {
+      "post": {
+        "operationId": "recalcular_precio_vigente_v1_moderacion_recalcular_precio_vigente_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "presentacion_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Presentacion Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "establecimiento_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Establecimiento Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Recalcular Precio Vigente V1 Moderacion Recalcular Precio Vigente Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Forzar recalculacion de precio vigente",
+        "tags": [
+          "Moderacion de Casos y Parametros"
+        ]
+      }
+    },
+    "/v1/moderacion/sanciones": {
+      "post": {
+        "operationId": "crear_sancion_directa_v1_moderacion_sanciones_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SancionDirectaEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Crear Sancion Directa V1 Moderacion Sanciones Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Aplicar sancion directa a usuario",
+        "tags": [
+          "Moderacion de Casos y Parametros"
+        ]
+      }
+    },
+    "/v1/moderacion/sanciones/{id}/apelacion": {
+      "post": {
+        "operationId": "radicar_apelacion_v1_moderacion_sanciones__id__apelacion_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApelacionSancionEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Radicar Apelacion V1 Moderacion Sanciones  Id  Apelacion Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Radicar apelacion a una sancion",
+        "tags": [
+          "Moderacion de Casos y Parametros"
+        ]
+      }
+    },
+    "/v1/moderacion/sanciones/{id}/resolver-apelacion": {
+      "post": {
+        "operationId": "resolver_apelacion_v1_moderacion_sanciones__id__resolver_apelacion_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolverApelacionEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Resolver Apelacion V1 Moderacion Sanciones  Id  Resolver Apelacion Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resolver apelacion a una sancion",
+        "tags": [
+          "Moderacion de Casos y Parametros"
+        ]
+      }
+    },
     "/v1/moderacion/sugerencias/{id}/aprobar": {
       "post": {
         "description": "Aprueba la sugerencia creando la presentacion oficial con auditoria.",
@@ -3615,6 +4957,65 @@
         "summary": "Rechazar sugerencia de presentacion",
         "tags": [
           "moderacion"
+        ]
+      }
+    },
+    "/v1/moderacion/usuarios/{id}": {
+      "get": {
+        "operationId": "obtener_usuario_moderacion_v1_moderacion_usuarios__id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsuarioModeracionRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Consultar usuario para moderacion",
+        "tags": [
+          "Moderacion de Casos y Parametros"
         ]
       }
     },

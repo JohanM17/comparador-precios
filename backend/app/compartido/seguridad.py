@@ -84,11 +84,11 @@ async def _consultar_perfil_bd(usuario_id: UUID, sesion: AsyncSession) -> tuple[
     return "consumidor", "activa"
 
 
-async def requiere_usuario(
+async def requiere_usuario_autenticado_base(
     authorization: Annotated[str | None, Header(alias="Authorization")] = None,
     sesion: Annotated[AsyncSession, Depends(obtener_sesion)] = None,  # type: ignore[assignment]
 ) -> UsuarioAutenticado:
-    """Dependencia que valida la cabecera Authorization y retorna el usuario autenticado."""
+    """Valida el token y retorna el usuario sin bloquear por estado suspendida/bloqueada."""
     if not authorization or not authorization.startswith("Bearer "):
         raise NoAutenticadoError("Cabecera Authorization: Bearer ausente o malformada.")
 
@@ -107,12 +107,7 @@ async def requiere_usuario(
         raise NoAutenticadoError("Identificador de usuario 'sub' no es un UUID valido.") from exc
 
     email = payload.get("email")
-
-    # FR-005: El rol se lee exclusivamente desde la base de datos (nunca user_metadata)
     rol, estado = await _consultar_perfil_bd(usuario_id, sesion)
-
-    if estado in ("suspendida", "bloqueada"):
-        raise CuentaSuspendidaError()
 
     return UsuarioAutenticado(
         id=usuario_id,
@@ -120,6 +115,15 @@ async def requiere_usuario(
         rol=rol,
         estado=estado,
     )
+
+
+def requiere_usuario(
+    usuario: Annotated[UsuarioAutenticado, Depends(requiere_usuario_autenticado_base)],
+) -> UsuarioAutenticado:
+    """Valida el token y exige cuenta activa, rechazando suspendidas o bloqueadas."""
+    if usuario.estado in ("suspendida", "bloqueada"):
+        raise CuentaSuspendidaError()
+    return usuario
 
 
 def requiere_rol(*roles_permitidos: str) -> Any:

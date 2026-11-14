@@ -223,6 +223,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/moderacion/auditoria": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Consultar bitacora de auditoria */
+        get: operations["listar_auditoria_v1_moderacion_auditoria_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/moderacion/casos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Listar casos de moderacion */
+        get: operations["listar_casos_v1_moderacion_casos_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/moderacion/casos/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Detalle de caso de moderacion */
+        get: operations["obtener_caso_v1_moderacion_casos__id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/moderacion/casos/{id}/resolver": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolver caso de moderacion */
+        post: operations["resolver_caso_v1_moderacion_casos__id__resolver_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/moderacion/catalogo-externo": {
         parameters: {
             query?: never;
@@ -281,6 +349,24 @@ export interface paths {
          * @description Actualiza datos y geometria espacial de establecimiento.
          */
         patch: operations["actualizar_establecimiento_moderacion_v1_moderacion_establecimientos__id__patch"];
+        trace?: never;
+    };
+    "/v1/moderacion/parametros": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Consultar los 43 parametros de negocio */
+        get: operations["listar_parametros_v1_moderacion_parametros_get"];
+        /** Actualizar parametros de negocio */
+        put: operations["actualizar_parametros_v1_moderacion_parametros_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/moderacion/presentaciones": {
@@ -363,6 +449,74 @@ export interface paths {
         patch: operations["actualizar_producto_moderacion_v1_moderacion_productos__id__patch"];
         trace?: never;
     };
+    "/v1/moderacion/recalcular-precio-vigente": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Forzar recalculacion de precio vigente */
+        post: operations["recalcular_precio_vigente_v1_moderacion_recalcular_precio_vigente_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/moderacion/sanciones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Aplicar sancion directa a usuario */
+        post: operations["crear_sancion_directa_v1_moderacion_sanciones_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/moderacion/sanciones/{id}/apelacion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Radicar apelacion a una sancion */
+        post: operations["radicar_apelacion_v1_moderacion_sanciones__id__apelacion_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/moderacion/sanciones/{id}/resolver-apelacion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolver apelacion a una sancion */
+        post: operations["resolver_apelacion_v1_moderacion_sanciones__id__resolver_apelacion_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/moderacion/sugerencias/{id}/aprobar": {
         parameters: {
             query?: never;
@@ -397,6 +551,23 @@ export interface paths {
          * @description Rechaza la sugerencia archivando el motivo en auditoria.
          */
         post: operations["rechazar_sugerencia_presentacion_v1_moderacion_sugerencias__id__rechazar_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/moderacion/usuarios/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Consultar usuario para moderacion */
+        get: operations["obtener_usuario_moderacion_v1_moderacion_usuarios__id__get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -543,6 +714,18 @@ export interface components {
             /** Alias */
             alias: string;
         };
+        /** ActualizarParametrosEntrada */
+        ActualizarParametrosEntrada: {
+            /** Parametros */
+            parametros: {
+                [key: string]: unknown;
+            };
+        };
+        /** ApelacionSancionEntrada */
+        ApelacionSancionEntrada: {
+            /** Apelacion */
+            apelacion: string;
+        };
         /**
          * AprobarSugerenciaEntrada
          * @description Datos para que el moderador apruebe e incorpore la sugerencia al catalogo.
@@ -595,6 +778,45 @@ export interface components {
             usuario_id: string;
             /** Version Politica */
             version_politica: string;
+        };
+        /** CasoDetalleRespuesta */
+        CasoDetalleRespuesta: {
+            /**
+             * Creado En
+             * Format: date-time
+             */
+            creado_en: string;
+            /** Decision */
+            decision: string | null;
+            /** Detalle */
+            detalle: {
+                [key: string]: unknown;
+            };
+            /** Estado */
+            estado: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Moderador Id */
+            moderador_id: string | null;
+            /** Nota */
+            nota: string | null;
+            /** Prioridad */
+            prioridad: number;
+            /** Referencia Datos */
+            referencia_datos?: {
+                [key: string]: unknown;
+            } | null;
+            /** Referencia Id */
+            referencia_id: string | null;
+            /** Referencia Tabla */
+            referencia_tabla: string;
+            /** Resuelto En */
+            resuelto_en: string | null;
+            /** Tipo */
+            tipo: string;
         };
         /**
          * CategoriaRespuesta
@@ -659,6 +881,18 @@ export interface components {
          */
         CrearReporteRespuesta: {
             datos: components["schemas"]["DatosReporteRespuesta"];
+        };
+        /** CrearSancionEntrada */
+        CrearSancionEntrada: {
+            /** Dias Suspension */
+            dias_suspension?: number | null;
+            /** Motivo */
+            motivo: string;
+            /**
+             * Tipo
+             * @enum {string}
+             */
+            tipo: "advertencia" | "suspension" | "bloqueo";
         };
         /**
          * DatosComparacion
@@ -921,6 +1155,34 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** ItemAuditoriaRespuesta */
+        ItemAuditoriaRespuesta: {
+            /** Accion */
+            accion: string;
+            /** Actor Id */
+            actor_id: string | null;
+            /** Antes */
+            antes: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Creado En
+             * Format: date-time
+             */
+            creado_en: string;
+            /** Despues */
+            despues: {
+                [key: string]: unknown;
+            } | null;
+            /** Entidad */
+            entidad: string;
+            /** Entidad Id */
+            entidad_id: string | null;
+            /** Id */
+            id: number;
+            /** Rol */
+            rol: string | null;
+        };
         /**
          * ItemResultadoComparacion
          * @description Fila del comparador de precios (Bloque 1 o Bloque 2).
@@ -957,6 +1219,20 @@ export interface components {
              */
             ultimo_reporte_en: string;
         };
+        /** ListaAuditoriaRespuesta */
+        ListaAuditoriaRespuesta: {
+            /** Datos */
+            datos: components["schemas"]["ItemAuditoriaRespuesta"][];
+            /** Total */
+            total: number;
+        };
+        /** ListaCasosRespuesta */
+        ListaCasosRespuesta: {
+            /** Datos */
+            datos: components["schemas"]["CasoDetalleRespuesta"][];
+            /** Total */
+            total: number;
+        };
         /**
          * ListaEstablecimientosRespuesta
          * @description Listado paginado de establecimientos comerciales.
@@ -966,6 +1242,11 @@ export interface components {
             datos: components["schemas"]["EstablecimientoResumen"][];
             /** Total */
             total: number;
+        };
+        /** ListaParametrosRespuesta */
+        ListaParametrosRespuesta: {
+            /** Datos */
+            datos: components["schemas"]["ParametroItem"][];
         };
         /**
          * ListaProductosRespuesta
@@ -1011,6 +1292,24 @@ export interface components {
             pagina: number;
             /** Total */
             total: number;
+        };
+        /** ParametroItem */
+        ParametroItem: {
+            /**
+             * Actualizado En
+             * Format: date-time
+             */
+            actualizado_en: string;
+            /** Clave */
+            clave: string;
+            /** Descripcion */
+            descripcion: string;
+            /** Rango Valido */
+            rango_valido: string;
+            /** Tipo */
+            tipo: string;
+            /** Valor */
+            valor: unknown;
         };
         /**
          * PerfilUsuarioRespuesta
@@ -1314,6 +1613,24 @@ export interface components {
             /** Motivo */
             motivo: string;
         };
+        /** ResolverApelacionEntrada */
+        ResolverApelacionEntrada: {
+            /** Aprobar */
+            aprobar: boolean;
+            /** Nota */
+            nota?: string | null;
+        };
+        /** ResolverCasoEntrada */
+        ResolverCasoEntrada: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "confirmar" | "descartar" | "sancionar";
+            /** Nota */
+            nota: string;
+            sancion?: components["schemas"]["CrearSancionEntrada"] | null;
+        };
         /**
          * RespuestaComparacion
          * @description Respuesta completa de GET /v1/productos/{id}/comparacion.
@@ -1368,6 +1685,23 @@ export interface components {
             /** Rol */
             rol: string;
             /** Usuario Id */
+            usuario_id: string;
+        };
+        /** SancionDirectaEntrada */
+        SancionDirectaEntrada: {
+            /** Dias Suspension */
+            dias_suspension?: number | null;
+            /** Motivo */
+            motivo: string;
+            /**
+             * Tipo
+             * @enum {string}
+             */
+            tipo: "advertencia" | "suspension" | "bloqueo";
+            /**
+             * Usuario Id
+             * Format: uuid
+             */
             usuario_id: string;
         };
         /**
@@ -1438,6 +1772,41 @@ export interface components {
             unidad?: string | null;
             /** Valor Cantidad */
             valor_cantidad?: number | string | null;
+        };
+        /** UsuarioModeracionRespuesta */
+        UsuarioModeracionRespuesta: {
+            /** Alias */
+            alias: string;
+            /** Conteo Reportes */
+            conteo_reportes: {
+                [key: string]: number;
+            };
+            /**
+             * Creado En
+             * Format: date-time
+             */
+            creado_en: string;
+            /** Estado */
+            estado: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Reportes Corroborados */
+            reportes_corroborados: number;
+            /** Reportes Malos Confirmados */
+            reportes_malos_confirmados: number;
+            /** Reputacion */
+            reputacion: number;
+            /** Rol */
+            rol: string;
+            /** Sanciones */
+            sanciones: {
+                [key: string]: unknown;
+            }[];
+            /** Suspendida Hasta */
+            suspendida_hasta: string | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -1879,6 +2248,150 @@ export interface operations {
             };
         };
     };
+    listar_auditoria_v1_moderacion_auditoria_get: {
+        parameters: {
+            query?: {
+                entidad?: string | null;
+                accion?: string | null;
+                actor_id?: string | null;
+                limite?: number;
+                offset?: number;
+            };
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListaAuditoriaRespuesta"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listar_casos_v1_moderacion_casos_get: {
+        parameters: {
+            query?: {
+                estado?: string | null;
+                tipo?: string | null;
+                prioridad?: number | null;
+                limite?: number;
+                offset?: number;
+            };
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListaCasosRespuesta"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    obtener_caso_v1_moderacion_casos__id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CasoDetalleRespuesta"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolver_caso_v1_moderacion_casos__id__resolver_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolverCasoEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CasoDetalleRespuesta"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     consultar_catalogo_externo_endpoint_v1_moderacion_catalogo_externo_get: {
         parameters: {
             query: {
@@ -1975,6 +2488,72 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listar_parametros_v1_moderacion_parametros_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListaParametrosRespuesta"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    actualizar_parametros_v1_moderacion_parametros_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActualizarParametrosEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListaParametrosRespuesta"];
                 };
             };
             /** @description Validation Error */
@@ -2140,6 +2719,157 @@ export interface operations {
             };
         };
     };
+    recalcular_precio_vigente_v1_moderacion_recalcular_precio_vigente_post: {
+        parameters: {
+            query?: {
+                presentacion_id?: string | null;
+                establecimiento_id?: string | null;
+            };
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    crear_sancion_directa_v1_moderacion_sanciones_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SancionDirectaEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    radicar_apelacion_v1_moderacion_sanciones__id__apelacion_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApelacionSancionEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolver_apelacion_v1_moderacion_sanciones__id__resolver_apelacion_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolverApelacionEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     aprobar_sugerencia_presentacion_v1_moderacion_sugerencias__id__aprobar_post: {
         parameters: {
             query?: never;
@@ -2205,6 +2935,39 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    obtener_usuario_moderacion_v1_moderacion_usuarios__id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsuarioModeracionRespuesta"];
                 };
             };
             /** @description Validation Error */
