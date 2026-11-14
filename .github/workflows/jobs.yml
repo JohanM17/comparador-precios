@@ -1,0 +1,77 @@
+name: Tareas Programadas e Internas (Jobs)
+
+on:
+  schedule:
+    # Ping a la base de datos cada 5 minutos
+    - cron: '*/5 * * * *'
+    # Recalculo de reputacion cada hora
+    - cron: '0 * * * *'
+    # Reconstruccion de precio vigente a las 02:00 UTC
+    - cron: '0 2 * * *'
+    # Limpieza de huellas de red segun Ley 1581 a las 04:00 UTC
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Tarea interna a ejecutar'
+        required: true
+        default: 'ping_bd'
+        type: choice
+        options:
+          - ping_bd
+          - recalcular_reputacion
+          - reconstruir_precio_vigente
+          - limpiar_huellas
+          - todos
+
+jobs:
+  ejecutar_job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determinar tareas a ejecutar
+        id: selector
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "seleccion=${{ github.event.inputs.job }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "*/5 * * * *" ]; then
+            echo "seleccion=ping_bd" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "0 * * * *" ]; then
+            echo "seleccion=recalcular_reputacion" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "0 2 * * *" ]; then
+            echo "seleccion=reconstruir_precio_vigente" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.schedule }}" = "0 4 * * *" ]; then
+            echo "seleccion=limpiar_huellas" >> $GITHUB_OUTPUT
+          else
+            echo "seleccion=ping_bd" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Ejecutar llamada HTTP a endpoint interno
+        env:
+          URL_BASE: ${{ secrets.BACKEND_URL }}
+          TOKEN: ${{ secrets.JOB_TOKEN }}
+        run: |
+          TARGET="${{ steps.selector.outputs.seleccion }}"
+
+          if [ -z "$URL_BASE" ]; then
+            echo "ADVERTENCIA: BACKEND_URL no configurada. Saltando llamada en entorno sin despliegue."
+            exit 0
+          fi
+
+          ejecutar_endpoint() {
+            JOB_NAME="$1"
+            echo "Ejecutando job: $JOB_NAME"
+            curl -s -S -X POST "$URL_BASE/internal/jobs/$JOB_NAME" \
+              -H "X-Job-Token: $TOKEN" \
+              -H "Content-Type: application/json" \
+              --fail-with-body
+            echo ""
+          }
+
+          if [ "$TARGET" = "todos" ]; then
+            ejecutar_endpoint "ping_bd"
+            ejecutar_endpoint "recalcular_reputacion"
+            ejecutar_endpoint "reconstruir_precio_vigente"
+            ejecutar_endpoint "limpiar_huellas"
+          else
+            ejecutar_endpoint "$TARGET"
+          fi

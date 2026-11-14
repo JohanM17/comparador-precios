@@ -47,12 +47,14 @@ from app.modulos.moderacion.api import (
 from app.modulos.moderacion.api import (
     router as moderacion_router,
 )
+from app.modulos.moderacion.api_casos import router as casos_router
 from app.modulos.precios.api import (
     obtener_puerto_cache,
 )
 from app.modulos.precios.api import (
     router as precios_router,
 )
+from app.tareas.router_jobs import router as jobs_router
 
 
 class RespuestaSalud(BaseModel):
@@ -179,10 +181,12 @@ def create_app() -> FastAPI:
     v1_router.include_router(catalogo_router)
     v1_router.include_router(establecimientos_router)
     v1_router.include_router(moderacion_router)
+    v1_router.include_router(casos_router)
     v1_router.include_router(cuentas_router)
     v1_router.include_router(fotos_router)
     v1_router.include_router(precios_router)
     app.include_router(v1_router)
+    app.include_router(jobs_router)
 
     def custom_openapi() -> dict[str, Any]:
         if app.openapi_schema:
