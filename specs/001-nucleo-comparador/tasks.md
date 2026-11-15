@@ -252,7 +252,7 @@ Este documento contiene la lista secuencial de 47 tareas atómicas de ingenierí
   - **Archivos**: `frontend/src/app/reportar/page.tsx`, `frontend/src/components/SelectorTienda.tsx`, `frontend/src/components/SelectorPresentacion.tsx`, `frontend/src/components/CampoPrecio.tsx`, `frontend/src/lib/offline/colaReportes.ts`, `frontend/src/lib/imagen/comprimirFoto.ts`
   - **Hecho cuando…**: En modo avión guarda reporte + foto en `IndexedDB`; al volver la red sube primero la foto a la URL firmada y luego el reporte con `Idempotency-Key` sin duplicar.
 
-- [ ] **T-44** | **Construir `S5 (/ingresar)` con Supabase Auth y aceptación obligatoria de política Ley 1581**
+- [x] **T-44** | **Construir `S5 (/ingresar)` con Supabase Auth y aceptación obligatoria de política Ley 1581**
   - **Depende de**: `T-22`, `T-04`
   - **Resp.**: **C**
   - **Archivos**: `frontend/src/app/ingresar/page.tsx`
@@ -264,7 +264,7 @@ Este documento contiene la lista secuencial de 47 tareas atómicas de ingenierí
   - **Archivos**: `frontend/src/app/gestion/page.tsx`, `frontend/src/components/TablaGestion.tsx`
   - **Hecho cuando…**: Un moderador resuelve un caso dudoso desde la interfaz y un reportante puede ver sus reportes y borrar su cuenta.
 
-- [ ] **T-46** | **Construir `S7 (/legal)` y `/offline` con política Ley 1581, explicación de sellos y créditos ODbL**
+- [x] **T-46** | **Construir `S7 (/legal)` y `/offline` con política Ley 1581, explicación de sellos y créditos ODbL**
   - **Depende de**: `T-05`, `T-40`
   - **Resp.**: **C**
   - **Archivos**: `frontend/src/app/legal/page.tsx`, `frontend/src/app/offline/page.tsx`
