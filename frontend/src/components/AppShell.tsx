@@ -28,14 +28,17 @@ export default function AppShell({ children }: AppShellProps): React.JSX.Element
           <Link
             href="/"
             className="flex items-center gap-2 text-lg font-bold tracking-tight text-emerald-800 transition-colors hover:text-emerald-900"
-            aria-label="Ir al inicio - Comparador de Precios"
           >
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-700 text-base font-black text-white shadow-sm">
+            <span
+              aria-hidden="true"
+              className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-700 text-base font-black text-white shadow-sm"
+            >
               CP
             </span>
             <span className="hidden sm:inline font-semibold text-slate-900">
               Comparador <span className="text-emerald-700">Precios</span>
             </span>
+            <span className="sr-only">Comparador de Precios - Ir al inicio</span>
           </Link>
 
           {/* Buscador global accesible */}
@@ -86,7 +89,7 @@ export default function AppShell({ children }: AppShellProps): React.JSX.Element
         <Link
           href="/reportar"
           className="fixed bottom-5 right-5 z-50 flex min-h-11 items-center gap-2 rounded-full bg-emerald-700 px-5 py-3 text-sm font-semibold text-white shadow-lg transition-transform hover:bg-emerald-800 hover:shadow-xl active:scale-95 focus:outline-none focus:ring-4 focus:ring-emerald-600/30"
-          aria-label="Registrar o capturar nuevo precio de producto"
+          aria-label="Reportar precio de producto"
         >
           <PlusCircle className="h-5 w-5" aria-hidden="true" />
           <span>Reportar precio</span>
@@ -94,17 +97,17 @@ export default function AppShell({ children }: AppShellProps): React.JSX.Element
       </aside>
 
       {/* Pie de pagina institucional */}
-      <footer role="contentinfo" className="border-t border-slate-200 bg-white py-8 text-xs text-slate-500">
+      <footer role="contentinfo" className="border-t border-slate-200 bg-white py-8 text-xs text-slate-600">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6">
           <p className="text-center sm:text-left">
             Plataforma Colaborativa de Comparacion de Precios de la Canasta Familiar &copy;{" "}
             {new Date().getFullYear()}.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4">
-            <span className="text-slate-400">
+            <span className="text-slate-600">
               Datos geograficos &copy; OpenStreetMap contribuyentes (ODbL).
             </span>
-            <span className="text-slate-400">
+            <span className="text-slate-600">
               Datos nutricionales Open Food Facts.
             </span>
             <Link

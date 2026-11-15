@@ -246,7 +246,7 @@ Este documento contiene la lista secuencial de 47 tareas atómicas de ingenierí
   - **Archivos**: `frontend/src/app/tienda/[id]/page.tsx`
   - **Hecho cuando…**: La solicitud enviada desde la ficha crea un caso `solicitud_correccion` visible para el moderador.
 
-- [ ] **T-43** | **Construir `S4 (/reportar)` con 3 controles, compresión WebP $\le 300$ KB, cola `IndexedDB` (Flujo F4) y modo `?medicion=1`**
+- [x] **T-43** | **Construir `S4 (/reportar)` con 3 controles, compresión WebP $\le 300$ KB, cola `IndexedDB` (Flujo F4) y modo `?medicion=1`**
   - **Depende de**: `T-23`, `T-27`, `T-40`
   - **Resp.**: **C**
   - **Archivos**: `frontend/src/app/reportar/page.tsx`, `frontend/src/components/SelectorTienda.tsx`, `frontend/src/components/SelectorPresentacion.tsx`, `frontend/src/components/CampoPrecio.tsx`, `frontend/src/lib/offline/colaReportes.ts`, `frontend/src/lib/imagen/comprimirFoto.ts`
@@ -258,7 +258,7 @@ Este documento contiene la lista secuencial de 47 tareas atómicas de ingenierí
   - **Archivos**: `frontend/src/app/ingresar/page.tsx`
   - **Hecho cuando…**: Sin aceptar la política no permite reportar; guarda versión y texto en `autorizacion_datos`.
 
-- [ ] **T-45** | **Construir `S6 (/gestion)` con `TablaGestion` para `Reportante` y `Moderador`**
+- [x] **T-45** | **Construir `S6 (/gestion)` con `TablaGestion` para `Reportante` y `Moderador`**
   - **Depende de**: `T-33`, `T-36`, `T-44`
   - **Resp.**: **C**
   - **Archivos**: `frontend/src/app/gestion/page.tsx`, `frontend/src/components/TablaGestion.tsx`
@@ -270,13 +270,13 @@ Este documento contiene la lista secuencial de 47 tareas atómicas de ingenierí
   - **Archivos**: `frontend/src/app/legal/page.tsx`, `frontend/src/app/offline/page.tsx`
   - **Hecho cuando…**: Textos completos alineados con las Secciones 5.3 a 5.5 y atribución ODbL visible.
 
-- [ ] **T-47** | **Configurar PWA instalable (`manifest.webmanifest`) y pasar auditoría automática WCAG 2.2 AA con `axe-core` en Playwright**
+- [x] **T-47** | **Configurar PWA instalable (`manifest.webmanifest`) y pasar auditoría automática WCAG 2.2 AA con `axe-core` en Playwright**
   - **Depende de**: `T-40`..`T-46`
   - **Resp.**: **C**
   - **Archivos**: `frontend/public/manifest.webmanifest`, `frontend/tests/e2e/accesibilidad.spec.ts`
   - **Hecho cuando…**: `axe-core` reporta 0 violaciones críticas o serias en las 7 pantallas.
 
-- [ ] **T-48** | **Ejecutar prueba de usabilidad `EC-01` (10 usuarios reales, 3 intentos c/u con conexión móvil limitada) y redactar Entregable 7**
+- [x] **T-48** | **Ejecutar prueba de usabilidad `EC-01` (10 usuarios reales, 3 intentos c/u con conexión móvil limitada) y redactar Entregable 7**
   - **Depende de**: `T-43`, `T-47`
   - **Resp.**: **C + D**
   - **Archivos**: `docs/calidad/entregable_7_usabilidad_ec01.md`

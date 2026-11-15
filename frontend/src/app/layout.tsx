@@ -20,9 +20,10 @@ export const metadata: Metadata = {
     "precios justos",
   ],
   authors: [{ name: "Comunidad Abierta" }],
-  manifest: "/manifest.json",
+  manifest: "/manifest.webmanifest",
   icons: {
-    icon: "/favicon.ico",
+    icon: "/icons/icon-192.svg",
+    apple: "/icons/icon-192.svg",
   },
 };
 
