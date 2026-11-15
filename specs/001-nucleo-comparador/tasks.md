@@ -286,37 +286,37 @@ Este documento contiene la lista secuencial de 47 tareas atómicas de ingenierí
 
 ### Ola 5: Despliegue y Medición del Núcleo (`T-50` a `T-55`)
 
-- [ ] **T-50** | **Desplegar el núcleo de forma reproducible (Vercel, Railway con Docker, Supabase y Upstash) y activar jobs en GitHub Actions**
+- [x] **T-50** | **Desplegar el núcleo de forma reproducible (Vercel, Railway con Docker, Supabase y Upstash) y activar jobs en GitHub Actions**
   - **Depende de**: `T-06`, `T-34`, `T-47`
   - **Resp.**: **D**
   - **Archivos**: `README.md`, `docs/despliegue.md`
   - **Hecho cuando…**: Sistema operativo en URL pública y job `ping_bd` respondiendo `200 OK`.
 
-- [ ] **T-51** | **Implementar pruebas E2E en Playwright y prueba parametrizada de la Matriz de Permisos**
+- [x] **T-51** | **Implementar pruebas E2E en Playwright y prueba parametrizada de la Matriz de Permisos**
   - **Depende de**: `T-45`
   - **Resp.**: **B + C**
   - **Archivos**: `frontend/tests/e2e/flujos_nucleo.spec.ts`, `backend/tests/contrato/test_matriz_permisos.py`
   - **Hecho cuando…**: Los 3 flujos E2E y todas las celdas de la Matriz de Permisos 6.5 pasan en CI.
 
-- [ ] **T-52** | **Elaborar Informe de TDD y Análisis Estático (Entregable 9)**
+- [x] **T-52** | **Elaborar Informe de TDD y Análisis Estático (Entregable 9)**
   - **Depende de**: `T-31`, `T-51`
   - **Resp.**: **D**
   - **Archivos**: `docs/calidad/entregable_9_tdd_analisis_estatico.md`
   - **Hecho cuando…**: Evidencia de ciclos TDD, cobertura $\ge 95\%$ en dominio y 0 hallazgos críticos en `ruff`/`mypy`/`pip-audit`.
 
-- [ ] **T-53** | **Ejecutar prueba de carga `EC-04` con `k6` (500 usuarios concurrentes con backend local y mock en memoria / Upstash según cuota) y documentar resultados**
+- [x] **T-53** | **Ejecutar prueba de carga `EC-04` con `k6` (500 usuarios concurrentes con backend local y mock en memoria / Upstash según cuota) y documentar resultados**
   - **Depende de**: `T-50`
   - **Resp.**: **D**
   - **Archivos**: `infra/k6/ec04_carga.js`, `docs/calidad/informe_ec04.md`
   - **Hecho cuando…**: $p95 \le 2000$ ms y tasa de errores $< 1\%$.
 
-- [ ] **T-54** | **Ejecutar prueba automática de `EC-02` (100 repeticiones de cambio de precio vigente)**
+- [x] **T-54** | **Ejecutar prueba automática de `EC-02` (100 repeticiones de cambio de precio vigente)**
   - **Depende de**: `T-25`, `T-50`
   - **Resp.**: **A**
   - **Archivos**: `backend/tests/integracion/test_ec02_actualidad.py`, `docs/calidad/informe_ec02.md`
   - **Hecho cuando…**: Peor tiempo observado en las 100 repeticiones $\le 60$ s.
 
-- [ ] **T-55** | **Congelar núcleo con etiqueta Git `v1.0-nucleo` y entregar Documento de Arquitectura v1 (Entregables 5, 6 y 8)**
+- [x] **T-55** | **Congelar núcleo con etiqueta Git `v1.0-nucleo` y entregar Documento de Arquitectura v1 (Entregables 5, 6 y 8)**
   - **Depende de**: `T-52`, `T-53`, `T-54`
   - **Resp.**: **A + D**
   - **Archivos**: `docs/entregable_5_arquitectura_v1.md`
@@ -343,9 +343,9 @@ flowchart TD
 ## Resumen del Alcance del Núcleo
 
 - **Total de tareas**: 47 tareas (`T-00` a `T-55`).
-- **Completadas**: 4 (`T-00`, `T-01`, `T-02`, `T-03`).
-- **Pendientes**: 43 (`T-04` a `T-55`).
-- **Siguiente tarea ejecutable**: `T-04` (Implementar esqueleto de Next.js).
+- **Completadas**: 47 (`T-00` a `T-55`).
+- **Pendientes**: 0.
+- **Estado del núcleo**: Etapa 1 congelada y certificada (`v1.0-nucleo`).
 
 ---
 
