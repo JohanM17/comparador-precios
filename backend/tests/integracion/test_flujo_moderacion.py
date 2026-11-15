@@ -82,12 +82,23 @@ async def test_listar_y_obtener_caso() -> None:
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as cliente:
         res = await cliente.get(
-            "/v1/moderacion/casos?estado=abierto", headers={"Authorization": f"Bearer {token}"}
+            "/v1/moderacion/casos?estado=abierto&limite=100",
+            headers={"Authorization": f"Bearer {token}"},
         )
         assert res.status_code == 200
         datos = res.json()
         assert datos["total"] >= 1
-        assert any(c["id"] == caso_id for c in datos["datos"])
+        casos_visibles = list(datos["datos"])
+        for off in range(100, datos["total"], 100):
+            if any(c["id"] == caso_id for c in casos_visibles):
+                break
+            sig = await cliente.get(
+                f"/v1/moderacion/casos?estado=abierto&limite=100&offset={off}",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+            assert sig.status_code == 200
+            casos_visibles.extend(sig.json()["datos"])
+        assert any(c["id"] == caso_id for c in casos_visibles)
 
         res_det = await cliente.get(
             f"/v1/moderacion/casos/{caso_id}", headers={"Authorization": f"Bearer {token}"}

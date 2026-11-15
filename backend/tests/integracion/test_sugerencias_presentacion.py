@@ -80,6 +80,7 @@ async def test_flujo_completo_sugerencia_y_aprobacion_moderador() -> None:
         datos_prods = resp_prod.json()["datos"]
         assert len(datos_prods) > 0
         prod_id = datos_prods[0]["id"]
+        marca_unica = f"Diana Eco {uuid4().hex[:6]}"
 
         # 2. Reportante envia sugerencia
         resp_sug = await cliente.post(
@@ -88,7 +89,7 @@ async def test_flujo_completo_sugerencia_y_aprobacion_moderador() -> None:
             json={
                 "producto_id": prod_id,
                 "texto_libre": "Bolsa economica de 125 gramos",
-                "marca": "Diana Economico",
+                "marca": marca_unica,
                 "valor_cantidad": 125.0,
                 "unidad": "g",
             },
@@ -103,7 +104,7 @@ async def test_flujo_completo_sugerencia_y_aprobacion_moderador() -> None:
             f"/v1/moderacion/sugerencias/{sug_id}/aprobar",
             headers={"Authorization": f"Bearer {token_mod}"},
             json={
-                "marca": "Diana Economico",
+                "marca": marca_unica,
                 "valor_cantidad": 125.0,
                 "unidad": "g",
                 "multiplicador": 1,
