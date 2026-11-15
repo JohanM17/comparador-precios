@@ -228,19 +228,19 @@ Este documento contiene la lista secuencial de 47 tareas atómicas de ingenierí
 
 ### Ola 4: Frontend del Núcleo (`S1` a `S7`) y Usabilidad `EC-01` (`T-40` a `T-48`)
 
-- [ ] **T-40** | **Construir `S1 (/)` Inicio con buscador, categorías, `GrillaProductos`, `TarjetaProducto` y `AvisoDatosDemo`**
+- [x] **T-40** | **Construir `S1 (/)` Inicio con buscador, categorías, `GrillaProductos`, `TarjetaProducto` y `AvisoDatosDemo`**
   - **Depende de**: `T-04`, `T-13`
   - **Resp.**: **C**
   - **Archivos**: `frontend/src/app/page.tsx`, `frontend/src/components/TarjetaProducto.tsx`, `frontend/src/components/GrillaProductos.tsx`
   - **Hecho cuando…**: Renderiza productos y categorías reales desde la API y filtra sin errores.
 
-- [ ] **T-41** | **Construir `S2 (/producto/[id])` con `ListaPrecios`, `FilaPrecio`, `SelloConfianza`, selector de orden y `BloquePromociones`**
+- [x] **T-41** | **Construir `S2 (/producto/[id])` con `ListaPrecios`, `FilaPrecio`, `SelloConfianza`, selector de orden y `BloquePromociones`**
   - **Depende de**: `T-26`, `T-40`
   - **Resp.**: **C**
   - **Archivos**: `frontend/src/app/producto/[id]/page.tsx`, `frontend/src/components/ListaPrecios.tsx`, `frontend/src/components/FilaPrecio.tsx`, `frontend/src/components/SelloConfianza.tsx`, `frontend/src/components/BloquePromociones.tsx`
   - **Hecho cuando…**: Muestra el orden exacto de la API en dos bloques, sellos con ícono+texto y bloque de promociones separado.
 
-- [ ] **T-42** | **Construir `S3 (/tienda/[id])` y modal de solicitud de corrección con *honeypot***
+- [x] **T-42** | **Construir `S3 (/tienda/[id])` y modal de solicitud de corrección con *honeypot***
   - **Depende de**: `T-14`, `T-41`
   - **Resp.**: **C**
   - **Archivos**: `frontend/src/app/tienda/[id]/page.tsx`

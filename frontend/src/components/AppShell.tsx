@@ -40,7 +40,7 @@ export default function AppShell({ children }: AppShellProps): React.JSX.Element
 
           {/* Buscador global accesible */}
           <div className="flex-1 max-w-md mx-2">
-            <form action="/buscar" method="GET" role="search" className="relative w-full">
+            <form action="/" method="GET" role="search" className="relative w-full">
               <label htmlFor="buscador-global" className="sr-only">
                 Buscar productos o marcas
               </label>
