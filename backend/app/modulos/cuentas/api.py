@@ -4,10 +4,14 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 
 from app.bd import sesion_transaccional
-from app.compartido.seguridad import UsuarioAutenticado, requiere_usuario
+from app.compartido.seguridad import (
+    UsuarioAutenticado,
+    requiere_usuario,
+    requiere_usuario_autenticado_base,
+)
 from app.modulos.cuentas.esquemas import (
     ActualizarAliasEntrada,
     AutorizacionEntrada,
@@ -55,12 +59,16 @@ async def consultar_politica_tratamiento() -> PoliticaTratamientoRespuesta:
 )
 async def registrar_autorizacion_usuario(
     entrada: AutorizacionEntrada,
+    response: Response,
     usuario: Annotated[UsuarioAutenticado, Depends(requiere_usuario)],
 ) -> AutorizacionRespuesta:
     """Registra el consentimiento expreso e informado de un reportante autenticado."""
     async with sesion_transaccional() as sesion:
         servicio = ServicioCuentas(sesion=sesion)
-        return await servicio.registrar_autorizacion(usuario, entrada)
+        resultado, fue_creada = await servicio.registrar_autorizacion_con_estado(usuario, entrada)
+        if not fue_creada:
+            response.status_code = 200
+        return resultado
 
 
 @router.get(
@@ -68,9 +76,9 @@ async def registrar_autorizacion_usuario(
     summary="Consultar perfil del titular y autorizacion vigente",
 )
 async def obtener_perfil_usuario(
-    usuario: Annotated[UsuarioAutenticado, Depends(requiere_usuario)],
+    usuario: Annotated[UsuarioAutenticado, Depends(requiere_usuario_autenticado_base)],
 ) -> PerfilUsuarioRespuesta:
-    """Retorna el perfil del usuario autenticado; exige consentimiento activo."""
+    """Retorna el perfil del usuario autenticado; permite acceso a suspendidas (Ley 1581)."""
     async with sesion_transaccional() as sesion:
         servicio = ServicioCuentas(sesion=sesion)
         return await servicio.obtener_mi_cuenta(usuario)
@@ -95,7 +103,7 @@ async def actualizar_alias_usuario(
     summary="Ejercicio del derecho de supresion y anonimizacion irreversible",
 )
 async def eliminar_cuenta_usuario(
-    usuario: Annotated[UsuarioAutenticado, Depends(requiere_usuario)],
+    usuario: Annotated[UsuarioAutenticado, Depends(requiere_usuario_autenticado_base)],
     puerto_almacenamiento: Annotated[
         PuertoAlmacenamientoFotos, Depends(obtener_puerto_almacenamiento)
     ],

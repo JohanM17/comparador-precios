@@ -3347,7 +3347,7 @@
         ]
       },
       "get": {
-        "description": "Retorna el perfil del usuario autenticado; exige consentimiento activo.",
+        "description": "Retorna el perfil del usuario autenticado; permite acceso a suspendidas (Ley 1581).",
         "operationId": "obtener_perfil_usuario_v1_mi_cuenta_get",
         "parameters": [
           {

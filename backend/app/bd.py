@@ -39,6 +39,8 @@ def _obtener_recursos_bd() -> tuple[AsyncEngine, async_sessionmaker[AsyncSession
             url,
             connect_args=connect_args,
             pool_pre_ping=True,
+            pool_size=3,
+            max_overflow=2,
             echo=False,
         )
         creador = async_sessionmaker(

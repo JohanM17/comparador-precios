@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+from typing import Any
+from uuid import UUID
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.compartido.auditoria import registrar_auditoria
 from app.compartido.errores import (
     AutorizacionRequeridaError,
     ConflictoError,
-    NoEncontradoError,
     ValidacionError,
 )
 from app.compartido.seguridad import UsuarioAutenticado
@@ -31,6 +33,9 @@ from app.modulos.cuentas.repositorio import (
 from app.puertos.almacenamiento import PuertoAlmacenamientoFotos
 
 VERSION_POLITICA_VIGENTE = "1.0"
+MSG_AUTORIZACION_REQUERIDA = (
+    "Se requiere autorización previa de tratamiento de datos personales (Ley 1581)."
+)
 FINALIDAD_DEFAULT = (
     "Consentimiento expreso e informado para el reporte colaborativo de precios, "
     "auditoría de integridad, detección de anomalías y cálculo estadístico en Armenia."
@@ -75,16 +80,19 @@ class ServicioCuentas:
             ],
         )
 
-    async def registrar_autorizacion(
+    async def registrar_autorizacion_con_estado(
         self,
         usuario: UsuarioAutenticado,
         entrada: AutorizacionEntrada,
-    ) -> AutorizacionRespuesta:
-        """Registra el consentimiento expreso y crea/actualiza el perfil del usuario."""
+    ) -> tuple[AutorizacionRespuesta, bool]:
+        """Registra el consentimiento expreso e indica si fue primera creacion."""
         if not entrada.acepta:
             raise ValidacionError(
                 "Debe aceptar expresamente la política de tratamiento de datos personales."
             )
+
+        previo = await obtener_perfil_con_autorizacion(self.sesion, usuario.id)
+        fue_creada = not (previo and previo.get("autorizacion_vigente"))
 
         alias_libre = await verificar_alias_disponible(self.sesion, entrada.alias, usuario.id)
         if not alias_libre:
@@ -110,21 +118,35 @@ class ServicioCuentas:
         )
 
         aut = res["autorizacion"]
-        return AutorizacionRespuesta(
-            usuario_id=usuario.id,
-            alias=res["alias"],
-            version_politica=aut["version_politica"],
-            aceptada_en=aut["aceptada_en"],
-            mensaje="Autorización de tratamiento de datos registrada exitosamente.",
+        return (
+            AutorizacionRespuesta(
+                usuario_id=usuario.id,
+                alias=res["alias"],
+                version_politica=aut["version_politica"],
+                aceptada_en=aut["aceptada_en"],
+                mensaje="Autorización de tratamiento de datos registrada exitosamente.",
+            ),
+            fue_creada,
         )
+
+    async def registrar_autorizacion(
+        self,
+        usuario: UsuarioAutenticado,
+        entrada: AutorizacionEntrada,
+    ) -> AutorizacionRespuesta:
+        """Registra el consentimiento expreso y crea/actualiza el perfil del usuario."""
+        resp, _ = await self.registrar_autorizacion_con_estado(usuario, entrada)
+        return resp
+
+    async def _exigir_perfil_autorizado(self, usuario_id: UUID) -> dict[str, Any]:
+        perfil = await obtener_perfil_con_autorizacion(self.sesion, usuario_id)
+        if not perfil or not perfil.get("autorizacion_vigente"):
+            raise AutorizacionRequeridaError(MSG_AUTORIZACION_REQUERIDA)
+        return perfil
 
     async def obtener_mi_cuenta(self, usuario: UsuarioAutenticado) -> PerfilUsuarioRespuesta:
         """Obtiene la ficha del usuario; exige consentimiento previo activo segun Ley 1581."""
-        perfil = await obtener_perfil_con_autorizacion(self.sesion, usuario.id)
-        if not perfil or not perfil.get("autorizacion_vigente"):
-            raise AutorizacionRequeridaError(
-                "Se requiere autorización previa de tratamiento de datos personales (Ley 1581)."
-            )
+        perfil = await self._exigir_perfil_autorizado(usuario.id)
 
         return PerfilUsuarioRespuesta(
             usuario_id=perfil["id"],
@@ -145,11 +167,7 @@ class ServicioCuentas:
         entrada: ActualizarAliasEntrada,
     ) -> PerfilUsuarioRespuesta:
         """Actualiza el alias público tras validar autorización y disponibilidad."""
-        perfil = await obtener_perfil_con_autorizacion(self.sesion, usuario.id)
-        if not perfil or not perfil.get("autorizacion_vigente"):
-            raise AutorizacionRequeridaError(
-                "Se requiere autorización previa de tratamiento de datos personales (Ley 1581)."
-            )
+        perfil = await self._exigir_perfil_autorizado(usuario.id)
 
         alias_libre = await verificar_alias_disponible(self.sesion, entrada.alias, usuario.id)
         if not alias_libre:
@@ -184,9 +202,7 @@ class ServicioCuentas:
 
     async def eliminar_mi_cuenta(self, usuario: UsuarioAutenticado) -> EliminarCuentaRespuesta:
         """Anonimiza reportes, fotos, revoca autorizaciones y marca perfil como eliminada."""
-        perfil = await obtener_perfil_con_autorizacion(self.sesion, usuario.id)
-        if not perfil:
-            raise NoEncontradoError("La cuenta que desea eliminar no existe.")
+        perfil = await self._exigir_perfil_autorizado(usuario.id)
 
         perfil_anon, rutas_fotos = await anonimizar_y_dar_de_baja_cuenta(self.sesion, usuario.id)
 
