@@ -22,7 +22,7 @@ class Configuracion(BaseSettings):
     ENTORNO: str = "local"
     FASTAPI_HOST: str = "127.0.0.1"
     FASTAPI_PORT: int = 8000
-    CORS_ORIGINS: list[str] = ["http://localhost:3000"]
+    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
 
     # Supabase (API, Auth, Storage)
     SUPABASE_URL: str = ""

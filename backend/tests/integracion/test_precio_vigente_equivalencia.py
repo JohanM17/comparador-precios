@@ -19,18 +19,25 @@ async def test_equivalencia_incremental_vs_reconstruccion_completa() -> None:
     politica = SoloUsuarios()
 
     async with sesion_transaccional() as sesion:
-        # 1. Obtener dos presentaciones y dos establecimientos
+        # 1. Obtener dos presentaciones y dos establecimientos activos
         pres_rows = (
-            await sesion.execute(text("SELECT id, producto_id FROM presentacion LIMIT 2;"))
+            await sesion.execute(
+                text(
+                    "SELECT id, producto_id, cantidad_base "
+                    "FROM presentacion WHERE activa = true LIMIT 2;"
+                )
+            )
         ).fetchall()
         est_rows = (
-            await sesion.execute(text("SELECT id FROM establecimiento LIMIT 2;"))
+            await sesion.execute(
+                text("SELECT id FROM establecimiento WHERE activo = true LIMIT 2;")
+            )
         ).fetchall()
         assert len(pres_rows) >= 2
         assert len(est_rows) >= 2
 
-        pres1, prod1 = pres_rows[0][0], pres_rows[0][1]
-        pres2, prod2 = pres_rows[1][0], pres_rows[1][1]
+        pres1, prod1, cant1 = pres_rows[0][0], pres_rows[0][1], float(pres_rows[0][2])
+        pres2, prod2, cant2 = pres_rows[1][0], pres_rows[1][1], float(pres_rows[1][2])
         est1 = est_rows[0][0]
         est2 = est_rows[1][0]
 
@@ -45,9 +52,13 @@ async def test_equivalencia_incremental_vs_reconstruccion_completa() -> None:
             {"id": uid, "alias": f"eq_{uid[:8]}"},
         )
 
-        pares = [(pres1, est1, prod1, 2500), (pres1, est2, prod1, 2700), (pres2, est1, prod2, 4100)]
+        pares = [
+            (pres1, est1, prod1, 2500, cant1),
+            (pres1, est2, prod1, 2700, cant1),
+            (pres2, est1, prod2, 4100, cant2),
+        ]
 
-        for p_id, e_id, pr_id, precio in pares:
+        for p_id, e_id, pr_id, precio, cant in pares:
             sql_rep = text("""
                 INSERT INTO reporte_precio (
                     producto_id, presentacion_id, establecimiento_id, precio_cop,
@@ -56,7 +67,7 @@ async def test_equivalencia_incremental_vs_reconstruccion_completa() -> None:
                     reportante_id
                 ) VALUES (
                     :prod_id, :pres_id, :est_id, :precio_cop,
-                    1.000, :precio_por_base, :ahora,
+                    :cant_base, :precio_por_base, :ahora,
                     'aceptado', 'aceptado', 'usuario', 'sin_referencia',
                     :uid
                 );
@@ -68,7 +79,8 @@ async def test_equivalencia_incremental_vs_reconstruccion_completa() -> None:
                     "pres_id": p_id,
                     "est_id": e_id,
                     "precio_cop": precio,
-                    "precio_por_base": float(precio),
+                    "cant_base": cant,
+                    "precio_por_base": round(float(precio) / cant, 6),
                     "ahora": instante,
                     "uid": uid,
                 },
@@ -94,7 +106,7 @@ async def test_equivalencia_incremental_vs_reconstruccion_completa() -> None:
         filas_reconstruido = (await sesion.execute(sql_snap, {"pres_ids": ids_pres})).fetchall()
 
         # 6. Comparar equivalencia exacta para los pares probados
-        for p_id, e_id, _, _ in pares:
+        for p_id, e_id, _, _, _ in pares:
             f_inc = next(
                 f
                 for f in filas_incremental

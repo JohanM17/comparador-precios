@@ -11,22 +11,22 @@ from app.bd import sesion_transaccional
 
 @pytest.fixture
 async def datos_prueba_reporte() -> dict[str, str]:
-    """Crea registros base para probar inserción e inmutabilidad en reporte_precio."""
-    async with sesion_transaccional() as sesion:
-        perfil_id = str(uuid.uuid4())
-        prod_id = str(uuid.uuid4())
-        pres_id = str(uuid.uuid4())
-        tienda_id = str(uuid.uuid4())
-        alias = f"user_{uuid.uuid4().hex[:8]}"
+    """Crea registros base inactivos para probar inserción e inmutabilidad en reporte_precio."""
+    perfil_id = str(uuid.uuid4())
+    prod_id = str(uuid.uuid4())
+    pres_id = str(uuid.uuid4())
+    tienda_id = str(uuid.uuid4())
+    alias = f"user_{uuid.uuid4().hex[:8]}"
 
+    async with sesion_transaccional() as sesion:
         await sesion.execute(
             text("INSERT INTO perfil (id, alias, rol) VALUES (:id, :alias, 'reportante');"),
             {"id": perfil_id, "alias": alias},
         )
         await sesion.execute(
             text("""
-                INSERT INTO producto (id, nombre, nombre_norm, categoria_id, unidad_base)
-                VALUES (:id, :nombre, :nombre_norm, 1, 'g');
+                INSERT INTO producto (id, nombre, nombre_norm, categoria_id, unidad_base, activo)
+                VALUES (:id, :nombre, :nombre_norm, 1, 'g', false);
             """),
             {
                 "id": prod_id,
@@ -38,30 +38,30 @@ async def datos_prueba_reporte() -> dict[str, str]:
             text("""
                 INSERT INTO presentacion (
                     id, producto_id, valor_cantidad, unidad,
-                    cantidad_base, etiqueta, etiqueta_norm
+                    cantidad_base, etiqueta, etiqueta_norm, activa
                 ) VALUES (
-                    :id, :prod_id, 500, 'g', 500.000, '500g Test', '500g test'
+                    :id, :prod_id, 500, 'g', 500.000, '500g Test', '500g test', false
                 );
             """),
             {"id": pres_id, "prod_id": prod_id},
         )
         await sesion.execute(
             text("""
-                INSERT INTO establecimiento (id, nombre, tipo, direccion, ubicacion)
+                INSERT INTO establecimiento (id, nombre, tipo, direccion, ubicacion, activo)
                 VALUES (
                     :id, :nombre, 'tienda_barrio', 'Cra 14 # 20-00',
-                    ST_SetSRID(ST_MakePoint(-75.6811, 4.5338), 4326)
+                    ST_SetSRID(ST_MakePoint(-75.6811, 4.5338), 4326), false
                 );
             """),
             {"id": tienda_id, "nombre": f"Tienda {alias}"},
         )
 
-        return {
-            "perfil_id": perfil_id,
-            "producto_id": prod_id,
-            "presentacion_id": pres_id,
-            "establecimiento_id": tienda_id,
-        }
+    return {
+        "perfil_id": perfil_id,
+        "producto_id": prod_id,
+        "presentacion_id": pres_id,
+        "establecimiento_id": tienda_id,
+    }
 
 
 @pytest.mark.asyncio

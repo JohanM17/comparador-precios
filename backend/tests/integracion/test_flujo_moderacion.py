@@ -38,13 +38,23 @@ async def crear_perfil(uid: str, rol: str, reputacion: float = 0.5) -> None:
 
 async def setup_reporte_y_caso(reportante_id: str) -> tuple[str, str, str, str]:
     async with sesion_transaccional() as sesion:
-        p_id = (await sesion.execute(text("SELECT id FROM producto LIMIT 1;"))).scalar_one()
+        p_id = (
+            await sesion.execute(text("SELECT id FROM producto WHERE activo = true LIMIT 1;"))
+        ).scalar_one()
         pr_id = (
             await sesion.execute(
-                text("SELECT id FROM presentacion WHERE producto_id = :p LIMIT 1;"), {"p": p_id}
+                text(
+                    "SELECT id FROM presentacion "
+                    "WHERE producto_id = :p AND activa = true LIMIT 1;"
+                ),
+                {"p": p_id},
             )
         ).scalar_one()
-        e_id = (await sesion.execute(text("SELECT id FROM establecimiento LIMIT 1;"))).scalar_one()
+        e_id = (
+            await sesion.execute(
+                text("SELECT id FROM establecimiento WHERE activo = true LIMIT 1;")
+            )
+        ).scalar_one()
 
         sql_rep = text("""
             INSERT INTO reporte_precio (

@@ -85,13 +85,12 @@ async def comparar_precios_producto(
     lng: Annotated[float | None, Query()] = None,
     radio_km: Annotated[float | None, Query()] = None,
 ) -> RespuestaComparacion:
-    async with sesion_transaccional() as sesion:
-        servicio = ServicioComparacion(sesion=sesion, puerto_cache=cache)
-        return await servicio.obtener_comparacion(
-            producto_id=id,
-            presentacion_id=presentacion_id,
-            orden=orden,
-            lat=lat,
-            lng=lng,
-            radio_km=radio_km,
-        )
+    servicio = ServicioComparacion(puerto_cache=cache)
+    return await servicio.obtener_comparacion(
+        producto_id=id,
+        presentacion_id=presentacion_id,
+        orden=orden,
+        lat=lat,
+        lng=lng,
+        radio_km=radio_km,
+    )

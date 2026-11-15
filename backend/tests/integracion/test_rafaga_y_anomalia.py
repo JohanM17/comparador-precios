@@ -44,13 +44,23 @@ async def test_reporte_anomalo_queda_dudoso_y_abre_caso_moderacion() -> None:
 
     async with sesion_transaccional() as sesion:
         res_pres = (
-            await sesion.execute(text("SELECT id, producto_id FROM presentacion LIMIT 1;"))
+            await sesion.execute(
+                text(
+                    "SELECT id, producto_id, cantidad_base "
+                    "FROM presentacion WHERE activa = true LIMIT 1;"
+                )
+            )
         ).first()
-        res_est = (await sesion.execute(text("SELECT id FROM establecimiento LIMIT 1;"))).first()
+        res_est = (
+            await sesion.execute(
+                text("SELECT id FROM establecimiento WHERE activo = true LIMIT 1;")
+            )
+        ).first()
         assert res_pres is not None
         assert res_est is not None
-        pres_id, prod_id = res_pres[0], res_pres[1]
+        pres_id, prod_id, cant_base = res_pres[0], res_pres[1], float(res_pres[2])
         est_id = res_est[0]
+        ppb_ref = round(2600.0 / cant_base, 6)
 
         # Sembrar 5 referencias normales de $2.600 en los ultimos dias
         for _ in range(5):
@@ -62,11 +72,18 @@ async def test_reporte_anomalo_queda_dudoso_y_abre_caso_moderacion() -> None:
                         estado, estado_original, fuente, conjunto_referencia
                     ) VALUES (
                         :prod_id, :pres_id, :est_id, 2600,
-                        1.000, 2600, :ahora,
+                        :cant_base, :ppb, :ahora,
                         'aceptado', 'aceptado', 'usuario', 'presentacion_tienda'
                     );
                 """),
-                {"prod_id": prod_id, "pres_id": pres_id, "est_id": est_id, "ahora": instante},
+                {
+                    "prod_id": prod_id,
+                    "pres_id": pres_id,
+                    "est_id": est_id,
+                    "cant_base": cant_base,
+                    "ppb": ppb_ref,
+                    "ahora": instante,
+                },
             )
 
     # Enviar reporte anomalo de $900
@@ -111,9 +128,15 @@ async def test_rafaga_de_cuentas_desde_misma_huella_abre_caso_prioritario() -> N
 
     async with sesion_transaccional() as sesion:
         res_pres = (
-            await sesion.execute(text("SELECT id, producto_id FROM presentacion LIMIT 1;"))
+            await sesion.execute(
+                text("SELECT id, producto_id FROM presentacion WHERE activa = true LIMIT 1;")
+            )
         ).first()
-        res_est = (await sesion.execute(text("SELECT id FROM establecimiento LIMIT 1;"))).first()
+        res_est = (
+            await sesion.execute(
+                text("SELECT id FROM establecimiento WHERE activo = true LIMIT 1;")
+            )
+        ).first()
         assert res_pres is not None
         assert res_est is not None
         pres_id, est_id = str(res_pres[0]), str(res_est[0])

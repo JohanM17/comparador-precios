@@ -99,6 +99,10 @@ async def test_crear_y_actualizar_producto_con_auditoria() -> None:
             acciones = [f[0] for f in filas]
             assert "crear_producto" in acciones
             assert "actualizar_producto" in acciones
+            await sesion.execute(
+                text("UPDATE producto SET activo = false WHERE id = :id;"),
+                {"id": prod_id},
+            )
 
 
 @pytest.mark.asyncio
@@ -151,6 +155,16 @@ async def test_crear_presentacion_y_prohibir_modificar_cantidad_base() -> None:
         )
         assert resp_patch_valido.status_code == 200
         assert resp_patch_valido.json()["marca"] == "Granos Premium"
+
+        async with sesion_transaccional() as sesion:
+            await sesion.execute(
+                text("UPDATE presentacion SET activa = false WHERE id = :id;"),
+                {"id": pres_id},
+            )
+            await sesion.execute(
+                text("UPDATE producto SET activo = false WHERE id = :id;"),
+                {"id": prod_id},
+            )
 
 
 @pytest.mark.asyncio

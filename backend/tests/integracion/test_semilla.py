@@ -1,10 +1,10 @@
 """Pruebas de integración para la carga idempotente de la semilla (Tarea T-12)."""
 
 import pytest
-from scripts.semilla import ejecutar_semilla
 from sqlalchemy import text
 
 from app.bd import sesion_transaccional
+from scripts.semilla import ejecutar_semilla
 
 
 @pytest.mark.asyncio
@@ -16,6 +16,7 @@ async def test_semilla_es_completamente_idempotente() -> None:
     assert res1["productos"] >= 100
     assert res1["presentaciones"] >= 80
     assert res1["establecimientos"] == 30
+    assert res1["precios_vigentes"] >= 100
 
     async with sesion_transaccional() as sesion:
         n_cat_1 = await sesion.scalar(text("SELECT count(*) FROM categoria;"))

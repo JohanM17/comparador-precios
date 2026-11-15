@@ -219,6 +219,10 @@ async def desactivar_escenario_ec02(datos: dict[str, Any]) -> None:
                 {"ids": datos[clave]},
             )
         await sesion.execute(
+            text("DELETE FROM public.precio_vigente WHERE producto_id = :pid;"),
+            {"pid": datos["prod_id"]},
+        )
+        await sesion.execute(
             text("UPDATE public.producto SET activo = false WHERE id = :pid;"),
             {"pid": datos["prod_id"]},
         )

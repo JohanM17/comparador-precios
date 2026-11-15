@@ -11,6 +11,7 @@ from uuid import UUID
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.bd import sesion_transaccional
 from app.compartido.errores import NoEncontradoError, ValidacionError
 from app.dominio.orden import ItemComparacion, ordenar_comparacion
 from app.dominio.unidades import calcular_precio_visualizacion
@@ -109,36 +110,25 @@ def _construir_item_dto(
 class ServicioComparacion:
     """Implementa el Flujo F1 del comparador de precios con cache L1/L2 y neutralidad EC-06."""
 
-    def __init__(self, sesion: AsyncSession, puerto_cache: PuertoCache) -> None:
+    def __init__(
+        self,
+        puerto_cache: PuertoCache,
+        sesion: AsyncSession | None = None,
+    ) -> None:
         self.sesion = sesion
         self.cache = puerto_cache
 
-    async def obtener_comparacion(
+    async def _consultar_bd(
         self,
+        sesion: AsyncSession,
         producto_id: UUID,
-        presentacion_id: UUID | None = None,
-        orden: str = "precio_unitario",
-        lat: float | None = None,
-        lng: float | None = None,
-        radio_km: float | None = None,
-        ahora: datetime | None = None,
-    ) -> RespuestaComparacion:
-        instante = ahora if ahora is not None else datetime.now(UTC)
-        _validar_parametros_consulta(orden, presentacion_id, lat, lng)
-
-        es_cacheable = lat is None and lng is None and radio_km is None
-        subllave = f"armenia:{presentacion_id or 'todas'}:{orden}"
-
-        if es_cacheable:
-            datos_cache = await self.cache.obtener(producto_id, subllave)
-            if datos_cache:
-                return RespuestaComparacion.model_validate(datos_cache)
-
+        presentacion_id: UUID | None,
+    ) -> tuple[Any, list[PresentacionComparacion], list[Any]]:
         sql_prod = text("""
             SELECT id, nombre, categoria_id, unidad_base
             FROM public.producto WHERE id = :pid AND activo = true;
         """)
-        fila_prod = (await self.sesion.execute(sql_prod, {"pid": producto_id})).first()
+        fila_prod = (await sesion.execute(sql_prod, {"pid": producto_id})).first()
         if not fila_prod:
             raise NoEncontradoError("Producto no encontrado o inactivo.")
 
@@ -147,7 +137,7 @@ class ServicioComparacion:
             FROM public.presentacion WHERE producto_id = :pid AND activa = true
             ORDER BY cantidad_base ASC;
         """)
-        filas_pres = (await self.sesion.execute(sql_pres, {"pid": producto_id})).fetchall()
+        filas_pres = (await sesion.execute(sql_pres, {"pid": producto_id})).fetchall()
         presentaciones_dto = [
             PresentacionComparacion(
                 id=f.id, etiqueta=f.etiqueta, marca=f.marca, cantidad_base=float(f.cantidad_base)
@@ -178,9 +168,43 @@ class ServicioComparacion:
               AND (CAST(:pres_id AS uuid) IS NULL OR pv.presentacion_id = CAST(:pres_id AS uuid))
               AND e.activo = true;
         """)
-        filas = (
-            await self.sesion.execute(sql_filas, {"pid": producto_id, "pres_id": presentacion_id})
-        ).fetchall()
+        filas = list(
+            (
+                await sesion.execute(sql_filas, {"pid": producto_id, "pres_id": presentacion_id})
+            ).fetchall()
+        )
+        return fila_prod, presentaciones_dto, filas
+
+    async def obtener_comparacion(
+        self,
+        producto_id: UUID,
+        presentacion_id: UUID | None = None,
+        orden: str = "precio_unitario",
+        lat: float | None = None,
+        lng: float | None = None,
+        radio_km: float | None = None,
+        ahora: datetime | None = None,
+    ) -> RespuestaComparacion:
+        instante = ahora if ahora is not None else datetime.now(UTC)
+        _validar_parametros_consulta(orden, presentacion_id, lat, lng)
+
+        es_cacheable = lat is None and lng is None and radio_km is None
+        subllave = f"armenia:{presentacion_id or 'todas'}:{orden}"
+
+        if es_cacheable:
+            datos_cache = await self.cache.obtener(producto_id, subllave)
+            if datos_cache:
+                return RespuestaComparacion.model_validate(datos_cache)
+
+        if self.sesion is not None:
+            fila_prod, presentaciones_dto, filas = await self._consultar_bd(
+                self.sesion, producto_id, presentacion_id
+            )
+        else:
+            async with sesion_transaccional() as sesion:
+                fila_prod, presentaciones_dto, filas = await self._consultar_bd(
+                    sesion, producto_id, presentacion_id
+                )
 
         items_dominio: list[ItemComparacion] = []
         mapa_filas: dict[UUID, tuple[Any, int | None]] = {}

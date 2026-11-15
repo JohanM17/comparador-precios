@@ -41,8 +41,14 @@ async def test_crear_reporte_flujo_exitoso_e_idempotencia() -> None:
     token = await preparar_usuario(uid)
 
     async with sesion_transaccional() as sesion:
-        res_pres = (await sesion.execute(text("SELECT id FROM presentacion LIMIT 1;"))).first()
-        res_est = (await sesion.execute(text("SELECT id FROM establecimiento LIMIT 1;"))).first()
+        res_pres = (
+            await sesion.execute(text("SELECT id FROM presentacion WHERE activa = true LIMIT 1;"))
+        ).first()
+        res_est = (
+            await sesion.execute(
+                text("SELECT id FROM establecimiento WHERE activo = true LIMIT 1;")
+            )
+        ).first()
         assert res_pres is not None
         assert res_est is not None
         pres_id, est_id = str(res_pres[0]), str(res_est[0])
@@ -94,8 +100,14 @@ async def test_crear_reporte_rechazo_precio_fuera_de_rango() -> None:
     token = await preparar_usuario(uid)
 
     async with sesion_transaccional() as sesion:
-        res_pres = (await sesion.execute(text("SELECT id FROM presentacion LIMIT 1;"))).first()
-        res_est = (await sesion.execute(text("SELECT id FROM establecimiento LIMIT 1;"))).first()
+        res_pres = (
+            await sesion.execute(text("SELECT id FROM presentacion WHERE activa = true LIMIT 1;"))
+        ).first()
+        res_est = (
+            await sesion.execute(
+                text("SELECT id FROM establecimiento WHERE activo = true LIMIT 1;")
+            )
+        ).first()
         assert res_pres is not None
         assert res_est is not None
         pres_id, est_id = str(res_pres[0]), str(res_est[0])

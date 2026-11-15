@@ -61,6 +61,9 @@ target-version = "py311"
 select = ["E", "F", "I", "B", "S", "UP"]
 ignore = ["S101"]
 
+[tool.ruff.lint.isort]
+known-first-party = ["app", "scripts", "tests"]
+
 [tool.importlinter]
 root_package = "app"
 include_external_packages = true

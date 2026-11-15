@@ -125,3 +125,53 @@ async def test_cache_degradacion_elegante_falla_redis() -> None:
         subllave,
         {"datos": {"meta": {"generado_en": ahora_iso}}},
     )
+
+
+@pytest.mark.asyncio
+async def test_comparacion_cache_hit_no_abre_sesion_bd(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verifica que un cache hit en L1/L2 retorne sin abrir sesion SQL ni SET LOCAL ROLE."""
+    import app.modulos.precios.servicio_comparacion as mod_cmp
+    from app.modulos.precios.servicio_comparacion import ServicioComparacion
+
+    redis_mem = ClienteRedisMemoria()
+    cache = CacheDosNiveles(ttl_l1_segundos=10.0, cliente_redis=redis_mem)
+    prod_id = uuid4()
+    subllave = "armenia:todas:precio_unitario"
+    ahora_iso = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    carga_valida: dict[str, Any] = {
+        "datos": {
+            "producto": {
+                "id": str(prod_id),
+                "nombre": "Arroz blanco tradicional",
+                "categoria_id": 1,
+                "unidad_base": "g",
+                "unidad_visualizacion": "kg",
+                "presentaciones": [],
+            },
+            "resultados": [],
+            "promociones": [],
+            "meta": {
+                "criterio_orden": "precio_unitario",
+                "texto_neutralidad": (
+                    "Ordenado por precio por kg. Las promociones no cambian el orden."
+                ),
+                "bloques": ["vigentes", "dudosos_y_desactualizados"],
+                "generado_en": ahora_iso,
+                "datos_de_demostracion": False,
+            },
+        }
+    }
+    await cache.guardar(prod_id, subllave, carga_valida, ttl_segundos=60)
+
+    def _prohibir_sesion() -> Any:
+        raise AssertionError("No debio abrir sesion_transaccional en un cache hit.")
+
+    monkeypatch.setattr(mod_cmp, "sesion_transaccional", _prohibir_sesion)
+
+    servicio = ServicioComparacion(puerto_cache=cache)
+    respuesta = await servicio.obtener_comparacion(producto_id=prod_id)
+    assert respuesta.datos.producto.id == prod_id
+    assert respuesta.datos.producto.nombre == "Arroz blanco tradicional"
