@@ -37,45 +37,45 @@ function ListaOpcionesTienda({
     return <p className="py-2 text-xs text-slate-500">No encontramos tiendas con ese filtro.</p>;
   }
   return (
-    <>
+    <ul aria-label="Tiendas disponibles" className="max-h-52 space-y-1.5 overflow-y-auto">
       {tiendas.map((tienda) => {
         const activa = tienda.id === valor;
         return (
-          <button
-            key={tienda.id}
-            type="button"
-            role="option"
-            aria-selected={activa}
-            onClick={() =>
-              onSeleccionar(tienda.id, {
-                id: tienda.id,
-                nombre: tienda.nombre,
-                direccion: tienda.direccion,
-                tipo: tienda.tipo,
-              })
-            }
-            className={`flex min-h-11 w-full items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left transition-colors ${
-              activa
-                ? "border-emerald-700 bg-emerald-700 text-white"
-                : "border-slate-200 bg-white text-slate-900 hover:bg-slate-50"
-            }`}
-          >
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold">{tienda.nombre}</p>
-              <p className={`truncate text-xs ${activa ? "text-emerald-100" : "text-slate-500"}`}>
-                {formatearTipoEstablecimiento(tienda.tipo)} · {tienda.direccion}
-              </p>
-            </div>
-            {typeof tienda.distancia_m === "number" && (
-              <span className={`inline-flex items-center gap-1 text-xs font-semibold ${activa ? "text-white" : "text-emerald-800"}`}>
-                <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
-                {formatearDistancia(tienda.distancia_m)}
-              </span>
-            )}
-          </button>
+          <li key={tienda.id}>
+            <button
+              type="button"
+              aria-pressed={activa}
+              onClick={() =>
+                onSeleccionar(tienda.id, {
+                  id: tienda.id,
+                  nombre: tienda.nombre,
+                  direccion: tienda.direccion,
+                  tipo: tienda.tipo,
+                })
+              }
+              className={`flex min-h-11 w-full items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left transition-colors ${
+                activa
+                  ? "border-emerald-700 bg-emerald-700 text-white"
+                  : "border-slate-200 bg-white text-slate-900 hover:bg-slate-50"
+              }`}
+            >
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold">{tienda.nombre}</p>
+                <p className={`truncate text-xs ${activa ? "text-emerald-100" : "text-slate-500"}`}>
+                  {formatearTipoEstablecimiento(tienda.tipo)} · {tienda.direccion}
+                </p>
+              </div>
+              {typeof tienda.distancia_m === "number" && (
+                <span className={`inline-flex items-center gap-1 text-xs font-semibold ${activa ? "text-white" : "text-emerald-800"}`}>
+                  <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
+                  {formatearDistancia(tienda.distancia_m)}
+                </span>
+              )}
+            </button>
+          </li>
         );
       })}
-    </>
+    </ul>
   );
 }
 
@@ -218,14 +218,12 @@ export default function SelectorTienda({
         </div>
       )}
 
-      <div role="listbox" aria-label="Tiendas disponibles" className="max-h-52 space-y-1.5 overflow-y-auto">
-        <ListaOpcionesTienda
-          cargando={cargando}
-          tiendas={tiendasFiltradas}
-          valor={valor}
-          onSeleccionar={onChange}
-        />
-      </div>
+      <ListaOpcionesTienda
+        cargando={cargando}
+        tiendas={tiendasFiltradas}
+        valor={valor}
+        onSeleccionar={onChange}
+      />
     </fieldset>
   );
 }

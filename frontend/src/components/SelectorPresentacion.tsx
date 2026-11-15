@@ -38,26 +38,26 @@ function ListaOpcionesPresentacion({
     return <p className="py-2 text-xs text-slate-500">No encontramos coincidencias. Puedes sugerir una presentación nueva arriba.</p>;
   }
   return (
-    <>
+    <ul aria-label="Presentaciones disponibles" className="max-h-48 space-y-1.5 overflow-y-auto">
       {opciones.map((op) => {
         const activa = op.id === valor;
         return (
-          <button
-            key={op.id}
-            type="button"
-            role="option"
-            aria-selected={activa}
-            onClick={() => onSeleccionar(op.id, op)}
-            className={`flex min-h-11 w-full items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left transition-colors ${
-              activa ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-200 bg-white text-slate-900 hover:bg-slate-50"
-            }`}
-          >
-            <span className="text-sm font-semibold">{op.etiqueta}</span>
-            <span className={`text-xs ${activa ? "text-emerald-100" : "text-slate-500"}`}>{op.productoNombre}</span>
-          </button>
+          <li key={op.id}>
+            <button
+              type="button"
+              aria-pressed={activa}
+              onClick={() => onSeleccionar(op.id, op)}
+              className={`flex min-h-11 w-full items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left transition-colors ${
+                activa ? "border-emerald-700 bg-emerald-700 text-white" : "border-slate-200 bg-white text-slate-900 hover:bg-slate-50"
+              }`}
+            >
+              <span className="text-sm font-semibold">{op.etiqueta}</span>
+              <span className={`text-xs ${activa ? "text-emerald-100" : "text-slate-500"}`}>{op.productoNombre}</span>
+            </button>
+          </li>
         );
       })}
-    </>
+    </ul>
   );
 }
 
@@ -191,14 +191,12 @@ export default function SelectorPresentacion({
         </div>
       )}
 
-      <div role="listbox" aria-label="Presentaciones disponibles" className="max-h-48 space-y-1.5 overflow-y-auto">
-        <ListaOpcionesPresentacion
-          cargando={cargando}
-          opciones={catalogoVisible}
-          valor={valor}
-          onSeleccionar={onChange}
-        />
-      </div>
+      <ListaOpcionesPresentacion
+        cargando={cargando}
+        opciones={catalogoVisible}
+        valor={valor}
+        onSeleccionar={onChange}
+      />
 
       <ModalSugerirPresentacion abierto={modalAbierto} productosIniciales={productosBase} onCerrar={() => setModalAbierto(false)} />
     </fieldset>
