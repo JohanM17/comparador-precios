@@ -82,63 +82,87 @@ async def test_flujo_completo_sugerencia_y_aprobacion_moderador() -> None:
         prod_id = datos_prods[0]["id"]
         marca_unica = f"Diana Eco {uuid4().hex[:6]}"
 
-        # 2. Reportante envia sugerencia
-        resp_sug = await cliente.post(
-            "/v1/sugerencias-presentacion",
-            headers={"Authorization": f"Bearer {token_rep}"},
-            json={
-                "producto_id": prod_id,
-                "texto_libre": "Bolsa economica de 125 gramos",
-                "marca": marca_unica,
-                "valor_cantidad": 125.0,
-                "unidad": "g",
-            },
-        )
-        assert resp_sug.status_code == 201
-        datos_sug = resp_sug.json()
-        sug_id = datos_sug["id"]
-        assert datos_sug["estado"] == "pendiente"
+        sug_id: str | None = None
+        pres_id: str | None = None
+        try:
+            # 2. Reportante envia sugerencia
+            resp_sug = await cliente.post(
+                "/v1/sugerencias-presentacion",
+                headers={"Authorization": f"Bearer {token_rep}"},
+                json={
+                    "producto_id": prod_id,
+                    "texto_libre": "Bolsa economica de 125 gramos",
+                    "marca": marca_unica,
+                    "valor_cantidad": 125.0,
+                    "unidad": "g",
+                },
+            )
+            assert resp_sug.status_code == 201
+            datos_sug = resp_sug.json()
+            sug_id = datos_sug["id"]
+            assert datos_sug["estado"] == "pendiente"
 
-        # 3. Moderador aprueba la sugerencia
-        resp_aprob = await cliente.post(
-            f"/v1/moderacion/sugerencias/{sug_id}/aprobar",
-            headers={"Authorization": f"Bearer {token_mod}"},
-            json={
-                "marca": marca_unica,
-                "valor_cantidad": 125.0,
-                "unidad": "g",
-                "multiplicador": 1,
-            },
-        )
-        assert resp_aprob.status_code == 200
-        datos_aprob = resp_aprob.json()
-        assert datos_aprob["estado"] == "aprobada"
-        pres_id = datos_aprob["presentacion_id"]
+            # 3. Moderador aprueba la sugerencia
+            resp_aprob = await cliente.post(
+                f"/v1/moderacion/sugerencias/{sug_id}/aprobar",
+                headers={"Authorization": f"Bearer {token_mod}"},
+                json={
+                    "marca": marca_unica,
+                    "valor_cantidad": 125.0,
+                    "unidad": "g",
+                    "multiplicador": 1,
+                },
+            )
+            assert resp_aprob.status_code == 200
+            datos_aprob = resp_aprob.json()
+            assert datos_aprob["estado"] == "aprobada"
+            pres_id = datos_aprob["presentacion_id"]
 
-        # 4. Verificar que la presentacion nacio en base de datos con cantidad_base calculada
-        async with sesion_transaccional() as sesion:
-            fila_pres = (
-                await sesion.execute(
-                    text("SELECT cantidad_base, activa FROM presentacion WHERE id = :id;"),
-                    {"id": pres_id},
-                )
-            ).fetchone()
-            assert fila_pres is not None
-            assert float(fila_pres[0]) == 125.0
-            assert fila_pres[1] is True
+            # 4. Verificar que la presentacion nacio en base de datos con cantidad_base calculada
+            async with sesion_transaccional() as sesion:
+                fila_pres = (
+                    await sesion.execute(
+                        text("SELECT cantidad_base, activa FROM presentacion WHERE id = :id;"),
+                        {"id": pres_id},
+                    )
+                ).fetchone()
+                assert fila_pres is not None
+                assert float(fila_pres[0]) == 125.0
+                assert fila_pres[1] is True
 
-            # Verificar que el caso de moderacion se cerro
-            fila_caso = (
-                await sesion.execute(
-                    text("""
-                        SELECT estado, decision, moderador_id
-                        FROM caso_moderacion
-                        WHERE referencia_tabla = 'sugerencia_presentacion' AND referencia_id = :id;
-                    """),
-                    {"id": sug_id},
-                )
-            ).fetchone()
-            assert fila_caso is not None
-            assert fila_caso[0] == "resuelto"
-            assert fila_caso[1] == "confirmar"
-            assert str(fila_caso[2]) == moderador_id
+                # Verificar que el caso de moderacion se cerro
+                fila_caso = (
+                    await sesion.execute(
+                        text("""
+                            SELECT estado, decision, moderador_id
+                            FROM caso_moderacion
+                            WHERE referencia_tabla = 'sugerencia_presentacion'
+                              AND referencia_id = :id;
+                        """),
+                        {"id": sug_id},
+                    )
+                ).fetchone()
+                assert fila_caso is not None
+                assert fila_caso[0] == "resuelto"
+                assert fila_caso[1] == "confirmar"
+                assert str(fila_caso[2]) == moderador_id
+        finally:
+            async with sesion_transaccional() as sesion:
+                if sug_id:
+                    await sesion.execute(
+                        text(
+                            "DELETE FROM caso_moderacion "
+                            "WHERE referencia_tabla = 'sugerencia_presentacion' "
+                            "AND referencia_id = :id;"
+                        ),
+                        {"id": sug_id},
+                    )
+                    await sesion.execute(
+                        text("DELETE FROM sugerencia_presentacion WHERE id = :id;"),
+                        {"id": sug_id},
+                    )
+                if pres_id:
+                    await sesion.execute(
+                        text("DELETE FROM presentacion WHERE id = :id;"),
+                        {"id": pres_id},
+                    )

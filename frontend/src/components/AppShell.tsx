@@ -97,7 +97,7 @@ export default function AppShell({ children }: AppShellProps): React.JSX.Element
       </aside>
 
       {/* Pie de pagina institucional */}
-      <footer role="contentinfo" className="border-t border-slate-200 bg-white py-8 text-xs text-slate-600">
+      <footer role="contentinfo" className="border-t border-slate-200 bg-white pt-8 pb-24 text-xs text-slate-600">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6">
           <p className="text-center sm:text-left">
             Plataforma Colaborativa de Comparacion de Precios de la Canasta Familiar &copy;{" "}

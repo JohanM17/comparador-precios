@@ -17,7 +17,6 @@ from typing import Any
 from uuid import NAMESPACE_DNS, UUID, uuid5
 
 import asyncpg
-
 from app.config import obtener_configuracion
 from app.dominio.parametros import ParametrosDominio
 from app.dominio.sello import evaluar_sello_y_precio
@@ -53,7 +52,8 @@ async def limpiar_registros_prueba_residuales(conn: asyncpg.Connection) -> None:
         """
         UPDATE public.presentacion
         SET activa = false
-        WHERE producto_id IN (SELECT id FROM public.producto WHERE activo = false);
+        WHERE producto_id IN (SELECT id FROM public.producto WHERE activo = false)
+           OR (fuente_catalogo = 'manual' AND marca LIKE 'Diana Eco%');
         """
     )
     await conn.execute(
@@ -67,6 +67,7 @@ async def limpiar_registros_prueba_residuales(conn: asyncpg.Connection) -> None:
         """
         DELETE FROM public.precio_vigente
         WHERE producto_id IN (SELECT id FROM public.producto WHERE activo = false)
+           OR presentacion_id IN (SELECT id FROM public.presentacion WHERE activa = false)
            OR establecimiento_id IN (SELECT id FROM public.establecimiento WHERE activo = false);
         """
     )

@@ -124,7 +124,7 @@ export default function PestanaMiCuenta({
               required
               minLength={3}
               maxLength={30}
-              pattern="^[a-zA-Z0-9_.-]+$"
+              pattern="[a-zA-Z0-9_.\-]{3,30}"
               value={alias}
               onChange={(e) => setAlias(e.target.value)}
               className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"

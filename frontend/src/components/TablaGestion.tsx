@@ -52,8 +52,38 @@ export default function TablaGestion<T>({
 
   return (
     <div className="space-y-3">
-      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
+      {/* Vista en tarjetas para pantallas pequenas (evita scroll horizontal en movil) */}
+      <ul aria-label={etiquetaTabla} className="space-y-3 md:hidden">
+        {datos.map((fila, idx) => {
+          const idFila = claveFila ? claveFila(fila, idx) : String(idx);
+          return (
+            <li
+              key={idFila}
+              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+            >
+              <dl className="space-y-2 text-sm">
+                {columnas.map((col) => (
+                  <div key={col.clave} className="flex flex-col gap-0.5 border-b border-slate-100 pb-1.5 last:border-b-0 last:pb-0">
+                    <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      {col.encabezado}
+                    </dt>
+                    <dd className={`text-slate-800 ${col.clase ?? ""}`}>
+                      {col.celda(fila)}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </li>
+          );
+        })}
+      </ul>
+
+      {/* Vista tabular para escritorio */}
+      <section
+        aria-label={etiquetaTabla}
+        className="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:block"
+      >
+        <table className="w-full divide-y divide-slate-200 text-left text-sm">
           <caption className="sr-only">{etiquetaTabla}</caption>
           <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-600">
             <tr>
@@ -70,7 +100,7 @@ export default function TablaGestion<T>({
               return (
                 <tr key={idFila} className="hover:bg-slate-50/70">
                   {columnas.map((col) => (
-                    <td key={col.clave} className={`px-4 py-3 align-top ${col.clase ?? ""}`}>
+                    <td key={col.clave} className={`px-4 py-3 align-top break-words ${col.clase ?? ""}`}>
                       {col.celda(fila)}
                     </td>
                   ))}
@@ -79,7 +109,7 @@ export default function TablaGestion<T>({
             })}
           </tbody>
         </table>
-      </div>
+      </section>
 
       {(tieneAnterior || Boolean(siguienteCursor)) && (
         <div className="flex items-center justify-end gap-2">
