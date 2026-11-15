@@ -20,6 +20,19 @@ function describirBeneficio(promo: ItemPromocion): string | null {
   return null;
 }
 
+function formatearVigencia(promo: ItemPromocion): string {
+  const inicio = promo.vigente_desde
+    ? `Desde ${formatearFechaBogota(promo.vigente_desde)}`
+    : "Vigente";
+  if (promo.hasta_revocar) {
+    return `${inicio} · Válido hasta revocar`;
+  }
+  if (promo.vigente_hasta) {
+    return `${inicio} · Hasta ${formatearFechaBogota(promo.vigente_hasta)}`;
+  }
+  return inicio;
+}
+
 /**
  * Contenedor independiente para promociones comerciales (EC-06 y Ley 1480).
  * Retorna null si el producto no tiene promociones activas.
@@ -82,14 +95,7 @@ export default function BloquePromociones({
                 </p>
               )}
 
-              <p className="mt-2 text-[11px] text-slate-500">
-                {promo.vigente_desde ? `Desde ${formatearFechaBogota(promo.vigente_desde)}` : "Vigente"}
-                {promo.hasta_revocar
-                  ? " · Válido hasta revocar"
-                  : promo.vigente_hasta
-                  ? ` · Hasta ${formatearFechaBogota(promo.vigente_hasta)}`
-                  : ""}
-              </p>
+              <p className="mt-2 text-[11px] text-slate-500">{formatearVigencia(promo)}</p>
             </article>
           );
         })}

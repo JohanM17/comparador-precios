@@ -94,6 +94,12 @@ export default function ComparadorProducto({
   };
 
   const promociones = (datos?.promociones ?? []) as ItemPromocion[];
+  let etiquetaGps = "Ordenar por cercanía a mi ubicación";
+  if (buscandoGps) {
+    etiquetaGps = "Ubicando...";
+  } else if (ubicacion) {
+    etiquetaGps = "Ubicación activa en memoria";
+  }
 
   return (
     <div>
@@ -133,13 +139,7 @@ export default function ComparadorProducto({
                 ) : (
                   <Navigation className="h-4 w-4 text-slate-600" aria-hidden="true" />
                 )}
-                <span>
-                  {buscandoGps
-                    ? "Ubicando..."
-                    : ubicacion
-                    ? "Ubicación activa en memoria"
-                    : "Ordenar por cercanía a mi ubicación"}
-                </span>
+                <span>{etiquetaGps}</span>
               </button>
             </div>
 
@@ -209,7 +209,7 @@ export default function ComparadorProducto({
           />
         )}
 
-        {!cargando && !error && datos && datos.resultados.length === 0 && (
+        {!cargando && !error && datos?.resultados.length === 0 && (
           <EstadoVacio
             titulo="Aún no hay precios reportados para este filtro"
             descripcion="Sé el primero en compartir un precio real desde la góndola para ayudar a tu comunidad."

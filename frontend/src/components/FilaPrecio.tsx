@@ -19,7 +19,10 @@ export interface FilaPrecioProps {
 /**
  * Fila individual de comparacion de precio en una tienda y presentacion.
  */
-export default function FilaPrecio({ item }: FilaPrecioProps): React.JSX.Element {
+export default function FilaPrecio({
+  item,
+  productoId,
+}: FilaPrecioProps): React.JSX.Element {
   const { establecimiento, presentacion, precio_por_unidad } = item;
   const fechaBogota = formatearFechaBogota(item.ultimo_reporte_en);
   const antiguedad = formatearAntiguedadRelativa(item.ultimo_reporte_en);
@@ -29,7 +32,10 @@ export default function FilaPrecio({ item }: FilaPrecioProps): React.JSX.Element
       : null;
 
   return (
-    <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
+    <article
+      data-producto-id={productoId}
+      className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+    >
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div className="min-w-0 flex-1 space-y-2">
           <div className="flex flex-wrap items-center gap-2">

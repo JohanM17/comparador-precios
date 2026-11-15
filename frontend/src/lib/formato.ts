@@ -67,7 +67,7 @@ export function formatearAntiguedadRelativa(isoUtc: string): string {
 
 /** Devuelve una etiqueta legible para el tipo de establecimiento. */
 export function formatearTipoEstablecimiento(tipo: string): string {
-  return ETIQUETAS_TIPO_ESTABLECIMIENTO[tipo] ?? tipo.replace(/_/g, " ");
+  return ETIQUETAS_TIPO_ESTABLECIMIENTO[tipo] ?? tipo.replaceAll("_", " ");
 }
 
 export interface InfoErrorVisible {

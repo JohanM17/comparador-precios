@@ -18,13 +18,14 @@ export interface ListaPreciosProps {
 export default function ListaPrecios({
   resultados,
   textoNeutralidad,
+  criterioOrden,
   productoId,
 }: ListaPreciosProps): React.JSX.Element {
   const bloquePrincipal = resultados.filter((item) => !item.es_bloque_secundario);
   const bloqueSecundario = resultados.filter((item) => item.es_bloque_secundario);
 
   return (
-    <div className="space-y-6">
+    <div data-criterio-orden={criterioOrden} className="space-y-6">
       <div
         role="note"
         aria-label="Garantía de neutralidad comercial"

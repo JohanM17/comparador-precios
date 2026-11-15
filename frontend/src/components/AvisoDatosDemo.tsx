@@ -16,8 +16,7 @@ export default function AvisoDatosDemo({
   }
 
   return (
-    <div
-      role="region"
+    <section
       aria-label="Aviso de datos de demostración"
       className="border-b border-amber-300 bg-amber-50 px-4 py-3 text-amber-950"
     >
@@ -28,7 +27,7 @@ export default function AvisoDatosDemo({
           comunidad completa reportes vigentes en tu zona.
         </p>
       </div>
-    </div>
+    </section>
   );
 }
 

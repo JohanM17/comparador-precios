@@ -92,10 +92,7 @@ export default function PaginaIngresar(): React.JSX.Element {
 
           {estado === "listo" && (
             <div className="space-y-4">
-              <div
-                role="status"
-                className="flex items-start gap-3 rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-950"
-              >
+              <output className="flex items-start gap-3 rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-950">
                 <CheckCircle2
                   className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-700"
                   aria-hidden="true"
@@ -109,7 +106,7 @@ export default function PaginaIngresar(): React.JSX.Element {
                     consultar tu historial.
                   </p>
                 </div>
-              </div>
+              </output>
 
               <div className="flex flex-wrap gap-3">
                 <Link

@@ -51,6 +51,12 @@ export default function PaginaOffline(): React.JSX.Element {
     void contarReportesPendientes().then(setPendientes);
   }, []);
 
+  const etiquetaUnidad = pendientes === 1 ? "reporte pendiente" : "reportes pendientes";
+  const textoPendientes =
+    pendientes === 0
+      ? "No hay reportes pendientes por sincronizar"
+      : `${pendientes} ${etiquetaUnidad} en cola local`;
+
   return (
     <div className="mx-auto max-w-xl px-4 py-10 sm:px-6">
       <section className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm sm:p-8">
@@ -64,17 +70,10 @@ export default function PaginaOffline(): React.JSX.Element {
           forma segura en tu dispositivo y se enviarán cuando recuperes la señal.
         </p>
 
-        <div
-          role="status"
-          className="mt-5 flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800"
-        >
+        <output className="mt-5 flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-800">
           <UploadCloud className="h-4 w-4 text-emerald-700" aria-hidden="true" />
-          <span>
-            {pendientes === 0
-              ? "No hay reportes pendientes por sincronizar"
-              : `${pendientes} ${pendientes === 1 ? "reporte pendiente" : "reportes pendientes"} en cola local`}
-          </span>
-        </div>
+          <span>{textoPendientes}</span>
+        </output>
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
           <Link

@@ -70,6 +70,9 @@ export default function FormularioAccesoSupabase({
     }
   };
 
+  const etiquetaAccion = modo === "iniciar" ? "Ingresar" : "Registrarme";
+  const textoBoton = enviando ? "Procesando..." : etiquetaAccion;
+
   return (
     <div className="space-y-5">
       <div role="tablist" aria-label="Modo de acceso" className="grid grid-cols-2 gap-2">
@@ -108,12 +111,9 @@ export default function FormularioAccesoSupabase({
       )}
 
       {avisoCorreo && (
-        <div
-          role="status"
-          className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-950"
-        >
+        <output className="block rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-950">
           {avisoCorreo}
-        </div>
+        </output>
       )}
 
       <form onSubmit={(e) => void manejarAutenticacion(e)} className="space-y-4">
@@ -150,7 +150,7 @@ export default function FormularioAccesoSupabase({
           disabled={enviando}
           className="min-h-11 w-full rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-700 disabled:opacity-60"
         >
-          {enviando ? "Procesando..." : modo === "iniciar" ? "Ingresar" : "Registrarme"}
+          {textoBoton}
         </button>
       </form>
     </div>

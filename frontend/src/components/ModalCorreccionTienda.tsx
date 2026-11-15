@@ -68,11 +68,11 @@ export default function ModalCorreccionTienda({
   };
 
   return (
-    <div
-      role="dialog"
+    <dialog
+      open
       aria-modal="true"
       aria-labelledby="titulo-modal-correccion"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 p-4"
+      className="fixed inset-0 z-50 m-0 flex h-full max-h-none w-full max-w-none items-center justify-center border-0 bg-slate-900/60 p-4"
     >
       <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
         <div className="flex items-start justify-between gap-4">
@@ -94,13 +94,10 @@ export default function ModalCorreccionTienda({
 
         {exito ? (
           <div className="mt-5 space-y-4">
-            <div
-              role="status"
-              className="flex items-start gap-3 rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-950"
-            >
+            <output className="flex items-start gap-3 rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-sm text-emerald-950">
               <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-700" aria-hidden="true" />
               <p>{exito}</p>
-            </div>
+            </output>
             <button
               type="button"
               onClick={() => {
@@ -185,7 +182,7 @@ export default function ModalCorreccionTienda({
           </form>
         )}
       </div>
-    </div>
+    </dialog>
   );
 }
 
