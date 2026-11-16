@@ -1,0 +1,11 @@
+id,nombre,padre_id,orden
+1,"Granos, arroz y pastas",,1
+2,"Lácteos y huevos",,2
+3,"Aceites, sal y endulzantes",,3
+4,"Café, chocolate y bebidas",,4
+5,"Harinas, panadería y arepas",,5
+6,"Enlatados y conservas",,6
+7,"Carnes, pollo y embutidos",,7
+8,"Frutas, verduras y tubérculos",,8
+9,"Aseo del hogar",,9
+10,"Cuidado personal",,10

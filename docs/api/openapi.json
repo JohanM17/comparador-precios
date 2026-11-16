@@ -1,0 +1,5460 @@
+{
+  "components": {
+    "schemas": {
+      "ActualizarAliasEntrada": {
+        "additionalProperties": false,
+        "description": "Entrada para modificar el alias publico del usuario.",
+        "properties": {
+          "alias": {
+            "maxLength": 30,
+            "minLength": 3,
+            "pattern": "^[a-zA-Z0-9_.-]+$",
+            "title": "Alias",
+            "type": "string"
+          }
+        },
+        "required": [
+          "alias"
+        ],
+        "title": "ActualizarAliasEntrada",
+        "type": "object"
+      },
+      "ActualizarParametrosEntrada": {
+        "additionalProperties": false,
+        "properties": {
+          "parametros": {
+            "additionalProperties": true,
+            "title": "Parametros",
+            "type": "object"
+          }
+        },
+        "required": [
+          "parametros"
+        ],
+        "title": "ActualizarParametrosEntrada",
+        "type": "object"
+      },
+      "ApelacionSancionEntrada": {
+        "additionalProperties": false,
+        "properties": {
+          "apelacion": {
+            "maxLength": 1000,
+            "minLength": 5,
+            "title": "Apelacion",
+            "type": "string"
+          }
+        },
+        "required": [
+          "apelacion"
+        ],
+        "title": "ApelacionSancionEntrada",
+        "type": "object"
+      },
+      "AprobarSugerenciaEntrada": {
+        "additionalProperties": false,
+        "description": "Datos para que el moderador apruebe e incorpore la sugerencia al catalogo.",
+        "properties": {
+          "codigo_barras": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{8,14}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codigo Barras"
+          },
+          "marca": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Marca"
+          },
+          "multiplicador": {
+            "default": 1,
+            "minimum": 1.0,
+            "title": "Multiplicador",
+            "type": "integer"
+          },
+          "unidad": {
+            "pattern": "^(g|kg|lb|ml|l|unidad|docena)$",
+            "title": "Unidad",
+            "type": "string"
+          },
+          "valor_cantidad": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Valor Cantidad"
+          }
+        },
+        "required": [
+          "valor_cantidad",
+          "unidad"
+        ],
+        "title": "AprobarSugerenciaEntrada",
+        "type": "object"
+      },
+      "AutorizacionEntrada": {
+        "additionalProperties": false,
+        "description": "Entrada para registrar el consentimiento previo e informado del titular.",
+        "properties": {
+          "acepta": {
+            "title": "Acepta",
+            "type": "boolean"
+          },
+          "alias": {
+            "maxLength": 30,
+            "minLength": 3,
+            "pattern": "^[a-zA-Z0-9_.-]+$",
+            "title": "Alias",
+            "type": "string"
+          },
+          "version_politica": {
+            "maxLength": 20,
+            "minLength": 1,
+            "title": "Version Politica",
+            "type": "string"
+          }
+        },
+        "required": [
+          "alias",
+          "version_politica",
+          "acepta"
+        ],
+        "title": "AutorizacionEntrada",
+        "type": "object"
+      },
+      "AutorizacionRespuesta": {
+        "additionalProperties": false,
+        "description": "Confirmacion del registro de autorizacion de datos personales.",
+        "properties": {
+          "aceptada_en": {
+            "format": "date-time",
+            "title": "Aceptada En",
+            "type": "string"
+          },
+          "alias": {
+            "title": "Alias",
+            "type": "string"
+          },
+          "mensaje": {
+            "title": "Mensaje",
+            "type": "string"
+          },
+          "usuario_id": {
+            "format": "uuid",
+            "title": "Usuario Id",
+            "type": "string"
+          },
+          "version_politica": {
+            "title": "Version Politica",
+            "type": "string"
+          }
+        },
+        "required": [
+          "usuario_id",
+          "alias",
+          "version_politica",
+          "aceptada_en",
+          "mensaje"
+        ],
+        "title": "AutorizacionRespuesta",
+        "type": "object"
+      },
+      "CasoDetalleRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "creado_en": {
+            "format": "date-time",
+            "title": "Creado En",
+            "type": "string"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision"
+          },
+          "detalle": {
+            "additionalProperties": true,
+            "title": "Detalle",
+            "type": "object"
+          },
+          "estado": {
+            "title": "Estado",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "moderador_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Moderador Id"
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota"
+          },
+          "prioridad": {
+            "title": "Prioridad",
+            "type": "integer"
+          },
+          "referencia_datos": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referencia Datos"
+          },
+          "referencia_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Referencia Id"
+          },
+          "referencia_tabla": {
+            "title": "Referencia Tabla",
+            "type": "string"
+          },
+          "resuelto_en": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resuelto En"
+          },
+          "tipo": {
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "tipo",
+          "referencia_tabla",
+          "referencia_id",
+          "detalle",
+          "prioridad",
+          "estado",
+          "decision",
+          "moderador_id",
+          "nota",
+          "creado_en",
+          "resuelto_en"
+        ],
+        "title": "CasoDetalleRespuesta",
+        "type": "object"
+      },
+      "CategoriaRespuesta": {
+        "additionalProperties": false,
+        "description": "Representacion de una categoria de producto.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "orden": {
+            "default": 0,
+            "title": "Orden",
+            "type": "integer"
+          },
+          "padre_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Padre Id"
+          }
+        },
+        "required": [
+          "id",
+          "nombre"
+        ],
+        "title": "CategoriaRespuesta",
+        "type": "object"
+      },
+      "ConsultaCatalogoExternoRespuesta": {
+        "additionalProperties": false,
+        "description": "Resultado de consultar un codigo de barras en fuentes externas.",
+        "properties": {
+          "encontrado": {
+            "title": "Encontrado",
+            "type": "boolean"
+          },
+          "producto": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Producto"
+          }
+        },
+        "required": [
+          "encontrado"
+        ],
+        "title": "ConsultaCatalogoExternoRespuesta",
+        "type": "object"
+      },
+      "CrearReporteEntrada": {
+        "additionalProperties": false,
+        "description": "Cuerpo de solicitud para registrar un nuevo reporte de precio (Flujo F2).",
+        "properties": {
+          "establecimiento_id": {
+            "format": "uuid",
+            "title": "Establecimiento Id",
+            "type": "string"
+          },
+          "foto_ruta": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Foto Ruta"
+          },
+          "observado_en": {
+            "format": "date-time",
+            "title": "Observado En",
+            "type": "string"
+          },
+          "precio_cop": {
+            "description": "Precio total en pesos colombianos COP",
+            "title": "Precio Cop",
+            "type": "integer"
+          },
+          "presentacion_id": {
+            "format": "uuid",
+            "title": "Presentacion Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "presentacion_id",
+          "establecimiento_id",
+          "precio_cop",
+          "observado_en"
+        ],
+        "title": "CrearReporteEntrada",
+        "type": "object"
+      },
+      "CrearReporteRespuesta": {
+        "additionalProperties": false,
+        "description": "Respuesta HTTP para POST /v1/reportes.",
+        "properties": {
+          "datos": {
+            "$ref": "#/components/schemas/DatosReporteRespuesta"
+          }
+        },
+        "required": [
+          "datos"
+        ],
+        "title": "CrearReporteRespuesta",
+        "type": "object"
+      },
+      "CrearSancionEntrada": {
+        "additionalProperties": false,
+        "properties": {
+          "dias_suspension": {
+            "anyOf": [
+              {
+                "maximum": 365.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dias Suspension"
+          },
+          "motivo": {
+            "maxLength": 500,
+            "minLength": 5,
+            "title": "Motivo",
+            "type": "string"
+          },
+          "tipo": {
+            "enum": [
+              "advertencia",
+              "suspension",
+              "bloqueo"
+            ],
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tipo",
+          "motivo"
+        ],
+        "title": "CrearSancionEntrada",
+        "type": "object"
+      },
+      "DatosComparacion": {
+        "additionalProperties": false,
+        "description": "Cuerpo de datos del comparador neutral.",
+        "properties": {
+          "meta": {
+            "$ref": "#/components/schemas/MetaComparacion"
+          },
+          "producto": {
+            "$ref": "#/components/schemas/ProductoComparacion"
+          },
+          "promociones": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Promociones",
+            "type": "array"
+          },
+          "resultados": {
+            "items": {
+              "$ref": "#/components/schemas/ItemResultadoComparacion"
+            },
+            "title": "Resultados",
+            "type": "array"
+          }
+        },
+        "required": [
+          "producto",
+          "resultados",
+          "meta"
+        ],
+        "title": "DatosComparacion",
+        "type": "object"
+      },
+      "DatosReporteRespuesta": {
+        "additionalProperties": false,
+        "description": "Detalle visible del reporte registrado.",
+        "properties": {
+          "estado_visible": {
+            "description": "'recibido' o 'en_revision'",
+            "title": "Estado Visible",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "mensaje": {
+            "title": "Mensaje",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "estado_visible",
+          "mensaje"
+        ],
+        "title": "DatosReporteRespuesta",
+        "type": "object"
+      },
+      "DetalleProblema": {
+        "additionalProperties": false,
+        "description": "Estructura de error estandar segun RFC 9457 (application/problem+json).",
+        "properties": {
+          "codigo": {
+            "title": "Codigo",
+            "type": "string"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "instance": {
+            "title": "Instance",
+            "type": "string"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Request Id"
+          },
+          "status": {
+            "title": "Status",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail",
+          "instance",
+          "codigo"
+        ],
+        "title": "DetalleProblema",
+        "type": "object"
+      },
+      "ElementoReportePropio": {
+        "additionalProperties": false,
+        "description": "Fila en el historial de reportes del propio usuario.",
+        "properties": {
+          "creado_en": {
+            "format": "date-time",
+            "title": "Creado En",
+            "type": "string"
+          },
+          "establecimiento_nombre": {
+            "title": "Establecimiento Nombre",
+            "type": "string"
+          },
+          "estado_visible": {
+            "title": "Estado Visible",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "observado_en": {
+            "format": "date-time",
+            "title": "Observado En",
+            "type": "string"
+          },
+          "precio_cop": {
+            "title": "Precio Cop",
+            "type": "integer"
+          },
+          "presentacion_etiqueta": {
+            "title": "Presentacion Etiqueta",
+            "type": "string"
+          },
+          "producto_nombre": {
+            "title": "Producto Nombre",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "producto_nombre",
+          "presentacion_etiqueta",
+          "establecimiento_nombre",
+          "precio_cop",
+          "observado_en",
+          "creado_en",
+          "estado_visible"
+        ],
+        "title": "ElementoReportePropio",
+        "type": "object"
+      },
+      "EliminarCuentaRespuesta": {
+        "additionalProperties": false,
+        "description": "Respuesta al ejercicio del derecho de supresion y anonimizacion.",
+        "properties": {
+          "estado": {
+            "title": "Estado",
+            "type": "string"
+          },
+          "mensaje": {
+            "title": "Mensaje",
+            "type": "string"
+          },
+          "usuario_id": {
+            "format": "uuid",
+            "title": "Usuario Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mensaje",
+          "usuario_id",
+          "estado"
+        ],
+        "title": "EliminarCuentaRespuesta",
+        "type": "object"
+      },
+      "EstablecimientoActualizarEntrada": {
+        "additionalProperties": false,
+        "description": "Entrada para modificar datos de un establecimiento.",
+        "properties": {
+          "activo": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activo"
+          },
+          "barrio": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barrio"
+          },
+          "cadena": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cadena"
+          },
+          "direccion": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 3,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Direccion"
+          },
+          "estado_verificacion": {
+            "anyOf": [
+              {
+                "pattern": "^(sin_dueno|pendiente|verificado)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estado Verificacion"
+          },
+          "lat": {
+            "anyOf": [
+              {
+                "maximum": 90.0,
+                "minimum": -90.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lat"
+          },
+          "lng": {
+            "anyOf": [
+              {
+                "maximum": 180.0,
+                "minimum": -180.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lng"
+          },
+          "nombre": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 2,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre"
+          },
+          "tipo": {
+            "anyOf": [
+              {
+                "pattern": "^(tienda_barrio|minimercado|supermercado|cadena)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tipo"
+          }
+        },
+        "title": "EstablecimientoActualizarEntrada",
+        "type": "object"
+      },
+      "EstablecimientoComparacion": {
+        "additionalProperties": false,
+        "description": "Detalle del comercio en una fila de comparacion.",
+        "properties": {
+          "barrio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barrio"
+          },
+          "direccion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Direccion"
+          },
+          "distancia_m": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distancia M"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "tipo": {
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "tipo"
+        ],
+        "title": "EstablecimientoComparacion",
+        "type": "object"
+      },
+      "EstablecimientoCrearEntrada": {
+        "additionalProperties": false,
+        "description": "Entrada para alta de un establecimiento georreferenciado.",
+        "properties": {
+          "activo": {
+            "default": true,
+            "title": "Activo",
+            "type": "boolean"
+          },
+          "barrio": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barrio"
+          },
+          "cadena": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cadena"
+          },
+          "departamento": {
+            "default": "Quindío",
+            "maxLength": 80,
+            "title": "Departamento",
+            "type": "string"
+          },
+          "direccion": {
+            "maxLength": 200,
+            "minLength": 3,
+            "title": "Direccion",
+            "type": "string"
+          },
+          "lat": {
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Lat",
+            "type": "number"
+          },
+          "lng": {
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Lng",
+            "type": "number"
+          },
+          "municipio": {
+            "default": "Armenia",
+            "maxLength": 80,
+            "title": "Municipio",
+            "type": "string"
+          },
+          "nombre": {
+            "maxLength": 120,
+            "minLength": 2,
+            "title": "Nombre",
+            "type": "string"
+          },
+          "tipo": {
+            "pattern": "^(tienda_barrio|minimercado|supermercado|cadena)$",
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nombre",
+          "tipo",
+          "direccion",
+          "lat",
+          "lng"
+        ],
+        "title": "EstablecimientoCrearEntrada",
+        "type": "object"
+      },
+      "EstablecimientoDetalleRespuesta": {
+        "additionalProperties": false,
+        "description": "Ficha completa de un establecimiento con sus precios vigentes.",
+        "properties": {
+          "activo": {
+            "title": "Activo",
+            "type": "boolean"
+          },
+          "barrio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barrio"
+          },
+          "cadena": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cadena"
+          },
+          "departamento": {
+            "title": "Departamento",
+            "type": "string"
+          },
+          "direccion": {
+            "title": "Direccion",
+            "type": "string"
+          },
+          "distancia_m": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distancia M"
+          },
+          "estado_verificacion": {
+            "title": "Estado Verificacion",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "lat": {
+            "title": "Lat",
+            "type": "number"
+          },
+          "lng": {
+            "title": "Lng",
+            "type": "number"
+          },
+          "municipio": {
+            "title": "Municipio",
+            "type": "string"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "precios_vigentes": {
+            "items": {
+              "$ref": "#/components/schemas/PrecioVigenteResumen"
+            },
+            "title": "Precios Vigentes",
+            "type": "array"
+          },
+          "tipo": {
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "tipo",
+          "direccion",
+          "municipio",
+          "departamento",
+          "lat",
+          "lng",
+          "estado_verificacion",
+          "activo"
+        ],
+        "title": "EstablecimientoDetalleRespuesta",
+        "type": "object"
+      },
+      "EstablecimientoResumen": {
+        "additionalProperties": false,
+        "description": "Resumen de informacion publica de un establecimiento.",
+        "properties": {
+          "activo": {
+            "default": true,
+            "title": "Activo",
+            "type": "boolean"
+          },
+          "barrio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barrio"
+          },
+          "cadena": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cadena"
+          },
+          "departamento": {
+            "title": "Departamento",
+            "type": "string"
+          },
+          "direccion": {
+            "title": "Direccion",
+            "type": "string"
+          },
+          "distancia_m": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distancia M"
+          },
+          "estado_verificacion": {
+            "title": "Estado Verificacion",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "lat": {
+            "title": "Lat",
+            "type": "number"
+          },
+          "lng": {
+            "title": "Lng",
+            "type": "number"
+          },
+          "municipio": {
+            "title": "Municipio",
+            "type": "string"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "tipo": {
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "tipo",
+          "direccion",
+          "municipio",
+          "departamento",
+          "lat",
+          "lng",
+          "estado_verificacion"
+        ],
+        "title": "EstablecimientoResumen",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "ItemAuditoriaRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "accion": {
+            "title": "Accion",
+            "type": "string"
+          },
+          "actor_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Id"
+          },
+          "antes": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Antes"
+          },
+          "creado_en": {
+            "format": "date-time",
+            "title": "Creado En",
+            "type": "string"
+          },
+          "despues": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Despues"
+          },
+          "entidad": {
+            "title": "Entidad",
+            "type": "string"
+          },
+          "entidad_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entidad Id"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "rol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rol"
+          }
+        },
+        "required": [
+          "id",
+          "actor_id",
+          "rol",
+          "accion",
+          "entidad",
+          "entidad_id",
+          "antes",
+          "despues",
+          "creado_en"
+        ],
+        "title": "ItemAuditoriaRespuesta",
+        "type": "object"
+      },
+      "ItemResultadoComparacion": {
+        "additionalProperties": false,
+        "description": "Fila del comparador de precios (Bloque 1 o Bloque 2).",
+        "properties": {
+          "con_foto_prueba": {
+            "default": false,
+            "title": "Con Foto Prueba",
+            "type": "boolean"
+          },
+          "es_bloque_secundario": {
+            "default": false,
+            "title": "Es Bloque Secundario",
+            "type": "boolean"
+          },
+          "establecimiento": {
+            "$ref": "#/components/schemas/EstablecimientoComparacion"
+          },
+          "motivo_sello": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo Sello"
+          },
+          "n_fuentes": {
+            "title": "N Fuentes",
+            "type": "integer"
+          },
+          "n_reportes_validos": {
+            "title": "N Reportes Validos",
+            "type": "integer"
+          },
+          "precio_cop": {
+            "title": "Precio Cop",
+            "type": "integer"
+          },
+          "precio_oficial_cop": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio Oficial Cop"
+          },
+          "precio_por_unidad": {
+            "$ref": "#/components/schemas/PrecioUnidad"
+          },
+          "presentacion": {
+            "$ref": "#/components/schemas/PresentacionComparacion"
+          },
+          "sello": {
+            "title": "Sello",
+            "type": "string"
+          },
+          "ultimo_reporte_en": {
+            "format": "date-time",
+            "title": "Ultimo Reporte En",
+            "type": "string"
+          }
+        },
+        "required": [
+          "establecimiento",
+          "presentacion",
+          "precio_cop",
+          "precio_por_unidad",
+          "sello",
+          "n_reportes_validos",
+          "n_fuentes",
+          "ultimo_reporte_en"
+        ],
+        "title": "ItemResultadoComparacion",
+        "type": "object"
+      },
+      "ListaAuditoriaRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "datos": {
+            "items": {
+              "$ref": "#/components/schemas/ItemAuditoriaRespuesta"
+            },
+            "title": "Datos",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "datos",
+          "total"
+        ],
+        "title": "ListaAuditoriaRespuesta",
+        "type": "object"
+      },
+      "ListaCasosRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "datos": {
+            "items": {
+              "$ref": "#/components/schemas/CasoDetalleRespuesta"
+            },
+            "title": "Datos",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "datos",
+          "total"
+        ],
+        "title": "ListaCasosRespuesta",
+        "type": "object"
+      },
+      "ListaEstablecimientosRespuesta": {
+        "additionalProperties": false,
+        "description": "Listado paginado de establecimientos comerciales.",
+        "properties": {
+          "datos": {
+            "items": {
+              "$ref": "#/components/schemas/EstablecimientoResumen"
+            },
+            "title": "Datos",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "datos",
+          "total"
+        ],
+        "title": "ListaEstablecimientosRespuesta",
+        "type": "object"
+      },
+      "ListaParametrosRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "datos": {
+            "items": {
+              "$ref": "#/components/schemas/ParametroItem"
+            },
+            "title": "Datos",
+            "type": "array"
+          }
+        },
+        "required": [
+          "datos"
+        ],
+        "title": "ListaParametrosRespuesta",
+        "type": "object"
+      },
+      "ListaProductosRespuesta": {
+        "additionalProperties": false,
+        "description": "Respuesta paginada del buscador de productos.",
+        "properties": {
+          "datos": {
+            "items": {
+              "$ref": "#/components/schemas/ProductoResumen"
+            },
+            "title": "Datos",
+            "type": "array"
+          },
+          "siguiente_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Siguiente Cursor"
+          },
+          "total_estimado": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Estimado"
+          }
+        },
+        "required": [
+          "datos"
+        ],
+        "title": "ListaProductosRespuesta",
+        "type": "object"
+      },
+      "MetaComparacion": {
+        "additionalProperties": false,
+        "description": "Metadatos de ordenamiento, frescura y neutralidad comercial (EC-06).",
+        "properties": {
+          "bloques": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Bloques",
+            "type": "array"
+          },
+          "criterio_orden": {
+            "title": "Criterio Orden",
+            "type": "string"
+          },
+          "datos_de_demostracion": {
+            "default": false,
+            "title": "Datos De Demostracion",
+            "type": "boolean"
+          },
+          "generado_en": {
+            "title": "Generado En",
+            "type": "string"
+          },
+          "texto_neutralidad": {
+            "title": "Texto Neutralidad",
+            "type": "string"
+          }
+        },
+        "required": [
+          "criterio_orden",
+          "texto_neutralidad",
+          "bloques",
+          "generado_en"
+        ],
+        "title": "MetaComparacion",
+        "type": "object"
+      },
+      "MisReportesRespuesta": {
+        "additionalProperties": false,
+        "description": "Respuesta paginada para GET /v1/mis-reportes.",
+        "properties": {
+          "datos": {
+            "items": {
+              "$ref": "#/components/schemas/ElementoReportePropio"
+            },
+            "title": "Datos",
+            "type": "array"
+          },
+          "limite": {
+            "title": "Limite",
+            "type": "integer"
+          },
+          "pagina": {
+            "title": "Pagina",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "datos",
+          "total",
+          "pagina",
+          "limite"
+        ],
+        "title": "MisReportesRespuesta",
+        "type": "object"
+      },
+      "ParametroItem": {
+        "additionalProperties": false,
+        "properties": {
+          "actualizado_en": {
+            "format": "date-time",
+            "title": "Actualizado En",
+            "type": "string"
+          },
+          "clave": {
+            "title": "Clave",
+            "type": "string"
+          },
+          "descripcion": {
+            "title": "Descripcion",
+            "type": "string"
+          },
+          "rango_valido": {
+            "title": "Rango Valido",
+            "type": "string"
+          },
+          "tipo": {
+            "title": "Tipo",
+            "type": "string"
+          },
+          "valor": {
+            "title": "Valor"
+          }
+        },
+        "required": [
+          "clave",
+          "valor",
+          "descripcion",
+          "tipo",
+          "rango_valido",
+          "actualizado_en"
+        ],
+        "title": "ParametroItem",
+        "type": "object"
+      },
+      "PerfilUsuarioRespuesta": {
+        "additionalProperties": false,
+        "description": "Datos del perfil y vigencia de autorizacion del usuario.",
+        "properties": {
+          "alias": {
+            "title": "Alias",
+            "type": "string"
+          },
+          "autorizacion_vigente": {
+            "additionalProperties": true,
+            "title": "Autorizacion Vigente",
+            "type": "object"
+          },
+          "creado_en": {
+            "format": "date-time",
+            "title": "Creado En",
+            "type": "string"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "estado": {
+            "title": "Estado",
+            "type": "string"
+          },
+          "reportes_corroborados": {
+            "title": "Reportes Corroborados",
+            "type": "integer"
+          },
+          "reportes_malos_confirmados": {
+            "title": "Reportes Malos Confirmados",
+            "type": "integer"
+          },
+          "reputacion": {
+            "title": "Reputacion",
+            "type": "string"
+          },
+          "rol": {
+            "title": "Rol",
+            "type": "string"
+          },
+          "usuario_id": {
+            "format": "uuid",
+            "title": "Usuario Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "usuario_id",
+          "alias",
+          "rol",
+          "estado",
+          "reputacion",
+          "reportes_corroborados",
+          "reportes_malos_confirmados",
+          "autorizacion_vigente",
+          "creado_en"
+        ],
+        "title": "PerfilUsuarioRespuesta",
+        "type": "object"
+      },
+      "PoliticaTratamientoRespuesta": {
+        "additionalProperties": false,
+        "description": "Informacion publica de la politica de tratamiento de datos personales.",
+        "properties": {
+          "contacto_legal_email": {
+            "title": "Contacto Legal Email",
+            "type": "string"
+          },
+          "derechos_arco": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Derechos Arco",
+            "type": "array"
+          },
+          "finalidades": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Finalidades",
+            "type": "array"
+          },
+          "texto_completo": {
+            "title": "Texto Completo",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "texto_completo",
+          "finalidades",
+          "contacto_legal_email",
+          "derechos_arco"
+        ],
+        "title": "PoliticaTratamientoRespuesta",
+        "type": "object"
+      },
+      "PrecioUnidad": {
+        "additionalProperties": false,
+        "description": "Precio unitario normalizado para comparacion equitativa.",
+        "properties": {
+          "por": {
+            "title": "Por",
+            "type": "string"
+          },
+          "valor_cop": {
+            "title": "Valor Cop",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "valor_cop",
+          "por"
+        ],
+        "title": "PrecioUnidad",
+        "type": "object"
+      },
+      "PrecioVigenteResumen": {
+        "additionalProperties": false,
+        "description": "Resumen de un precio vigente en un establecimiento.",
+        "properties": {
+          "motivo_sello": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo Sello"
+          },
+          "precio_cop": {
+            "title": "Precio Cop",
+            "type": "integer"
+          },
+          "precio_por_base": {
+            "title": "Precio Por Base",
+            "type": "string"
+          },
+          "presentacion_etiqueta": {
+            "title": "Presentacion Etiqueta",
+            "type": "string"
+          },
+          "presentacion_id": {
+            "format": "uuid",
+            "title": "Presentacion Id",
+            "type": "string"
+          },
+          "producto_id": {
+            "format": "uuid",
+            "title": "Producto Id",
+            "type": "string"
+          },
+          "producto_nombre": {
+            "title": "Producto Nombre",
+            "type": "string"
+          },
+          "sello": {
+            "title": "Sello",
+            "type": "string"
+          },
+          "ultimo_reporte_en": {
+            "format": "date-time",
+            "title": "Ultimo Reporte En",
+            "type": "string"
+          }
+        },
+        "required": [
+          "presentacion_id",
+          "producto_id",
+          "producto_nombre",
+          "presentacion_etiqueta",
+          "precio_cop",
+          "precio_por_base",
+          "sello",
+          "ultimo_reporte_en"
+        ],
+        "title": "PrecioVigenteResumen",
+        "type": "object"
+      },
+      "PresentacionActualizarEntrada": {
+        "additionalProperties": false,
+        "description": "Entrada para actualizar una presentacion (prohibe alterar cantidad_base).",
+        "properties": {
+          "activa": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activa"
+          },
+          "cantidad_base": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cantidad Base"
+          },
+          "codigo_barras": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{8,14}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codigo Barras"
+          },
+          "marca": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Marca"
+          },
+          "valor_cantidad": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor Cantidad"
+          }
+        },
+        "title": "PresentacionActualizarEntrada",
+        "type": "object"
+      },
+      "PresentacionComparacion": {
+        "additionalProperties": false,
+        "description": "Detalle de presentacion de producto en comparacion.",
+        "properties": {
+          "cantidad_base": {
+            "title": "Cantidad Base",
+            "type": "number"
+          },
+          "etiqueta": {
+            "title": "Etiqueta",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "marca": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Marca"
+          }
+        },
+        "required": [
+          "id",
+          "etiqueta",
+          "cantidad_base"
+        ],
+        "title": "PresentacionComparacion",
+        "type": "object"
+      },
+      "PresentacionCrearEntrada": {
+        "additionalProperties": false,
+        "description": "Entrada para crear una presentacion comercial calculando cantidad_base.",
+        "properties": {
+          "codigo_barras": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{8,14}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codigo Barras"
+          },
+          "fuente_catalogo": {
+            "default": "manual",
+            "pattern": "^(manual|semilla|open_food_facts)$",
+            "title": "Fuente Catalogo",
+            "type": "string"
+          },
+          "marca": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Marca"
+          },
+          "multiplicador": {
+            "default": 1,
+            "minimum": 1.0,
+            "title": "Multiplicador",
+            "type": "integer"
+          },
+          "producto_id": {
+            "format": "uuid",
+            "title": "Producto Id",
+            "type": "string"
+          },
+          "unidad": {
+            "pattern": "^(g|kg|lb|ml|l|unidad|docena)$",
+            "title": "Unidad",
+            "type": "string"
+          },
+          "valor_cantidad": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "title": "Valor Cantidad"
+          }
+        },
+        "required": [
+          "producto_id",
+          "valor_cantidad",
+          "unidad"
+        ],
+        "title": "PresentacionCrearEntrada",
+        "type": "object"
+      },
+      "PresentacionResumen": {
+        "additionalProperties": false,
+        "description": "Detalle resumido de una presentacion comercial.",
+        "properties": {
+          "activa": {
+            "default": true,
+            "title": "Activa",
+            "type": "boolean"
+          },
+          "cantidad_base": {
+            "title": "Cantidad Base",
+            "type": "string"
+          },
+          "codigo_barras": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codigo Barras"
+          },
+          "etiqueta": {
+            "title": "Etiqueta",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "marca": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Marca"
+          },
+          "multiplicador": {
+            "default": 1,
+            "title": "Multiplicador",
+            "type": "integer"
+          },
+          "producto_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Producto Id"
+          },
+          "unidad": {
+            "title": "Unidad",
+            "type": "string"
+          },
+          "valor_cantidad": {
+            "title": "Valor Cantidad",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "etiqueta",
+          "valor_cantidad",
+          "unidad",
+          "cantidad_base"
+        ],
+        "title": "PresentacionResumen",
+        "type": "object"
+      },
+      "ProductoActualizarEntrada": {
+        "additionalProperties": false,
+        "description": "Entrada para actualizar campos de un producto.",
+        "properties": {
+          "activo": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activo"
+          },
+          "categoria_id": {
+            "anyOf": [
+              {
+                "maximum": 10.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categoria Id"
+          },
+          "imagen_url": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imagen Url"
+          },
+          "nombre": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 2,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nombre"
+          }
+        },
+        "title": "ProductoActualizarEntrada",
+        "type": "object"
+      },
+      "ProductoComparacion": {
+        "additionalProperties": false,
+        "description": "Encabezado de producto comparado.",
+        "properties": {
+          "categoria_id": {
+            "title": "Categoria Id",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "presentaciones": {
+            "items": {
+              "$ref": "#/components/schemas/PresentacionComparacion"
+            },
+            "title": "Presentaciones",
+            "type": "array"
+          },
+          "unidad_base": {
+            "title": "Unidad Base",
+            "type": "string"
+          },
+          "unidad_visualizacion": {
+            "title": "Unidad Visualizacion",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "categoria_id",
+          "unidad_base",
+          "unidad_visualizacion",
+          "presentaciones"
+        ],
+        "title": "ProductoComparacion",
+        "type": "object"
+      },
+      "ProductoCrearEntrada": {
+        "additionalProperties": false,
+        "description": "Entrada para crear un nuevo producto en el catalogo.",
+        "properties": {
+          "categoria_id": {
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Categoria Id",
+            "type": "integer"
+          },
+          "imagen_url": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imagen Url"
+          },
+          "nombre": {
+            "maxLength": 120,
+            "minLength": 2,
+            "title": "Nombre",
+            "type": "string"
+          },
+          "unidad_base": {
+            "pattern": "^(g|ml|unidad)$",
+            "title": "Unidad Base",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nombre",
+          "categoria_id",
+          "unidad_base"
+        ],
+        "title": "ProductoCrearEntrada",
+        "type": "object"
+      },
+      "ProductoDetalleRespuesta": {
+        "additionalProperties": false,
+        "description": "Ficha tecnica completa de un producto con sus presentaciones.",
+        "properties": {
+          "activo": {
+            "title": "Activo",
+            "type": "boolean"
+          },
+          "categoria_id": {
+            "title": "Categoria Id",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "imagen_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imagen Url"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "presentaciones": {
+            "items": {
+              "$ref": "#/components/schemas/PresentacionResumen"
+            },
+            "title": "Presentaciones",
+            "type": "array"
+          },
+          "unidad_base": {
+            "title": "Unidad Base",
+            "type": "string"
+          },
+          "unidad_visualizacion": {
+            "title": "Unidad Visualizacion",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "categoria_id",
+          "unidad_base",
+          "unidad_visualizacion",
+          "activo"
+        ],
+        "title": "ProductoDetalleRespuesta",
+        "type": "object"
+      },
+      "ProductoResumen": {
+        "additionalProperties": false,
+        "description": "Resumen de un producto para listados y busqueda.",
+        "properties": {
+          "categoria_id": {
+            "title": "Categoria Id",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "imagen_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imagen Url"
+          },
+          "n_tiendas_con_precio": {
+            "default": 0,
+            "title": "N Tiendas Con Precio",
+            "type": "integer"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "precio_desde_por_unidad_cop": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio Desde Por Unidad Cop"
+          },
+          "presentaciones": {
+            "items": {
+              "$ref": "#/components/schemas/PresentacionResumen"
+            },
+            "title": "Presentaciones",
+            "type": "array"
+          },
+          "unidad_base": {
+            "title": "Unidad Base",
+            "type": "string"
+          },
+          "unidad_visualizacion": {
+            "title": "Unidad Visualizacion",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "categoria_id",
+          "unidad_base",
+          "unidad_visualizacion"
+        ],
+        "title": "ProductoResumen",
+        "type": "object"
+      },
+      "RechazarSugerenciaEntrada": {
+        "additionalProperties": false,
+        "description": "Motivo de rechazo de una sugerencia de presentacion.",
+        "properties": {
+          "motivo": {
+            "maxLength": 500,
+            "minLength": 5,
+            "title": "Motivo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "motivo"
+        ],
+        "title": "RechazarSugerenciaEntrada",
+        "type": "object"
+      },
+      "ResolverApelacionEntrada": {
+        "additionalProperties": false,
+        "properties": {
+          "aprobar": {
+            "title": "Aprobar",
+            "type": "boolean"
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota"
+          }
+        },
+        "required": [
+          "aprobar"
+        ],
+        "title": "ResolverApelacionEntrada",
+        "type": "object"
+      },
+      "ResolverCasoEntrada": {
+        "additionalProperties": false,
+        "properties": {
+          "decision": {
+            "enum": [
+              "confirmar",
+              "descartar",
+              "sancionar"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "nota": {
+            "maxLength": 1000,
+            "minLength": 3,
+            "title": "Nota",
+            "type": "string"
+          },
+          "sancion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CrearSancionEntrada"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "decision",
+          "nota"
+        ],
+        "title": "ResolverCasoEntrada",
+        "type": "object"
+      },
+      "RespuestaComparacion": {
+        "additionalProperties": false,
+        "description": "Respuesta completa de GET /v1/productos/{id}/comparacion.",
+        "properties": {
+          "datos": {
+            "$ref": "#/components/schemas/DatosComparacion"
+          }
+        },
+        "required": [
+          "datos"
+        ],
+        "title": "RespuestaComparacion",
+        "type": "object"
+      },
+      "RespuestaListo": {
+        "properties": {
+          "bd": {
+            "title": "Bd",
+            "type": "string"
+          },
+          "cache": {
+            "title": "Cache",
+            "type": "string"
+          },
+          "estado": {
+            "title": "Estado",
+            "type": "string"
+          }
+        },
+        "required": [
+          "estado",
+          "bd",
+          "cache"
+        ],
+        "title": "RespuestaListo",
+        "type": "object"
+      },
+      "RespuestaSalud": {
+        "properties": {
+          "entorno": {
+            "title": "Entorno",
+            "type": "string"
+          },
+          "estado": {
+            "title": "Estado",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "estado",
+          "version",
+          "entorno"
+        ],
+        "title": "RespuestaSalud",
+        "type": "object"
+      },
+      "RespuestaUrlSubida": {
+        "additionalProperties": false,
+        "description": "Respuesta con la ruta asignada y la URL firmada temporal.",
+        "properties": {
+          "expira_en": {
+            "default": 300,
+            "description": "Tiempo de expiracion de la URL en segundos (5 minutos)",
+            "title": "Expira En",
+            "type": "integer"
+          },
+          "ruta": {
+            "description": "Ruta de destino dentro del bucket pruebas",
+            "title": "Ruta",
+            "type": "string"
+          },
+          "url_firmada": {
+            "description": "URL con token de subida temporal",
+            "title": "Url Firmada",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ruta",
+          "url_firmada"
+        ],
+        "title": "RespuestaUrlSubida",
+        "type": "object"
+      },
+      "RespuestaUsuario": {
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "rol": {
+            "title": "Rol",
+            "type": "string"
+          },
+          "usuario_id": {
+            "title": "Usuario Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "usuario_id",
+          "email",
+          "rol"
+        ],
+        "title": "RespuestaUsuario",
+        "type": "object"
+      },
+      "SancionDirectaEntrada": {
+        "additionalProperties": false,
+        "properties": {
+          "dias_suspension": {
+            "anyOf": [
+              {
+                "maximum": 365.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dias Suspension"
+          },
+          "motivo": {
+            "maxLength": 500,
+            "minLength": 5,
+            "title": "Motivo",
+            "type": "string"
+          },
+          "tipo": {
+            "enum": [
+              "advertencia",
+              "suspension",
+              "bloqueo"
+            ],
+            "title": "Tipo",
+            "type": "string"
+          },
+          "usuario_id": {
+            "format": "uuid",
+            "title": "Usuario Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "usuario_id",
+          "tipo",
+          "motivo"
+        ],
+        "title": "SancionDirectaEntrada",
+        "type": "object"
+      },
+      "SolicitudCorreccionEntrada": {
+        "additionalProperties": false,
+        "description": "Formulario publico de solicitud de correccion de datos de tienda.",
+        "properties": {
+          "correo": {
+            "maxLength": 120,
+            "minLength": 5,
+            "title": "Correo",
+            "type": "string"
+          },
+          "mensaje": {
+            "maxLength": 1000,
+            "minLength": 10,
+            "title": "Mensaje",
+            "type": "string"
+          },
+          "sitio_web_trampa": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Honeypot antispam",
+            "title": "Sitio Web Trampa"
+          }
+        },
+        "required": [
+          "correo",
+          "mensaje"
+        ],
+        "title": "SolicitudCorreccionEntrada",
+        "type": "object"
+      },
+      "SolicitudCorreccionRespuesta": {
+        "additionalProperties": false,
+        "description": "Respuesta tras procesar una solicitud de correccion.",
+        "properties": {
+          "estado": {
+            "title": "Estado",
+            "type": "string"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "mensaje": {
+            "title": "Mensaje",
+            "type": "string"
+          }
+        },
+        "required": [
+          "estado",
+          "mensaje"
+        ],
+        "title": "SolicitudCorreccionRespuesta",
+        "type": "object"
+      },
+      "SolicitudUrlSubida": {
+        "additionalProperties": false,
+        "description": "Cuerpo de solicitud para obtener una URL firmada de subida a Storage.",
+        "properties": {
+          "nombre_archivo": {
+            "description": "Nombre original o propuesto del archivo de imagen",
+            "maxLength": 255,
+            "minLength": 3,
+            "title": "Nombre Archivo",
+            "type": "string"
+          },
+          "tamano_bytes": {
+            "description": "Tamano del archivo en bytes (maximo 300 KB)",
+            "exclusiveMinimum": 0.0,
+            "maximum": 307200.0,
+            "title": "Tamano Bytes",
+            "type": "integer"
+          },
+          "tipo_mime": {
+            "description": "Tipo MIME de la imagen (solo image/jpeg o image/webp)",
+            "pattern": "^(image/jpeg|image/webp)$",
+            "title": "Tipo Mime",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nombre_archivo",
+          "tipo_mime",
+          "tamano_bytes"
+        ],
+        "title": "SolicitudUrlSubida",
+        "type": "object"
+      },
+      "SugerenciaPresentacionEntrada": {
+        "additionalProperties": false,
+        "description": "Entrada para reportar una sugerencia de nueva variante comercial.",
+        "properties": {
+          "codigo_barras": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{8,14}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Codigo Barras"
+          },
+          "marca": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Marca"
+          },
+          "producto_id": {
+            "format": "uuid",
+            "title": "Producto Id",
+            "type": "string"
+          },
+          "texto_libre": {
+            "maxLength": 200,
+            "minLength": 3,
+            "title": "Texto Libre",
+            "type": "string"
+          },
+          "unidad": {
+            "anyOf": [
+              {
+                "pattern": "^(g|kg|lb|ml|l|unidad|docena)$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unidad"
+          },
+          "valor_cantidad": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valor Cantidad"
+          }
+        },
+        "required": [
+          "producto_id",
+          "texto_libre"
+        ],
+        "title": "SugerenciaPresentacionEntrada",
+        "type": "object"
+      },
+      "UsuarioModeracionRespuesta": {
+        "additionalProperties": false,
+        "properties": {
+          "alias": {
+            "title": "Alias",
+            "type": "string"
+          },
+          "conteo_reportes": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Conteo Reportes",
+            "type": "object"
+          },
+          "creado_en": {
+            "format": "date-time",
+            "title": "Creado En",
+            "type": "string"
+          },
+          "estado": {
+            "title": "Estado",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "reportes_corroborados": {
+            "title": "Reportes Corroborados",
+            "type": "integer"
+          },
+          "reportes_malos_confirmados": {
+            "title": "Reportes Malos Confirmados",
+            "type": "integer"
+          },
+          "reputacion": {
+            "title": "Reputacion",
+            "type": "number"
+          },
+          "rol": {
+            "title": "Rol",
+            "type": "string"
+          },
+          "sanciones": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Sanciones",
+            "type": "array"
+          },
+          "suspendida_hasta": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suspendida Hasta"
+          }
+        },
+        "required": [
+          "id",
+          "alias",
+          "rol",
+          "estado",
+          "suspendida_hasta",
+          "reputacion",
+          "reportes_corroborados",
+          "reportes_malos_confirmados",
+          "creado_en",
+          "sanciones",
+          "conteo_reportes"
+        ],
+        "title": "UsuarioModeracionRespuesta",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Backend API para la plataforma colaborativa de comparacion de precios",
+    "title": "API Comparador de Precios Armenia",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/v1/auth/perfil-actual": {
+      "get": {
+        "operationId": "perfil_actual_v1_auth_perfil_actual_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUsuario"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Perfil Actual"
+      }
+    },
+    "/v1/auth/solo-moderador": {
+      "get": {
+        "operationId": "solo_moderador_v1_auth_solo_moderador_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUsuario"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Solo Moderador"
+      }
+    },
+    "/v1/categorias": {
+      "get": {
+        "description": "Retorna las 10 categorias oficiales de la canasta familiar ordenadas.",
+        "operationId": "listar_todas_las_categorias_v1_categorias_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CategoriaRespuesta"
+                  },
+                  "title": "Response Listar Todas Las Categorias V1 Categorias Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Listar categorias de productos",
+        "tags": [
+          "catalogo"
+        ]
+      }
+    },
+    "/v1/establecimientos": {
+      "get": {
+        "description": "Filtra establecimientos por texto, tipo y calcula distancia_m con PostGIS.",
+        "operationId": "listar_establecimientos_publicos_v1_establecimientos_get",
+        "parameters": [
+          {
+            "description": "Nombre o direccion",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Nombre o direccion",
+              "title": "Q"
+            }
+          },
+          {
+            "description": "tipo_establecimiento",
+            "in": "query",
+            "name": "tipo",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "tipo_establecimiento",
+              "title": "Tipo"
+            }
+          },
+          {
+            "description": "Municipio",
+            "in": "query",
+            "name": "municipio",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": "Armenia",
+              "description": "Municipio",
+              "title": "Municipio"
+            }
+          },
+          {
+            "description": "Latitud",
+            "in": "query",
+            "name": "lat",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 90.0,
+                  "minimum": -90.0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Latitud",
+              "title": "Lat"
+            }
+          },
+          {
+            "description": "Longitud",
+            "in": "query",
+            "name": "lng",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 180.0,
+                  "minimum": -180.0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Longitud",
+              "title": "Lng"
+            }
+          },
+          {
+            "description": "Radio en kilometros",
+            "in": "query",
+            "name": "radio_km",
+            "required": false,
+            "schema": {
+              "default": 10.0,
+              "description": "Radio en kilometros",
+              "exclusiveMinimum": 0.0,
+              "maximum": 100.0,
+              "title": "Radio Km",
+              "type": "number"
+            }
+          },
+          {
+            "description": "Limite de registros",
+            "in": "query",
+            "name": "limite",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "description": "Limite de registros",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limite",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListaEstablecimientosRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Directorio de establecimientos con filtro espacial",
+        "tags": [
+          "establecimientos"
+        ]
+      }
+    },
+    "/v1/establecimientos/{id}": {
+      "get": {
+        "description": "Devuelve los datos de la tienda y sus precios vigentes activos.",
+        "operationId": "obtener_detalle_establecimiento_v1_establecimientos__id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Latitud",
+            "in": "query",
+            "name": "lat",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 90.0,
+                  "minimum": -90.0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Latitud",
+              "title": "Lat"
+            }
+          },
+          {
+            "description": "Longitud",
+            "in": "query",
+            "name": "lng",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 180.0,
+                  "minimum": -180.0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Longitud",
+              "title": "Lng"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EstablecimientoDetalleRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ficha del establecimiento y precios vigentes",
+        "tags": [
+          "establecimientos"
+        ]
+      }
+    },
+    "/v1/establecimientos/{id}/solicitudes-correccion": {
+      "post": {
+        "description": "Recibe reporte ciudadano de datos erroneros de tienda y abre caso de moderacion.",
+        "operationId": "enviar_solicitud_correccion_tienda_v1_establecimientos__id__solicitudes_correccion_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitudCorreccionEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SolicitudCorreccionRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Enviar solicitud ciudadana de correccion de datos",
+        "tags": [
+          "establecimientos"
+        ]
+      }
+    },
+    "/v1/fotos/url-subida": {
+      "post": {
+        "description": "Genera una URL firmada de subida temporal a Storage Supabase bucket pruebas (T-27).",
+        "operationId": "generar_url_subida_foto_v1_fotos_url_subida_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SolicitudUrlSubida"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaUrlSubida"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generar URL firmada para subir fotografia de prueba",
+        "tags": [
+          "Fotos y Evidencias"
+        ]
+      }
+    },
+    "/v1/legal/politica-tratamiento": {
+      "get": {
+        "description": "Retorna la version vigente, finalidades y correo de atencion de derechos ARCO.",
+        "operationId": "consultar_politica_tratamiento_v1_legal_politica_tratamiento_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PoliticaTratamientoRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Politica publica de tratamiento de datos personales",
+        "tags": [
+          "Cuentas y Privacidad"
+        ]
+      }
+    },
+    "/v1/mi-cuenta": {
+      "delete": {
+        "description": "Anonimiza todos los reportes, fotos y da de baja la cuenta (FR-007).",
+        "operationId": "eliminar_cuenta_usuario_v1_mi_cuenta_delete",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EliminarCuentaRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ejercicio del derecho de supresion y anonimizacion irreversible",
+        "tags": [
+          "Cuentas y Privacidad"
+        ]
+      },
+      "get": {
+        "description": "Retorna el perfil del usuario autenticado; permite acceso a suspendidas (Ley 1581).",
+        "operationId": "obtener_perfil_usuario_v1_mi_cuenta_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerfilUsuarioRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Consultar perfil del titular y autorizacion vigente",
+        "tags": [
+          "Cuentas y Privacidad"
+        ]
+      },
+      "patch": {
+        "description": "Modifica el alias publico verificando unicidad.",
+        "operationId": "actualizar_alias_usuario_v1_mi_cuenta_patch",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActualizarAliasEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PerfilUsuarioRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Actualizar alias publico del titular",
+        "tags": [
+          "Cuentas y Privacidad"
+        ]
+      }
+    },
+    "/v1/mi-cuenta/autorizacion": {
+      "post": {
+        "description": "Registra el consentimiento expreso e informado de un reportante autenticado.",
+        "operationId": "registrar_autorizacion_usuario_v1_mi_cuenta_autorizacion_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutorizacionEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutorizacionRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Registrar autorizacion previa de tratamiento de datos",
+        "tags": [
+          "Cuentas y Privacidad"
+        ]
+      }
+    },
+    "/v1/mis-reportes": {
+      "get": {
+        "operationId": "mis_reportes_v1_mis_reportes_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "pagina",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Pagina",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limite",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limite",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MisReportesRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Consultar historial propio de reportes con estado visible",
+        "tags": [
+          "Precios y Comparaciones"
+        ]
+      }
+    },
+    "/v1/moderacion/auditoria": {
+      "get": {
+        "operationId": "listar_auditoria_v1_moderacion_auditoria_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "entidad",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Entidad"
+            }
+          },
+          {
+            "in": "query",
+            "name": "accion",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Accion"
+            }
+          },
+          {
+            "in": "query",
+            "name": "actor_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Actor Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limite",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limite",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListaAuditoriaRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Consultar bitacora de auditoria",
+        "tags": [
+          "Moderacion de Casos y Parametros"
+        ]
+      }
+    },
+    "/v1/moderacion/casos": {
+      "get": {
+        "operationId": "listar_casos_v1_moderacion_casos_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "estado",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Estado"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tipo",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tipo"
+            }
+          },
+          {
+            "in": "query",
+            "name": "prioridad",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 5,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Prioridad"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limite",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limite",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListaCasosRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Listar casos de moderacion",
+        "tags": [
+          "Moderacion de Casos y Parametros"
+        ]
+      }
+    },
+    "/v1/moderacion/casos/{id}": {
+      "get": {
+        "operationId": "obtener_caso_v1_moderacion_casos__id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CasoDetalleRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Detalle de caso de moderacion",
+        "tags": [
+          "Moderacion de Casos y Parametros"
+        ]
+      }
+    },
+    "/v1/moderacion/casos/{id}/resolver": {
+      "post": {
+        "operationId": "resolver_caso_v1_moderacion_casos__id__resolver_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolverCasoEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CasoDetalleRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resolver caso de moderacion",
+        "tags": [
+          "Moderacion de Casos y Parametros"
+        ]
+      }
+    },
+    "/v1/moderacion/catalogo-externo": {
+      "get": {
+        "description": "Consulta Open Food Facts con Circuit Breaker en memoria.",
+        "operationId": "consultar_catalogo_externo_endpoint_v1_moderacion_catalogo_externo_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "codigo_barras",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9]{8,14}$",
+              "title": "Codigo Barras",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConsultaCatalogoExternoRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Consultar producto por codigo de barras en fuentes externas",
+        "tags": [
+          "moderacion"
+        ]
+      }
+    },
+    "/v1/moderacion/establecimientos": {
+      "post": {
+        "description": "Da de alta una tienda georreferenciada con auditoria.",
+        "operationId": "crear_establecimiento_moderacion_v1_moderacion_establecimientos_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EstablecimientoCrearEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Crear Establecimiento Moderacion V1 Moderacion Establecimientos Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Crear establecimiento en directorio",
+        "tags": [
+          "moderacion"
+        ]
+      }
+    },
+    "/v1/moderacion/establecimientos/{id}": {
+      "patch": {
+        "description": "Actualiza datos y geometria espacial de establecimiento.",
+        "operationId": "actualizar_establecimiento_moderacion_v1_moderacion_establecimientos__id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EstablecimientoActualizarEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Actualizar Establecimiento Moderacion V1 Moderacion Establecimientos  Id  Patch",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Actualizar datos de establecimiento",
+        "tags": [
+          "moderacion"
+        ]
+      }
+    },
+    "/v1/moderacion/parametros": {
+      "get": {
+        "operationId": "listar_parametros_v1_moderacion_parametros_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListaParametrosRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Consultar los 43 parametros de negocio",
+        "tags": [
+          "Moderacion de Casos y Parametros"
+        ]
+      },
+      "put": {
+        "operationId": "actualizar_parametros_v1_moderacion_parametros_put",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActualizarParametrosEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListaParametrosRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Actualizar parametros de negocio",
+        "tags": [
+          "Moderacion de Casos y Parametros"
+        ]
+      }
+    },
+    "/v1/moderacion/presentaciones": {
+      "post": {
+        "description": "Calcula cantidad_base con el dominio e inserta presentacion.",
+        "operationId": "crear_presentacion_moderacion_v1_moderacion_presentaciones_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresentacionCrearEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Crear Presentacion Moderacion V1 Moderacion Presentaciones Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Crear presentacion calculando cantidad_base",
+        "tags": [
+          "moderacion"
+        ]
+      }
+    },
+    "/v1/moderacion/presentaciones/{id}": {
+      "patch": {
+        "description": "Actualiza presentacion y rechaza taxativamente cualquier cambio a cantidad_base.",
+        "operationId": "actualizar_presentacion_moderacion_v1_moderacion_presentaciones__id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresentacionActualizarEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Actualizar Presentacion Moderacion V1 Moderacion Presentaciones  Id  Patch",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Actualizar presentacion comercial",
+        "tags": [
+          "moderacion"
+        ]
+      }
+    },
+    "/v1/moderacion/productos": {
+      "post": {
+        "description": "Crea un producto nuevo en el catalogo y asienta en auditoria.",
+        "operationId": "crear_producto_moderacion_v1_moderacion_productos_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductoCrearEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Crear Producto Moderacion V1 Moderacion Productos Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Crear producto en catalogo",
+        "tags": [
+          "moderacion"
+        ]
+      }
+    },
+    "/v1/moderacion/productos/{id}": {
+      "patch": {
+        "description": "Actualiza campos de un producto y registra antes/despues en auditoria.",
+        "operationId": "actualizar_producto_moderacion_v1_moderacion_productos__id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProductoActualizarEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Actualizar Producto Moderacion V1 Moderacion Productos  Id  Patch",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Actualizar producto en catalogo",
+        "tags": [
+          "moderacion"
+        ]
+      }
+    },
+    "/v1/moderacion/recalcular-precio-vigente": {
+      "post": {
+        "operationId": "recalcular_precio_vigente_v1_moderacion_recalcular_precio_vigente_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "presentacion_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Presentacion Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "establecimiento_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Establecimiento Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Recalcular Precio Vigente V1 Moderacion Recalcular Precio Vigente Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Forzar recalculacion de precio vigente",
+        "tags": [
+          "Moderacion de Casos y Parametros"
+        ]
+      }
+    },
+    "/v1/moderacion/sanciones": {
+      "post": {
+        "operationId": "crear_sancion_directa_v1_moderacion_sanciones_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SancionDirectaEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Crear Sancion Directa V1 Moderacion Sanciones Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Aplicar sancion directa a usuario",
+        "tags": [
+          "Moderacion de Casos y Parametros"
+        ]
+      }
+    },
+    "/v1/moderacion/sanciones/{id}/apelacion": {
+      "post": {
+        "operationId": "radicar_apelacion_v1_moderacion_sanciones__id__apelacion_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApelacionSancionEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Radicar Apelacion V1 Moderacion Sanciones  Id  Apelacion Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Radicar apelacion a una sancion",
+        "tags": [
+          "Moderacion de Casos y Parametros"
+        ]
+      }
+    },
+    "/v1/moderacion/sanciones/{id}/resolver-apelacion": {
+      "post": {
+        "operationId": "resolver_apelacion_v1_moderacion_sanciones__id__resolver_apelacion_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolverApelacionEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Resolver Apelacion V1 Moderacion Sanciones  Id  Resolver Apelacion Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resolver apelacion a una sancion",
+        "tags": [
+          "Moderacion de Casos y Parametros"
+        ]
+      }
+    },
+    "/v1/moderacion/sugerencias/{id}/aprobar": {
+      "post": {
+        "description": "Aprueba la sugerencia creando la presentacion oficial con auditoria.",
+        "operationId": "aprobar_sugerencia_presentacion_v1_moderacion_sugerencias__id__aprobar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AprobarSugerenciaEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Aprobar Sugerencia Presentacion V1 Moderacion Sugerencias  Id  Aprobar Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Aprobar sugerencia de presentacion",
+        "tags": [
+          "moderacion"
+        ]
+      }
+    },
+    "/v1/moderacion/sugerencias/{id}/rechazar": {
+      "post": {
+        "description": "Rechaza la sugerencia archivando el motivo en auditoria.",
+        "operationId": "rechazar_sugerencia_presentacion_v1_moderacion_sugerencias__id__rechazar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RechazarSugerenciaEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Rechazar Sugerencia Presentacion V1 Moderacion Sugerencias  Id  Rechazar Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rechazar sugerencia de presentacion",
+        "tags": [
+          "moderacion"
+        ]
+      }
+    },
+    "/v1/moderacion/usuarios/{id}": {
+      "get": {
+        "operationId": "obtener_usuario_moderacion_v1_moderacion_usuarios__id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsuarioModeracionRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Consultar usuario para moderacion",
+        "tags": [
+          "Moderacion de Casos y Parametros"
+        ]
+      }
+    },
+    "/v1/productos": {
+      "get": {
+        "description": "Busca productos tolerando tildes, mayusculas y fracciones de cantidad.",
+        "operationId": "buscar_productos_catalogo_v1_productos_get",
+        "parameters": [
+          {
+            "description": "Texto o cantidad (ej. arroz 1/2 kilo)",
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Texto o cantidad (ej. arroz 1/2 kilo)",
+              "title": "Q"
+            }
+          },
+          {
+            "description": "Filtrar por categoria",
+            "in": "query",
+            "name": "categoria_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por categoria",
+              "title": "Categoria Id"
+            }
+          },
+          {
+            "description": "Cantidad maxima de resultados",
+            "in": "query",
+            "name": "limite",
+            "required": false,
+            "schema": {
+              "default": 24,
+              "description": "Cantidad maxima de resultados",
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limite",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Paginador por cursor",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Paginador por cursor",
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListaProductosRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Buscador difuso de productos",
+        "tags": [
+          "catalogo"
+        ]
+      }
+    },
+    "/v1/productos/{id}": {
+      "get": {
+        "description": "Devuelve la ficha del producto y sus presentaciones activas.",
+        "operationId": "obtener_detalle_producto_v1_productos__id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductoDetalleRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ficha tecnica del producto",
+        "tags": [
+          "catalogo"
+        ]
+      }
+    },
+    "/v1/productos/{id}/comparacion": {
+      "get": {
+        "operationId": "comparar_precios_producto_v1_productos__id__comparacion_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "presentacion_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Presentacion Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "orden",
+            "required": false,
+            "schema": {
+              "default": "precio_unitario",
+              "title": "Orden",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "lat",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lat"
+            }
+          },
+          {
+            "in": "query",
+            "name": "lng",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Lng"
+            }
+          },
+          {
+            "in": "query",
+            "name": "radio_km",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Radio Km"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaComparacion"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Comparador publico neutral de precios en dos bloques (Flujo F1)",
+        "tags": [
+          "Precios y Comparaciones"
+        ]
+      }
+    },
+    "/v1/reportes": {
+      "post": {
+        "operationId": "crear_reporte_v1_reportes_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CrearReporteEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CrearReporteRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Registrar un reporte de precio con idempotencia (Flujo F2)",
+        "tags": [
+          "Precios y Comparaciones"
+        ]
+      }
+    },
+    "/v1/salud": {
+      "get": {
+        "operationId": "salud_v1_salud_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaSalud"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Liveness probe"
+      }
+    },
+    "/v1/salud/listo": {
+      "get": {
+        "operationId": "salud_listo_v1_salud_listo_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaListo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Readiness probe"
+      }
+    },
+    "/v1/sugerencias-presentacion": {
+      "post": {
+        "description": "Registra sugerencia previa validacion de autorizacion Ley 1581.",
+        "operationId": "enviar_sugerencia_presentacion_v1_sugerencias_presentacion_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SugerenciaPresentacionEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Enviar Sugerencia Presentacion V1 Sugerencias Presentacion Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Enviar sugerencia de nueva presentacion comercial",
+        "tags": [
+          "moderacion"
+        ]
+      }
+    }
+  }
+}

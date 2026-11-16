@@ -1,0 +1,44 @@
+flowchart TD
+  %% C4 Nivel 2: Diagrama de Contenedores
+
+  subgraph Usuarios ["Usuarios del Sistema"]
+    Usuario["👥 Consumidores / Reportantes / Comercios / Moderadores"]
+  end
+
+  subgraph SistemaComparador ["Plataforma Comparador de Precios [Monolito Modular]"]
+    subgraph FrontendContenedor ["Frontend (Vercel / Browser)"]
+      PWA["📱 Single-Page PWA<br/>[Next.js 14 App Router, TypeScript, Tailwind CSS]<br/>Interfaz responsiva mobile-first, AppShell, visualización de precios y captura en góndola"]
+      IndexedDB["💾 Cola Offline IndexedDB<br/>[Almacenamiento Local Browser]<br/>Almacena reportes e imágenes pendientes ante pérdida de red celular"]
+      PWA <-->|"Lectura / Escritura offline"| IndexedDB
+    end
+
+    subgraph BackendContenedor ["Backend (Railway / Contenedor Docker)"]
+      API["🚀 Backend API REST<br/>[FastAPI, Python 3.12, Uvicorn, Asyncpg]<br/>Orquesta lógica de negocio, validaciones RFC 9457, normalización de unidades, detección de anomalías y contratos OpenAPI"]
+      CacheL1["⚡ Caché L1 en Memoria<br/>[Dict RAM / TTL 5 s]<br/>Absorbe ráfagas de lectura de alta frecuencia sin tráfico de red"]
+      API <-->|"Consulta y lectura ultra-rápida (5 s)"| CacheL1
+    end
+  end
+
+  subgraph InfraestructuraPersistencia ["Infraestructura de Datos y Almacenamiento"]
+    Redis["🔴 Upstash Redis L2<br/>[Redis Clave-Valor / TTL 60 s]<br/>Caché distribuida para respuestas de comparación (cmp:producto_id)"]
+    Postgres["🐘 Supabase PostgreSQL + PostGIS<br/>[Base de Datos Relacional]<br/>Esquema relacional: catálogo, historial inmutable reporte_precio, precio_vigente, auditoría e índices GIST/GIN"]
+    Storage["🗄️ Supabase Storage (S3)<br/>[Bucket de Objetos]<br/>Almacenamiento de fotografías de prueba comprimidas en WebP sin metadatos EXIF"]
+  end
+
+  %% Flujos de comunicación
+  Usuario -->|"Interactúa mediante interfaz web HTTPS"| PWA
+  PWA -->|"Peticiones HTTP/JSON tipadas con Bearer JWT e Idempotency-Key"| API
+  API -->|"Lectura / Escritura de caché con TTL de 60 s e invalidación DEL"| Redis
+  API -->|"Conexión SQL asíncrona Pooler IPv4 con rol app_backend"| Postgres
+  PWA -->|"Subida directa de foto comprimida mediante URL firmada (PUT)"| Storage
+  API -->|"Genera URLs pre-firmadas de subida y lectura"| Storage
+
+  %% Estilos visuales C4
+  style PWA fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#ffffff
+  style IndexedDB fill:#0284c7,stroke:#0369a1,stroke-width:2px,color:#ffffff
+  style API fill:#1e40af,stroke:#1d4ed8,stroke-width:3px,color:#ffffff
+  style CacheL1 fill:#1e40af,stroke:#1d4ed8,stroke-width:2px,color:#ffffff
+  style Redis fill:#dc2626,stroke:#b91c1c,stroke-width:2px,color:#ffffff
+  style Postgres fill:#334155,stroke:#1e293b,stroke-width:2px,color:#ffffff
+  style Storage fill:#334155,stroke:#1e293b,stroke-width:2px,color:#ffffff
+  style Usuario fill:#047857,stroke:#065f46,stroke-width:2px,color:#ffffff

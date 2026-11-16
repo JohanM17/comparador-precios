@@ -1,0 +1,33 @@
+ID,Tipo,Descripcion_Corta,Modulo,Archivo_Prueba,Tarea_Construccion,Criterio_Verificacion
+FR-001,Funcional,Unidad base inmutable (g ml u),dominio/unidades,backend/tests/unitarias/test_unidades.py,T-10,Cantidad base precalculada e inmutable
+FR-002,Funcional,Conversion de unidades Decimal exacto,dominio/unidades,backend/tests/unitarias/test_unidades.py,T-10,Rechazo 422 UNIDADES_INCOMPATIBLES y conversion exacta
+FR-003,Funcional,Busqueda difusa pg_trgm y unaccent,modulos/catalogo,backend/tests/integracion/test_api_catalogo.py,T-13,Busqueda tolerante a tildes y errores tipograficos en < 300 ms
+FR-004,Funcional,Autorizacion obligatoria Ley 1581,modulos/cuentas,backend/tests/integracion/test_cuentas_ley1581.py,T-22,Rechazo 403 AUTORIZACION_REQUERIDA sin aceptacion previa
+FR-005,Funcional,Lectura de rol desde perfil en BD,compartido/seguridad,backend/tests/integracion/test_salud_y_auth.py,T-03,Rol leido de tabla perfil y nunca de user_metadata JWT
+FR-006,Funcional,Consulta edicion supresion de cuenta,modulos/cuentas,backend/tests/integracion/test_cuentas_ley1581.py,T-22,Endpoints GET PATCH DELETE /v1/mi-cuenta operativos
+FR-007,Funcional,Anonimizacion irreversible Ley 1581,modulos/cuentas,backend/tests/integracion/test_cuentas_ley1581.py,T-22,Reportes desvinculados fotos borradas alias anonimizado
+FR-008,Funcional,Idempotency-Key obligatoria en reportes,modulos/precios,backend/tests/integracion/test_crear_reporte_idempotencia.py,T-23,Reintento con misma llave devuelve 200 OK sin duplicar
+FR-009,Funcional,Validacion de precio entero en rango,modulos/precios,backend/tests/integracion/test_crear_reporte_idempotencia.py,T-23,Rechazo 422 PRECIO_FUERA_DE_RANGO segun config_parametro
+FR-010,Funcional,Validacion de fecha observacion,modulos/precios,backend/tests/integracion/test_crear_reporte_idempotencia.py,T-23,Rechazo 422 FECHA_INVALIDA para fechas futuras o > max_horas
+FR-011,Funcional,Eliminacion de metadatos EXIF en fotos,adaptadores/storage,backend/tests/unitarias/test_limpieza_exif.py,T-27,Pillow elimina coordenadas GPS y metadatos EXIF
+FR-012,Funcional,Inmutabilidad reporte_precio por trigger,supabase/migrations,backend/tests/integracion/test_inmutabilidad_reportes.py,T-21,Trigger SQL bloquea DELETE y modificacion de precio_cop
+FR-013,Funcional,Conjunto referencia 3 niveles y respaldo,dominio/anomalia,backend/tests/unitarias/test_anomalia.py,T-30,Seleccion jerarquica tienda presentacion producto y respaldo
+FR-014,Funcional,Evaluacion z-score modificado y MAD,dominio/anomalia,backend/tests/unitarias/test_anomalia.py,T-30,Calculo robusto |M| > 3.5 o desviacion porcentual
+FR-015,Funcional,Huella red HMAC diario y purga 30 dias,compartido/huella,backend/tests/integracion/test_jobs_internos.py,T-32,HMAC rotativo diario y anulacion a null tras 30 dias
+FR-016,Funcional,Deteccion de senal rafaga hacia atras,modulos/confianza,backend/tests/integracion/test_rafaga_y_anomalia.py,T-32,Reportes de misma huella en 30 min pasan a dudoso
+FR-017,Funcional,Ocultar senales de deteccion al usuario,modulos/precios,backend/tests/integracion/test_rafaga_y_anomalia.py,T-32,Respuesta visible recibido o en_revision sin filtrar senales
+FR-018,Funcional,Recalculo transaccional precio_vigente,modulos/precios,backend/tests/integracion/test_precio_vigente_equivalencia.py,T-24,Actualizacion inmediata de fila e invalidacion de cache
+FR-019,Funcional,Ordenamiento en dos bloques por unidad,dominio/orden,backend/tests/unitarias/test_vigencia_sello_orden.py,T-20,Bloque 1 confiable y Bloque 2 secundario por precio_por_base
+FR-020,Funcional,GPS lat lng solo en memoria y no en logs,compartido/logging,backend/tests/integracion/test_salud_y_auth.py,T-03,Filtro de logging redacta coordenadas y nunca persisten
+FR-021,Funcional,Auditoria inmutable append-only,supabase/migrations,backend/tests/integracion/test_flujo_moderacion.py,T-21,Registro inmutable por cada accion de moderacion y sancion
+FR-022,Funcional,Verificacion de comercio para precio oficial,modulos/comercial,backend/tests/integracion/test_verificacion_comercio.py,T-62,Solo comercios verificados publican precios y promociones
+FR-023,Funcional,Contraste oficial con reportes en_disputa,puertos/politica,backend/tests/unitarias/test_oficial_con_contraste.py,T-64,Discrepancia >= 10 pct en 48 h asigna sello en_disputa
+FR-024,Funcional,Vigencia y condiciones en promociones,modulos/comercial,backend/tests/integracion/test_promociones_ley1480.py,T-65,Validacion estricta condiciones de tiempo modo lugar Ley 1480
+FR-025,Funcional,Entrega promociones en arreglo separado,modulos/comercial,backend/tests/integracion/test_comparacion_ec06.py,T-65,Promociones en bloque separado sin alterar orden resultados
+FR-026,Funcional,Confirmacion de un toque en lectura IA,frontend/reportar,frontend/tests/e2e/flujo_reportar_ia.spec.ts,T-72,Prohibido publicar precio de IA sin confirmacion de usuario
+EC-01,Escenario,Usabilidad en gondola <= 15 s sin red,frontend/offline,frontend/tests/e2e/accesibilidad.spec.ts,T-48,Captura con 3 controles y cola IndexedDB validada con usuarios
+EC-02,Escenario,Frescura de precio vigente <= 60 s,modulos/precios,backend/tests/integracion/test_ec02_actualidad.py,T-54,100 repeticiones con peor tiempo de invalidacion <= 60 s
+EC-03,Escenario,Deteccion de anomalias >= 90 pct y rafagas,modulos/confianza,scripts/evaluar_ec03.py,T-35,Deteccion individual >= 90 pct grupal >= 70 pct falsas <= 10 pct
+EC-04,Escenario,Carga 500 VUs p95 <= 2000 ms error < 1 pct,infra/k6,infra/k6/ec04_carga.js,T-53,Prueba de estres k6 con 500 usuarios concurrentes en verde
+EC-05,Escenario,Modificabilidad etapa 2 esfuerzo <= 1.25x,arquitectura,docs/calidad/ec05-resultado.md,T-69,Esfuerzo real vs estimado sin redisenar el nucleo base
+EC-06,Escenario,Neutralidad comercial verificada al 100 pct,arquitectura,backend/tests/integracion/test_comparacion_ec06.py,T-68,import-linter y pruebas de contrato confirman cero sesgo
