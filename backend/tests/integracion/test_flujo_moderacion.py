@@ -44,8 +44,7 @@ async def setup_reporte_y_caso(reportante_id: str) -> tuple[str, str, str, str]:
         pr_id = (
             await sesion.execute(
                 text(
-                    "SELECT id FROM presentacion "
-                    "WHERE producto_id = :p AND activa = true LIMIT 1;"
+                    "SELECT id FROM presentacion WHERE producto_id = :p AND activa = true LIMIT 1;"
                 ),
                 {"p": p_id},
             )
