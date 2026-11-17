@@ -49,7 +49,7 @@ export default function PoliticaLey1581Resumen(): React.JSX.Element {
   return (
     <section
       aria-labelledby="titulo-ley1581"
-      className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+      className="rounded-2xl border border-slate-300 bg-superficie p-6"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">

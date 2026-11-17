@@ -59,7 +59,7 @@ export default function FormularioTiendaMod({
   return (
     <form
       onSubmit={(e) => void crear(e)}
-      className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+      className="space-y-3 rounded-2xl border border-slate-300 bg-superficie p-5"
     >
       <h3 className="text-base font-bold text-slate-900">Nuevo establecimiento</h3>
 
@@ -155,7 +155,7 @@ export default function FormularioTiendaMod({
       <button
         type="submit"
         disabled={enviando}
-        className="min-h-11 rounded-xl bg-emerald-700 px-5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
+        className="min-h-11 rounded-xl bg-bosque-800 px-5 text-sm font-semibold text-white hover:bg-bosque-900 disabled:opacity-50"
       >
         {enviando ? "Creando..." : "Crear establecimiento"}
       </button>

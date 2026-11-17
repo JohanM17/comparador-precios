@@ -130,14 +130,14 @@ export default function FormularioAutorizacionDatos({
           value={alias}
           onChange={(e) => setAlias(e.target.value)}
           placeholder="ej. vecino_armenia"
-          className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 text-sm text-slate-900 focus:border-emerald-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
+          className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 text-sm text-slate-900 focus:border-emerald-700 focus:bg-superficie focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
         />
         <p className="mt-1 text-xs text-slate-500">
           Solo letras, números y los símbolos <code>.</code>, <code>_</code> o <code>-</code>.
         </p>
       </div>
 
-      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-sm text-slate-800">
+      <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-300 bg-slate-50 p-3.5 text-sm text-slate-800">
         <input
           type="checkbox"
           checked={acepta}
@@ -153,7 +153,7 @@ export default function FormularioAutorizacionDatos({
       <button
         type="submit"
         disabled={enviando}
-        className="min-h-11 w-full rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-700 disabled:opacity-60"
+        className="min-h-11 w-full rounded-xl bg-bosque-800 px-5 py-2.5 text-sm font-semibold text-white hover:bg-bosque-900 focus:outline-none focus:ring-2 focus:ring-emerald-700 disabled:opacity-60"
       >
         {enviando ? "Guardando autorización..." : "Aceptar y activar mi cuenta"}
       </button>

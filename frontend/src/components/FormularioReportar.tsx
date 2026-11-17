@@ -152,11 +152,14 @@ export default function FormularioReportar(): React.JSX.Element {
   };
 
   return (
-    <div className="mx-auto max-w-xl space-y-4 px-4 py-5 pb-24 sm:px-6">
-      <header className="flex flex-wrap items-center justify-between gap-2">
+    <div>
+    <div className="curvas-nivel bg-bosque-900 text-white">
+    <div className="mx-auto max-w-xl px-4 pb-8 pt-8 sm:px-6">
+      <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Reportar precio</h1>
-          <p className="text-xs text-slate-600">3 pasos frente a la góndola, incluso sin conexión móvil.</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-miel-300">Frente a la góndola</p>
+          <h1 className="mt-1.5 text-4xl font-bold leading-none tracking-tight text-white">Reportar precio</h1>
+          <p className="mt-2 text-sm text-bosque-100">Tres pasos, incluso sin conexión móvil.</p>
         </div>
         {pendientesCola > 0 && (
           <button
@@ -169,6 +172,9 @@ export default function FormularioReportar(): React.JSX.Element {
           </button>
         )}
       </header>
+    </div>
+    </div>
+    <div className="mx-auto max-w-xl space-y-4 px-4 py-6 pb-24 sm:px-6">
 
       {!enLinea && (
         <output className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs font-semibold text-amber-950">
@@ -178,15 +184,15 @@ export default function FormularioReportar(): React.JSX.Element {
       )}
 
       {modoMedicion && (
-        <output data-testid="cronometro-ec01" className="flex items-center justify-between rounded-xl border border-slate-300 bg-slate-900 px-4 py-2.5 font-mono text-xs text-white">
-          <span className="flex items-center gap-1.5"><Clock className="h-4 w-4 text-emerald-400" aria-hidden="true" />Medición EC-01:</span>
+        <output data-testid="cronometro-ec01" className="flex items-center justify-between rounded-xl border border-bosque-800 bg-bosque-950 px-4 py-2.5 font-mono text-xs text-white">
+          <span className="flex items-center gap-1.5"><Clock className="h-4 w-4 text-bosque-400" aria-hidden="true" />Medición EC-01:</span>
           <span className="font-bold">{msFinal !== null ? `${msFinal} ms (${(msFinal / 1000).toFixed(2)} s)` : `${msTranscurridos} ms`}</span>
         </output>
       )}
 
       {errorMsg && <EstadoError detalle={errorMsg} />}
       {requiereIngreso && (
-        <Link href="/ingresar" className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-emerald-700 bg-emerald-50 px-4 text-sm font-semibold text-emerald-900">
+        <Link href="/ingresar" className="inline-flex min-h-11 w-full items-center justify-center rounded-full border border-emerald-700 bg-emerald-50 px-4 text-sm font-semibold text-emerald-900">
           Ir a iniciar sesión y autorizar Ley 1581
         </Link>
       )}
@@ -205,7 +211,7 @@ export default function FormularioReportar(): React.JSX.Element {
         <SelectorPresentacion valor={presentacionId} onChange={(id, meta) => { setPresentacionId(id); setPresentacionMeta(meta); }} />
         <CampoPrecio valor={precioTexto} onChange={(d, cop) => { setPrecioTexto(d); setPrecioCop(cop); }} />
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-300 bg-superficie p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <label htmlFor="foto-evidencia" className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-slate-300 bg-slate-50 px-4 text-sm font-semibold text-slate-800 hover:bg-slate-100">
               <Camera className="h-4 w-4 text-emerald-700" aria-hidden="true" />
@@ -223,10 +229,11 @@ export default function FormularioReportar(): React.JSX.Element {
           </div>
         </div>
 
-        <button type="submit" disabled={enviando || comprimiendoFoto} className="min-h-12 w-full rounded-xl bg-emerald-700 px-5 py-3 text-base font-bold text-white shadow-md hover:bg-emerald-800 disabled:opacity-50">
+        <button type="submit" disabled={enviando || comprimiendoFoto} className="min-h-12 w-full rounded-full bg-bosque-800 px-5 py-3 text-base font-bold text-white hover:bg-bosque-900 disabled:opacity-50">
           {enviando ? "Guardando precio..." : "Guardar precio"}
         </button>
       </form>
+    </div>
     </div>
   );
 }

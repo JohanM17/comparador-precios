@@ -201,7 +201,7 @@ export default function ComparadorProducto({
         <div className="mb-4">
           <Link
             href="/"
-            className="inline-flex min-h-10 items-center gap-1.5 text-sm font-semibold text-emerald-800 hover:text-emerald-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+            className="inline-flex min-h-10 items-center gap-1.5 text-sm font-semibold text-emerald-800 hover:text-cereza-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             Volver al catálogo
@@ -209,13 +209,13 @@ export default function ComparadorProducto({
         </div>
 
         {datos && (
-          <section className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <section className="mb-8 rounded-2xl border border-slate-300 bg-superficie p-6 sm:p-8">
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
               <div>
-                <span className="inline-flex rounded-full bg-slate-100 px-3 py-0.5 text-xs font-semibold text-slate-700">
-                  Unidad de comparación: {datos.producto.unidad_visualizacion}
+                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-cereza-700">
+                  Comparado por {datos.producto.unidad_visualizacion}
                 </span>
-                <h1 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
+                <h1 className="mt-2 font-display text-4xl font-bold leading-none tracking-tight text-slate-900 sm:text-5xl">
                   {datos.producto.nombre}
                 </h1>
               </div>
@@ -224,7 +224,7 @@ export default function ComparadorProducto({
                 type="button"
                 onClick={activarCercania}
                 disabled={buscandoGps}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-800 shadow-sm transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-700 disabled:opacity-60"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-slate-400 bg-superficie px-5 py-2 text-sm font-semibold text-slate-900 transition-colors hover:border-emerald-800 hover:bg-emerald-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 disabled:opacity-60"
               >
                 {ubicacion ? (
                   <MapPin className="h-4 w-4 text-emerald-700" aria-hidden="true" />
@@ -253,7 +253,7 @@ export default function ComparadorProducto({
                   id="filtro-presentacion"
                   value={presentacionId}
                   onChange={(e) => manejarCambioPresentacion(e.target.value)}
-                  className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 text-sm text-slate-900 focus:border-emerald-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
+                  className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 text-sm text-slate-900 focus:border-emerald-700 focus:bg-superficie focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
                 >
                   <option value="">Todas las presentaciones</option>
                   {datos.producto.presentaciones.map((p) => (
@@ -275,7 +275,7 @@ export default function ComparadorProducto({
                   id="selector-orden"
                   value={orden}
                   onChange={(e) => setOrden(e.target.value as CriterioOrden)}
-                  className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 text-sm text-slate-900 focus:border-emerald-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
+                  className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 text-sm text-slate-900 focus:border-emerald-700 focus:bg-superficie focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
                 >
                   <option value="precio_unitario">
                     Precio por {datos.producto.unidad_visualizacion} (menor primero)

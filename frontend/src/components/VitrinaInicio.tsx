@@ -107,23 +107,26 @@ export default function VitrinaInicio(): React.JSX.Element {
     <div>
       <AvisoDatosDemo visible={false} />
 
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            Compara precios reales de la canasta familiar en Armenia
+      <section className="curvas-nivel bg-bosque-900 text-white">
+        <div className="mx-auto max-w-7xl px-4 pb-10 pt-10 sm:px-6 sm:pb-14 sm:pt-14 lg:px-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-miel-300">
+            Armenia, Quindío · Canasta familiar
+          </p>
+          <h1 className="mt-3 max-w-3xl font-display text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
+            ¿Dónde está más barato el mercado de hoy?
           </h1>
-          <p className="mt-2 max-w-2xl text-sm text-slate-700 sm:text-base">
-            Precios normalizados por unidad de medida (kg, litro o unidad), sin pautas ni
-            favoritismos comerciales.
+          <p className="mt-4 max-w-xl text-base leading-relaxed text-bosque-100 sm:text-lg">
+            Precios reales que reporta tu comunidad, comparados por kilo, litro o unidad. Sin pautas
+            ni favoritismos comerciales.
           </p>
 
-          <form onSubmit={manejarBusqueda} role="search" className="mt-5 flex flex-col gap-3 sm:flex-row">
+          <form onSubmit={manejarBusqueda} role="search" className="mt-7 flex max-w-2xl flex-col gap-3 sm:flex-row">
             <div className="relative flex-1">
               <label htmlFor="buscador-vitrina" className="sr-only">
                 Buscar producto por nombre, marca o cantidad
               </label>
               <Search
-                className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
+                className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500"
                 aria-hidden="true"
               />
               <input
@@ -132,14 +135,14 @@ export default function VitrinaInicio(): React.JSX.Element {
                 value={terminoInput}
                 onChange={(e) => setTerminoInput(e.target.value)}
                 placeholder="Ej. arroz 1/2 kilo, leche, aceite..."
-                className="min-h-11 w-full rounded-xl border border-slate-300 bg-slate-50 py-2.5 pl-10 pr-10 text-sm text-slate-900 placeholder-slate-500 focus:border-emerald-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
+                className="min-h-12 w-full rounded-full border-2 border-transparent bg-superficie py-3 pl-11 pr-11 text-base text-slate-900 placeholder-slate-500 shadow-lg shadow-black/30 focus:border-miel-300 focus:outline-none"
               />
               {terminoInput && (
                 <button
                   type="button"
                   onClick={limpiarBusqueda}
                   aria-label="Limpiar búsqueda"
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-500 hover:bg-slate-200 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-500 hover:bg-slate-200 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
                 >
                   <X className="h-4 w-4" aria-hidden="true" />
                 </button>
@@ -147,21 +150,21 @@ export default function VitrinaInicio(): React.JSX.Element {
             </div>
             <button
               type="submit"
-              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-700 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-700 focus:ring-offset-2"
+              className="inline-flex min-h-12 items-center justify-center rounded-full bg-miel-300 px-8 py-3 text-base font-bold text-bosque-950 transition-colors hover:bg-miel-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-bosque-900"
             >
               Buscar
             </button>
           </form>
 
-          <nav aria-label="Categorías de productos" className="mt-5 flex gap-2 overflow-x-auto pb-1">
+          <nav aria-label="Categorías de productos" className="mt-6 flex gap-2 overflow-x-auto pb-1">
             <button
               type="button"
               onClick={() => setCategoriaId(null)}
               aria-pressed={categoriaId === null}
-              className={`min-h-10 flex-shrink-0 rounded-full border px-4 py-1.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-700 ${
+              className={`min-h-10 flex-shrink-0 rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-miel-300 ${
                 categoriaId === null
-                  ? "border-emerald-700 bg-emerald-700 text-white"
-                  : "border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
+                  ? "border-white bg-white text-bosque-900"
+                  : "border-white/30 bg-transparent text-white hover:border-white hover:bg-white/10"
               }`}
             >
               Todas las categorías
@@ -174,10 +177,10 @@ export default function VitrinaInicio(): React.JSX.Element {
                   type="button"
                   onClick={() => setCategoriaId(cat.id)}
                   aria-pressed={seleccionada}
-                  className={`min-h-10 flex-shrink-0 rounded-full border px-4 py-1.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-700 ${
+                  className={`min-h-10 flex-shrink-0 rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-miel-300 ${
                     seleccionada
-                      ? "border-emerald-700 bg-emerald-700 text-white"
-                      : "border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
+                      ? "border-white bg-white text-bosque-900"
+                      : "border-white/30 bg-transparent text-white hover:border-white hover:bg-white/10"
                   }`}
                 >
                   {cat.nombre}
@@ -185,9 +188,11 @@ export default function VitrinaInicio(): React.JSX.Element {
               );
             })}
           </nav>
-        </section>
+        </div>
+      </section>
 
-        <section aria-label="Catálogo de productos" className="mt-6">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <section aria-label="Catálogo de productos">
           {cargando && <Cargando filas={6} etiqueta="Cargando productos de la canasta..." />}
 
           {!cargando && error && (
