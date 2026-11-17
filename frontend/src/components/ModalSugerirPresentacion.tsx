@@ -97,9 +97,9 @@ export default function ModalSugerirPresentacion({
       open
       aria-modal="true"
       aria-labelledby="titulo-sugerencia-pres"
-      className="fixed inset-0 z-50 m-0 flex h-full max-h-none w-full max-w-none items-center justify-center border-0 bg-slate-900/60 p-4"
+      className="fixed inset-0 z-50 m-0 flex h-full max-h-none w-full max-w-none items-center justify-center border-0 bg-black/60 p-4"
     >
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+      <div className="w-full max-w-md rounded-2xl border border-slate-300 bg-superficie p-5 shadow-xl">
         <div className="flex items-start justify-between gap-3">
           <h2 id="titulo-sugerencia-pres" className="text-lg font-bold text-slate-900">
             Sugerir presentación faltante
@@ -126,7 +126,7 @@ export default function ModalSugerirPresentacion({
                 setExito(null);
                 onCerrar();
               }}
-              className="min-h-11 w-full rounded-xl bg-emerald-700 px-4 text-sm font-semibold text-white"
+              className="min-h-11 w-full rounded-xl bg-bosque-800 px-4 text-sm font-semibold text-white"
             >
               Volver al reporte
             </button>
@@ -234,7 +234,7 @@ export default function ModalSugerirPresentacion({
             <button
               type="submit"
               disabled={enviando || !productoId}
-              className="min-h-11 w-full rounded-xl bg-emerald-700 px-4 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
+              className="min-h-11 w-full rounded-xl bg-bosque-800 px-4 text-sm font-semibold text-white hover:bg-bosque-900 disabled:opacity-50"
             >
               {enviando ? "Enviando..." : "Enviar sugerencia"}
             </button>

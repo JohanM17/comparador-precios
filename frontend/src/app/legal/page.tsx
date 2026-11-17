@@ -54,28 +54,31 @@ const SELLOS_CIUDADANOS: readonly ExplicacionSello[] = [
  */
 export default function PaginaLegal(): React.JSX.Element {
   return (
-    <div className="mx-auto max-w-4xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
-      <div>
-        <Link
-          href="/"
-          className="inline-flex min-h-10 items-center gap-1.5 text-sm font-semibold text-emerald-800 hover:text-emerald-900"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          Volver al inicio
-        </Link>
-        <h1 className="mt-2 text-2xl font-bold text-slate-900 sm:text-3xl">
-          Transparencia, Privacidad y Licencias
-        </h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Reglas públicas de funcionamiento, protección de datos y cálculo neutral de precios.
-        </p>
+    <div>
+      <div className="curvas-nivel bg-bosque-900 text-white">
+        <div className="mx-auto max-w-4xl px-4 pb-10 pt-8 sm:px-6 lg:px-8">
+          <Link
+            href="/"
+            className="inline-flex min-h-10 items-center gap-1.5 text-sm font-semibold text-miel-300 hover:text-miel-100"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            Volver al inicio
+          </Link>
+          <h1 className="mt-4 max-w-2xl text-4xl font-bold leading-[1.05] tracking-tight sm:text-5xl">
+            Transparencia, Privacidad y Licencias
+          </h1>
+          <p className="mt-4 max-w-xl text-base text-bosque-100">
+            Reglas públicas de funcionamiento, protección de datos y cálculo neutral de precios.
+          </p>
+        </div>
       </div>
+    <div className="mx-auto max-w-4xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
 
       <PoliticaLey1581Resumen />
 
       <section
         aria-labelledby="titulo-ley527"
-        className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+        className="rounded-2xl border border-slate-300 bg-superficie p-6"
       >
         <div className="flex items-center gap-2">
           <FileText className="h-5 w-5 text-emerald-700" aria-hidden="true" />
@@ -94,7 +97,7 @@ export default function PaginaLegal(): React.JSX.Element {
 
       <section
         aria-labelledby="titulo-sellos"
-        className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+        className="rounded-2xl border border-slate-300 bg-superficie p-6"
       >
         <h2 id="titulo-sellos" className="text-lg font-bold text-slate-900">
           Los 5 sellos de confianza ciudadana (y estado comercial oficial)
@@ -119,7 +122,7 @@ export default function PaginaLegal(): React.JSX.Element {
 
       <section
         aria-labelledby="titulo-formulas"
-        className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+        className="rounded-2xl border border-slate-300 bg-superficie p-6"
       >
         <div className="flex items-center gap-2">
           <Calculator className="h-5 w-5 text-emerald-700" aria-hidden="true" />
@@ -152,7 +155,7 @@ export default function PaginaLegal(): React.JSX.Element {
       <section
         id="neutralidad"
         aria-labelledby="titulo-neutralidad"
-        className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-6 shadow-sm"
+        className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-6"
       >
         <div className="flex items-center gap-2">
           <Scale className="h-5 w-5 text-emerald-800" aria-hidden="true" />
@@ -171,7 +174,7 @@ export default function PaginaLegal(): React.JSX.Element {
 
       <section
         aria-labelledby="titulo-odbl"
-        className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+        className="rounded-2xl border border-slate-300 bg-superficie p-6"
       >
         <div className="flex items-center gap-2">
           <Database className="h-5 w-5 text-emerald-700" aria-hidden="true" />
@@ -191,6 +194,7 @@ export default function PaginaLegal(): React.JSX.Element {
           </li>
         </ul>
       </section>
+    </div>
     </div>
   );
 }

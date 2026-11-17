@@ -53,7 +53,7 @@ export default function DetalleCasoPanel({
   };
 
   return (
-    <section className="rounded-2xl border border-emerald-300 bg-white p-5 shadow-md">
+    <section className="rounded-2xl border border-emerald-300 bg-superficie p-5">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-base font-bold text-slate-900">
           Caso {caso.tipo} ({caso.id.slice(0, 8)})
@@ -147,7 +147,7 @@ export default function DetalleCasoPanel({
           <button
             type="submit"
             disabled={resolviendo}
-            className="min-h-11 rounded-xl bg-emerald-700 px-5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
+            className="min-h-11 rounded-xl bg-bosque-800 px-5 text-sm font-semibold text-white hover:bg-bosque-900 disabled:opacity-50"
           >
             {resolviendo ? "Aplicando resolución..." : "Guardar resolución"}
           </button>

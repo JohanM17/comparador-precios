@@ -59,7 +59,7 @@ export default function TablaGestion<T>({
           return (
             <li
               key={idFila}
-              className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+              className="rounded-2xl border border-slate-300 bg-superficie p-4"
             >
               <dl className="space-y-2 text-sm">
                 {columnas.map((col) => (
@@ -81,7 +81,7 @@ export default function TablaGestion<T>({
       {/* Vista tabular para escritorio */}
       <section
         aria-label={etiquetaTabla}
-        className="hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:block"
+        className="hidden overflow-hidden rounded-2xl border border-slate-300 bg-superficie md:block"
       >
         <table className="w-full divide-y divide-slate-200 text-left text-sm">
           <caption className="sr-only">{etiquetaTabla}</caption>
@@ -94,7 +94,7 @@ export default function TablaGestion<T>({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 bg-white text-slate-800">
+          <tbody className="divide-y divide-slate-100 bg-superficie text-slate-800">
             {datos.map((fila, idx) => {
               const idFila = claveFila ? claveFila(fila, idx) : String(idx);
               return (
@@ -118,7 +118,7 @@ export default function TablaGestion<T>({
               type="button"
               onClick={onAnterior}
               disabled={cargando}
-              className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-50"
+              className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-slate-300 bg-superficie px-4 text-xs font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-50"
             >
               <ChevronLeft className="h-4 w-4" aria-hidden="true" />
               Anterior
@@ -129,7 +129,7 @@ export default function TablaGestion<T>({
               type="button"
               onClick={onSiguiente}
               disabled={cargando}
-              className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-slate-300 bg-white px-4 text-xs font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-50"
+              className="inline-flex min-h-11 items-center gap-1 rounded-xl border border-slate-300 bg-superficie px-4 text-xs font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-50"
             >
               Siguiente
               <ChevronRight className="h-4 w-4" aria-hidden="true" />
