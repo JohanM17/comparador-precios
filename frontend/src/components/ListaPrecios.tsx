@@ -25,11 +25,11 @@ export default function ListaPrecios({
   const bloqueSecundario = resultados.filter((item) => item.es_bloque_secundario);
 
   return (
-    <div data-criterio-orden={criterioOrden} className="space-y-6">
+    <div data-criterio-orden={criterioOrden} className="space-y-8">
       <div
         role="note"
         aria-label="Garantía de neutralidad comercial"
-        className="flex flex-col justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 text-sm text-emerald-950 sm:flex-row sm:items-center"
+        className="flex flex-col justify-between gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-950 sm:flex-row sm:items-center"
       >
         <div className="flex items-start gap-2.5 sm:items-center">
           <ShieldCheck className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-800 sm:mt-0" aria-hidden="true" />
@@ -37,19 +37,21 @@ export default function ListaPrecios({
         </div>
         <Link
           href="/legal#neutralidad"
-          className="flex-shrink-0 text-xs font-semibold text-emerald-900 underline decoration-emerald-600 underline-offset-4 hover:text-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+          className="flex-shrink-0 text-xs font-semibold text-emerald-900 underline decoration-emerald-600 underline-offset-4 hover:text-cereza-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
         >
           Ver criterio de neutralidad
         </Link>
       </div>
 
       {bloquePrincipal.length > 0 && (
-        <section aria-label="Precios vigentes confiables" className="space-y-3">
-          {bloquePrincipal.map((item) => (
+        <section aria-label="Precios vigentes confiables" className="space-y-5 pt-2">
+          {bloquePrincipal.map((item, indice) => (
             <FilaPrecio
               key={`${item.establecimiento.id}-${item.presentacion.id}`}
               item={item}
               productoId={productoId}
+              posicion={indice + 1}
+              destacada={indice === 0 && criterioOrden === "precio_unitario"}
             />
           ))}
         </section>
@@ -58,10 +60,10 @@ export default function ListaPrecios({
       {bloqueSecundario.length > 0 && (
         <section aria-labelledby="titulo-bloque-secundario" className="space-y-3 pt-2">
           <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-slate-300" aria-hidden="true" />
+            <div className="h-px flex-1 bg-slate-400" aria-hidden="true" />
             <h2
               id="titulo-bloque-secundario"
-              className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-slate-100 px-3.5 py-1 text-xs font-bold uppercase tracking-wide text-slate-700"
+              className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-slate-700"
             >
               <AlertCircle className="h-3.5 w-3.5 text-slate-600" aria-hidden="true" />
               Precios desactualizados o en revisión

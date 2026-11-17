@@ -2,13 +2,34 @@
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
 
-:root {
-  --foreground-rgb: 15, 23, 42;
-  --background-rgb: 248, 250, 252;
+body {
+  color: rgb(var(--c-slate-900));
+  background: rgb(var(--c-slate-50));
+  font-feature-settings: "ss01", "cv11";
 }
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-rgb));
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+/* Cifras alineadas en columnas de precios */
+.cifras {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum", "lnum";
+}
+
+/* Curvas de nivel del paisaje cafetero: textura del encabezado, solo decorativa */
+.curvas-nivel {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='640' height='360' viewBox='0 0 640 360' fill='none' stroke='%23ffffff' stroke-opacity='0.09' stroke-width='1.2'%3E%3Cpath d='M-20 300C80 260 120 330 220 290S380 220 460 260 600 300 700 250'/%3E%3Cpath d='M-20 262C90 222 130 292 225 252S385 182 465 222 605 262 700 212'/%3E%3Cpath d='M-20 224C100 184 140 254 230 214S390 144 470 184 610 224 700 174'/%3E%3Cpath d='M-20 186C110 146 150 216 235 176S395 106 475 146 615 186 700 136'/%3E%3Cpath d='M-20 148C120 108 160 178 240 138S400 68 480 108 620 148 700 98'/%3E%3Cpath d='M-20 110C130 70 170 140 245 100S405 30 485 70 625 110 700 60'/%3E%3Cpath d='M-20 72C140 32 180 102 250 62S410 -8 490 32 630 72 700 22'/%3E%3C/svg%3E");
+  background-size: 640px 360px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* Titulos en la tipografia de marca en todas las pantallas */
+h1, h2, h3 {
+  font-family: var(--font-titulo), system-ui, sans-serif;
+  letter-spacing: -0.01em;
 }

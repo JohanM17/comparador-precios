@@ -83,8 +83,8 @@ export default function FormularioAccesoSupabase({
           onClick={() => setModo("iniciar")}
           className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border text-sm font-semibold ${
             modo === "iniciar"
-              ? "border-emerald-700 bg-emerald-700 text-white"
-              : "border-slate-300 bg-white text-slate-800 hover:bg-slate-50"
+              ? "border-emerald-700 bg-bosque-800 text-white"
+              : "border-slate-300 bg-superficie text-slate-800 hover:bg-slate-50"
           }`}
         >
           <LogIn className="h-4 w-4" aria-hidden="true" />
@@ -97,8 +97,8 @@ export default function FormularioAccesoSupabase({
           onClick={() => setModo("registrar")}
           className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border text-sm font-semibold ${
             modo === "registrar"
-              ? "border-emerald-700 bg-emerald-700 text-white"
-              : "border-slate-300 bg-white text-slate-800 hover:bg-slate-50"
+              ? "border-emerald-700 bg-bosque-800 text-white"
+              : "border-slate-300 bg-superficie text-slate-800 hover:bg-slate-50"
           }`}
         >
           <UserPlus className="h-4 w-4" aria-hidden="true" />
@@ -128,7 +128,7 @@ export default function FormularioAccesoSupabase({
             value={correo}
             onChange={(e) => setCorreo(e.target.value)}
             placeholder="tu@correo.com"
-            className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 text-sm text-slate-900 focus:border-emerald-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
+            className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 text-sm text-slate-900 focus:border-emerald-700 focus:bg-superficie focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
           />
         </div>
         <div>
@@ -142,13 +142,13 @@ export default function FormularioAccesoSupabase({
             minLength={6}
             value={clave}
             onChange={(e) => setClave(e.target.value)}
-            className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 text-sm text-slate-900 focus:border-emerald-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
+            className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 text-sm text-slate-900 focus:border-emerald-700 focus:bg-superficie focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
           />
         </div>
         <button
           type="submit"
           disabled={enviando}
-          className="min-h-11 w-full rounded-xl bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-700 disabled:opacity-60"
+          className="min-h-11 w-full rounded-xl bg-bosque-800 px-5 py-2.5 text-sm font-semibold text-white hover:bg-bosque-900 focus:outline-none focus:ring-2 focus:ring-emerald-700 disabled:opacity-60"
         >
           {textoBoton}
         </button>

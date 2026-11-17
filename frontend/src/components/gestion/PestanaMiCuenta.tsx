@@ -88,7 +88,7 @@ export default function PestanaMiCuenta({
         </output>
       )}
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="rounded-2xl border border-slate-300 bg-superficie p-5">
         <h2 className="text-lg font-bold text-slate-900">Mis datos personales (Ley 1581)</h2>
         <dl className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
           <div className="rounded-xl bg-slate-50 p-3">
@@ -133,7 +133,7 @@ export default function PestanaMiCuenta({
           <button
             type="submit"
             disabled={guardando || alias.trim() === perfil.alias}
-            className="min-h-11 rounded-xl bg-emerald-700 px-5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
+            className="min-h-11 rounded-xl bg-bosque-800 px-5 text-sm font-semibold text-white hover:bg-bosque-900 disabled:opacity-50"
           >
             {guardando ? "Guardando..." : "Actualizar alias"}
           </button>
@@ -157,7 +157,7 @@ export default function PestanaMiCuenta({
                 setConfirmacionTexto("");
                 setModalEliminar(true);
               }}
-              className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl bg-rose-700 px-4 text-sm font-semibold text-white hover:bg-rose-800"
+              className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-xl bg-brasa-600 px-4 text-sm font-semibold text-white hover:bg-brasa-700"
             >
               <Trash2 className="h-4 w-4" aria-hidden="true" />
               Suprimir cuenta y anonimizar datos (Ley 1581)
@@ -171,9 +171,9 @@ export default function PestanaMiCuenta({
           open
           aria-modal="true"
           aria-labelledby="titulo-confirmar-supresion"
-          className="fixed inset-0 z-50 m-0 flex h-full max-h-none w-full max-w-none items-center justify-center border-0 bg-slate-900/60 p-4"
+          className="fixed inset-0 z-50 m-0 flex h-full max-h-none w-full max-w-none items-center justify-center border-0 bg-black/60 p-4"
         >
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+          <div className="w-full max-w-md rounded-2xl border border-slate-300 bg-superficie p-6 shadow-xl">
             <h3 id="titulo-confirmar-supresion" className="text-lg font-bold text-slate-900">
               Confirmar supresión de cuenta
             </h3>
@@ -195,7 +195,7 @@ export default function PestanaMiCuenta({
               <button
                 type="button"
                 onClick={() => setModalEliminar(false)}
-                className="min-h-11 flex-1 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-800"
+                className="min-h-11 flex-1 rounded-xl border border-slate-300 bg-superficie text-sm font-semibold text-slate-800"
               >
                 Cancelar
               </button>
@@ -203,7 +203,7 @@ export default function PestanaMiCuenta({
                 type="button"
                 disabled={eliminando || confirmacionTexto.trim().toUpperCase() !== "ELIMINAR"}
                 onClick={() => void confirmarEliminacion()}
-                className="min-h-11 flex-1 rounded-xl bg-rose-700 text-sm font-semibold text-white hover:bg-rose-800 disabled:opacity-50"
+                className="min-h-11 flex-1 rounded-xl bg-brasa-600 text-sm font-semibold text-white hover:bg-brasa-700 disabled:opacity-50"
               >
                 {eliminando ? "Anonimizando..." : "Confirmar supresión"}
               </button>

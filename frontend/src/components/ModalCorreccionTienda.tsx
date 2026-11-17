@@ -72,9 +72,9 @@ export default function ModalCorreccionTienda({
       open
       aria-modal="true"
       aria-labelledby="titulo-modal-correccion"
-      className="fixed inset-0 z-50 m-0 flex h-full max-h-none w-full max-w-none items-center justify-center border-0 bg-slate-900/60 p-4"
+      className="fixed inset-0 z-50 m-0 flex h-full max-h-none w-full max-w-none items-center justify-center border-0 bg-black/60 p-4"
     >
-      <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 shadow-xl">
+      <div className="w-full max-w-lg rounded-2xl border border-slate-300 bg-superficie p-6 shadow-xl">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 id="titulo-modal-correccion" className="text-lg font-bold text-slate-900">
@@ -104,7 +104,7 @@ export default function ModalCorreccionTienda({
                 setExito(null);
                 onCerrar();
               }}
-              className="min-h-11 w-full rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+              className="min-h-11 w-full rounded-xl bg-bosque-800 px-4 py-2 text-sm font-semibold text-white hover:bg-bosque-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
             >
               Cerrar
             </button>
@@ -128,7 +128,7 @@ export default function ModalCorreccionTienda({
                 value={correo}
                 onChange={(e) => setCorreo(e.target.value)}
                 placeholder="tucorreo@ejemplo.com"
-                className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 text-sm text-slate-900 focus:border-emerald-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
+                className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 text-sm text-slate-900 focus:border-emerald-700 focus:bg-superficie focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
               />
             </div>
 
@@ -145,7 +145,7 @@ export default function ModalCorreccionTienda({
                 value={mensaje}
                 onChange={(e) => setMensaje(e.target.value)}
                 placeholder="Ej. La dirección correcta es Cra 14 # 18-22 o el negocio cerró."
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 p-3 text-sm text-slate-900 focus:border-emerald-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
+                className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 p-3 text-sm text-slate-900 focus:border-emerald-700 focus:bg-superficie focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
               />
             </div>
 
@@ -167,14 +167,14 @@ export default function ModalCorreccionTienda({
               <button
                 type="button"
                 onClick={onCerrar}
-                className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                className="min-h-11 rounded-xl border border-slate-300 bg-superficie px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-700"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={enviando}
-                className="min-h-11 rounded-xl bg-emerald-700 px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-700 disabled:opacity-60"
+                className="min-h-11 rounded-xl bg-bosque-800 px-5 py-2 text-sm font-semibold text-white hover:bg-bosque-900 focus:outline-none focus:ring-2 focus:ring-emerald-700 disabled:opacity-60"
               >
                 {enviando ? "Enviando..." : "Enviar solicitud"}
               </button>
