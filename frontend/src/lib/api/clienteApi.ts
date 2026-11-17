@@ -74,7 +74,22 @@ export interface FiltrosComparacion {
   readonly radio_km?: number | null;
 }
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+function normalizarUrlApi(valorCrudo: string | undefined): string {
+  let limpio = (valorCrudo ?? "").trim();
+  while (limpio.endsWith("/")) {
+    limpio = limpio.slice(0, -1);
+  }
+  if (!limpio) {
+    return "http://localhost:8000";
+  }
+  const esLocal = /^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(limpio);
+  if (limpio.toLowerCase().startsWith("http://") || limpio.toLowerCase().startsWith("https://")) {
+    return limpio;
+  }
+  return `${esLocal ? "http" : "https"}://${limpio}`;
+}
+
+const BASE_URL = normalizarUrlApi(process.env.NEXT_PUBLIC_API_URL);
 
 function construirQuery(params: Record<string, string | number | null | undefined>): string {
   const sp = new URLSearchParams();
