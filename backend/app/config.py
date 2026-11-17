@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import json
 from functools import lru_cache
-from typing import Self
+from typing import Annotated, Any, Self
 
-from pydantic import model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import field_validator, model_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Configuracion(BaseSettings):
@@ -22,7 +23,31 @@ class Configuracion(BaseSettings):
     ENTORNO: str = "local"
     FASTAPI_HOST: str = "127.0.0.1"
     FASTAPI_PORT: int = 8000
-    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    CORS_ORIGINS: Annotated[list[str], NoDecode] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://comparador-precios-rho.vercel.app",
+    ]
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def parsear_cors_origins(cls, valor: Any) -> list[str]:
+        """Acepta lista JSON o cadena separada por comas en variables de entorno."""
+        if isinstance(valor, str):
+            texto = valor.strip()
+            if not texto:
+                return []
+            if texto.startswith("["):
+                cargado = json.loads(texto)
+                return [str(o).strip().rstrip("/") for o in cargado if str(o).strip()]
+            return [o.strip().rstrip("/") for o in texto.split(",") if o.strip()]
+        if isinstance(valor, list):
+            return [str(o).strip().rstrip("/") for o in valor if str(o).strip()]
+        return [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "https://comparador-precios-rho.vercel.app",
+        ]
 
     # Supabase (API, Auth, Storage)
     SUPABASE_URL: str = ""
