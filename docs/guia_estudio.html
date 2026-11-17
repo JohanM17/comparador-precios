@@ -1,0 +1,419 @@
+<title>Guía Comparador de Precios</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* Concepto: etiqueta de góndola. Fondo gris frío, tarjetas blancas, acento amarillo de etiqueta de precio, precios en mono. */
+:root{
+  --bg:#eef1f4; --surface:#ffffff; --fg:#14202b; --muted:#566676; --line:#d6dde4;
+  --tag:#ffd23f; --tag-fg:#14202b; --accent:#0d6b5c; --accent-soft:#dff1ed;
+  --bad:#b3341f; --bad-soft:#fbe6e1; --ok:#1f7a45; --ok-soft:#e1f3e8;
+  --code:#e8edf2;
+  --f-d:'Space Grotesk',system-ui,sans-serif; --f-b:'Inter',system-ui,sans-serif; --f-m:'JetBrains Mono',ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e151c; --surface:#17212b; --fg:#e7edf2; --muted:#9bacbb; --line:#2a3846;
+  --tag:#ffd23f; --tag-fg:#14202b; --accent:#4cc9b0; --accent-soft:#143a35;
+  --bad:#ff8a73; --bad-soft:#3a1d18; --ok:#6fd49a; --ok-soft:#15321f; --code:#1f2b37; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e151c; --surface:#17212b; --fg:#e7edf2; --muted:#9bacbb; --line:#2a3846;
+  --tag:#ffd23f; --tag-fg:#14202b; --accent:#4cc9b0; --accent-soft:#143a35;
+  --bad:#ff8a73; --bad-soft:#3a1d18; --ok:#6fd49a; --ok-soft:#15321f; --code:#1f2b37; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-b);font-size:16px;line-height:1.6;
+  padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:980px;margin:0 auto;padding-block:28px 64px}
+h1,h2,h3{font-family:var(--f-d);line-height:1.15;text-wrap:balance;margin:0}
+h1{font-size:clamp(30px,6vw,52px);letter-spacing:-.02em}
+h2{font-size:clamp(22px,3.4vw,30px);margin-bottom:14px}
+h3{font-size:18px;margin-bottom:6px}
+p{margin:0 0 12px;max-width:68ch}
+code,.m{font-family:var(--f-m);font-size:.88em;background:var(--code);padding:1px 6px;border-radius:4px}
+.m{background:none;padding:0}
+.eyebrow{font:600 12px/1 var(--f-b);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+header{display:flex;flex-direction:column;gap:14px;padding-bottom:22px}
+.price{display:inline-flex;align-items:baseline;gap:6px;background:var(--tag);color:var(--tag-fg);
+  font-family:var(--f-m);font-weight:700;padding:6px 12px;border-radius:4px;width:fit-content;font-size:15px}
+nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding:10px 0;
+  display:flex;gap:6px;overflow-x:auto;border-bottom:1px solid var(--line);margin-bottom:24px}
+nav button{font:600 14px var(--f-b);white-space:nowrap;border:1px solid var(--line);background:var(--surface);color:var(--fg);
+  padding:8px 14px;border-radius:999px;cursor:pointer}
+nav button[aria-selected="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+section[hidden]{display:none}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px;min-width:0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.stack{display:flex;flex-direction:column;gap:14px}
+.lead{font-size:18px;color:var(--muted)}
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.scroll{overflow-x:auto}
+.pill{display:inline-block;font:600 12px var(--f-m);padding:2px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)} .pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.tag{background:var(--tag);color:var(--tag-fg)}
+ul{margin:0 0 12px;padding-left:20px} li{margin-bottom:4px}
+.note{border-left:4px solid var(--tag);background:var(--surface);padding:12px 16px;border-radius:0 8px 8px 0}
+.tool{border:2px solid var(--fg);border-radius:10px;padding:18px;background:var(--surface)}
+.tool label{display:block;font-weight:600;font-size:14px;margin-bottom:4px}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.row>*{flex:1 1 130px;min-width:0}
+input[type=number],select{width:100%;font:500 16px var(--f-m);padding:9px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.out{font-family:var(--f-m);font-weight:700;font-size:26px}
+.layers{display:flex;flex-direction:column;gap:6px}
+.layer{display:flex;gap:12px;align-items:center;border:1px solid var(--line);background:var(--surface);padding:10px 14px;border-radius:8px}
+.layer b{font-family:var(--f-m);font-size:13px;min-width:92px}
+.layer.core{border:2px solid var(--accent);background:var(--accent-soft)}
+pre.mermaid{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;overflow-x:auto}
+.fc{cursor:pointer;text-align:left;font:inherit;color:inherit;width:100%;min-height:120px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+.fc .a{display:none;margin-top:8px;color:var(--accent);font-weight:600}
+.fc[aria-pressed="true"] .a{display:block}
+.q{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:16px}
+.q .opts{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.q .opts button{text-align:left;font:inherit;padding:10px 12px;border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:8px;cursor:pointer}
+.q .opts button.right{background:var(--ok-soft);border-color:var(--ok)}
+.q .opts button.wrong{background:var(--bad-soft);border-color:var(--bad)}
+.q .why{display:none;margin-top:10px;font-size:14.5px;color:var(--muted)}
+.q.done .why{display:block}
+.score{font-family:var(--f-d);font-size:20px}
+@media (prefers-reduced-motion:no-preference){.card,.tool{transition:border-color .15s}}
+</style>
+
+<div class="wrap">
+<header>
+  <span class="eyebrow">Guía de estudio · Armenia, Quindío · v1.0-núcleo</span>
+  <h1>Comparador de precios de la canasta familiar</h1>
+  <p class="lead">Qué construye el proyecto, por qué está diseñado así y cómo se defiende cada decisión. Con calculadoras de las reglas del dominio y un banco de preguntas para repasar.</p>
+  <span class="price">1 kg · $5.000 &rarr; $5.000/kg &nbsp;|&nbsp; 500 g · $2.800 &rarr; $5.600/kg</span>
+</header>
+
+<nav role="tablist" aria-label="Secciones">
+  <button role="tab" aria-selected="true" data-t="vision">Visión</button>
+  <button role="tab" aria-selected="false" data-t="arq">Arquitectura</button>
+  <button role="tab" aria-selected="false" data-t="dom">Reglas del dominio</button>
+  <button role="tab" aria-selected="false" data-t="cal">Calidad ISO</button>
+  <button role="tab" aria-selected="false" data-t="seg">Datos y legal</button>
+  <button role="tab" aria-selected="false" data-t="rep">Repaso</button>
+</nav>
+
+<!-- ========== VISIÓN ========== -->
+<section id="vision" class="stack">
+  <div class="card">
+    <h2>El problema</h2>
+    <p>El mismo producto cuesta distinto según tienda, barrio y presentación, y el consumidor casi nunca puede comparar antes de comprar. Ejemplo del proyecto: arroz de 500 g a $2.600 en una tienda de barrio y $3.100 en un supermercado de cadena. Afecta a hogares de presupuesto ajustado y a tiendas de barrio sin canales digitales.</p>
+    <p><b>Reto técnico central:</b> los datos vienen de fuentes con confiabilidad desigual y pierden vigencia. El sistema debe mostrar información confiable, actualizada y neutral aunque haya errores de digitación o intentos de manipulación.</p>
+  </div>
+
+  <h2>Actores</h2>
+  <div class="grid">
+    <div class="card"><h3>Consumidor</h3><p>Consulta sin cuenta. Necesita lecturas muy rápidas y sellos claros de vigencia.</p></div>
+    <div class="card"><h3>Reportante</h3><p>Registra precios desde el pasillo con poca señal. Formulario de 3 controles, cola offline e idempotencia.</p></div>
+    <div class="card"><h3>Comercio</h3><p>Etapa 2. Publica precios oficiales y promociones. Nunca gana posición por pagar.</p></div>
+    <div class="card"><h3>Moderador</h3><p>Atiende casos dudosos, gestiona catálogo, sanciones y parámetros. Todo queda auditado.</p></div>
+  </div>
+
+  <div class="card">
+    <h2>Dos etapas</h2>
+    <div class="scroll"><table>
+      <tr><th>Etapa</th><th>Qué incluye</th><th>Estado</th></tr>
+      <tr><td><b>1 · Núcleo</b></td><td>Catálogo normalizado, registro colaborativo con historial inmutable, directorio de tiendas, comparación por precio por unidad base.</td><td><span class="pill ok">Entregada</span></td></tr>
+      <tr><td><b>2 · Comercial</b></td><td>Perfil de comercio verificado, precios oficiales, promociones estructuradas, contraste oficial vs comunidad.</td><td><span class="pill">Pendiente</span></td></tr>
+    </table></div>
+    <p style="margin-top:12px">Fuera de alcance: venta en línea, carrito, pagos, pedidos, domicilios y perfilamiento para recomendaciones.</p>
+  </div>
+
+  <div class="card">
+    <h2>Las 7 pantallas</h2>
+    <div class="scroll"><table>
+      <tr><th>ID</th><th>Ruta</th><th>Para qué sirve</th></tr>
+      <tr><td>S1</td><td><code>/</code></td><td>Vitrina con buscador, categorías, "Desde $X por kg en N tiendas" y botón flotante Reportar.</td></tr>
+      <tr><td>S2</td><td><code>/producto/[id]</code></td><td>Comparador en dos bloques con sellos, orden elegible y bloque aparte de promociones.</td></tr>
+      <tr><td>S3</td><td><code>/tienda/[id]</code></td><td>Ficha de la tienda, precios vigentes y reporte de información errónea.</td></tr>
+      <tr><td>S4</td><td><code>/reportar</code></td><td>Formulario de 3 controles, foto WebP comprimida, cola offline.</td></tr>
+      <tr><td>S5</td><td><code>/ingresar</code></td><td>Supabase Auth, aceptación Ley 1581 y alias.</td></tr>
+      <tr><td>S6</td><td><code>/gestion</code></td><td>Panel unificado con pestañas según rol.</td></tr>
+      <tr><td>S7</td><td><code>/legal</code></td><td>Política de datos, términos, explicación de sellos y créditos ODbL.</td></tr>
+    </table></div>
+  </div>
+</section>
+
+<!-- ========== ARQUITECTURA ========== -->
+<section id="arq" class="stack" hidden>
+  <div class="card">
+    <h2>Monolito modular con hexágono ligero</h2>
+    <p>Un solo repositorio y un solo proceso backend. Los límites entre módulos los protege <code>import-linter</code> (3 contratos), no la red. Es la opción de costo cero y baja latencia que justifica el ADR-002.</p>
+    <div class="layers">
+      <div class="layer core"><b>dominio/</b><span>Puro: sin I/O, sin BD, sin reloj. <code>Decimal</code>, TDD con pytest + hypothesis, cobertura ≥ 95 %.</span></div>
+      <div class="layer"><b>puertos/</b><span>Contratos: cache, almacenamiento, catálogo externo, política de precio.</span></div>
+      <div class="layer"><b>adaptadores/</b><span><code>CacheDosNiveles</code>, Storage Supabase, Open Food Facts con circuit breaker.</span></div>
+      <div class="layer"><b>modulos/</b><span>catalogo · establecimientos · precios · confianza · fotos · cuentas · moderacion · comercial (aislado).</span></div>
+      <div class="layer"><b>compartido/</b><span>JWT, errores RFC 9457, logging sin coordenadas, auditoría, parámetros.</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Contenedores</h2>
+    <pre class="mermaid">flowchart TB
+  B["PWA Next.js 14 (Vercel)"] -->|REST JSON + JWT| A["FastAPI monolito (Railway)"]
+  A -->|asyncpg| D["Supabase Postgres + PostGIS"]
+  A -->|TLS| R["Upstash Redis (L2, 60 s)"]
+  A -->|URL firmada| S["Storage privado (WebP sin EXIF)"]
+  G["GitHub Actions cron"] -->|X-Job-Token| A</pre>
+  </div>
+
+  <div class="card">
+    <h2>Decisiones que debes poder defender</h2>
+    <div class="scroll"><table>
+      <tr><th>ADR</th><th>Decisión</th><th>Razón corta</th></tr>
+      <tr><td>001</td><td>PWA, no app nativa</td><td>Instalación sin tiendas de apps, cola offline en IndexedDB.</td></tr>
+      <tr><td>002</td><td>Monolito modular</td><td>Costo cero, sin latencia de red entre módulos.</td></tr>
+      <tr><td>003</td><td>FastAPI + REST, no NestJS + GraphQL</td><td>Cálculo numérico nativo, claves de caché deterministas, rate limit por ruta.</td></tr>
+      <tr><td>004</td><td>Next.js con cliente OpenAPI, cero lógica en cliente</td><td>Una sola fuente de verdad para precios y ranking.</td></tr>
+      <tr><td>005</td><td>Postgres + PostGIS, no NoSQL</td><td><code>ST_DWithin</code>, integridad referencial, triggers anti-borrado.</td></tr>
+      <tr><td>009</td><td>Historial inmutable separado de <code>precio_vigente</code></td><td>Evidencia append-only y proyección rápida para leer.</td></tr>
+      <tr><td>012</td><td>RLS sin políticas públicas, rol <code>app_backend</code></td><td>Mínimo privilegio: el front solo usa Supabase para autenticarse.</td></tr>
+      <tr><td>013 / 018</td><td>Puerto de política de precio y bloques separados</td><td>Neutralidad comercial por diseño (EC-06).</td></tr>
+      <tr><td>016</td><td>Caché L1 (5 s) + L2 Redis (60 s)</td><td>Soportar EC-04 con invalidación por producto para EC-02.</td></tr>
+    </table></div>
+  </div>
+
+  <div class="note"><b>Idea para sustentar:</b> la lectura supera por mucho a la escritura, así que el sistema calcula al escribir (<code>precio_vigente</code>) y sirve desde caché al leer. Los trabajos pesados (reputación, reconstrucción nocturna, purga de huellas) van en diferido con GitHub Actions.</div>
+</section>
+
+<!-- ========== DOMINIO ========== -->
+<section id="dom" class="stack" hidden>
+  <p class="lead">El corazón del sistema vive en <code>backend/app/dominio/</code>. Estas calculadoras reproducen las reglas con los valores por defecto documentados. Los umbrales reales salen de la tabla <code>config_parametro</code>.</p>
+
+  <div class="tool">
+    <h2>1 · Precio por unidad base</h2>
+    <p>Todo se compara por <span class="m">COP</span> por <span class="m">g · ml · unidad</span>. El sistema muestra por kg o por litro.</p>
+    <div class="row">
+      <div><label for="u-p">Precio (COP)</label><input id="u-p" type="number" value="2800" min="1"></div>
+      <div><label for="u-c">Contenido</label><input id="u-c" type="number" value="500" min="1"></div>
+      <div><label for="u-u">Unidad</label><select id="u-u"><option value="1">g</option><option value="1000">kg</option><option value="1">ml</option><option value="1000">litro</option></select></div>
+    </div>
+    <p style="margin-top:12px">Equivale a <span class="out" id="u-out">$5.600</span><span class="m" id="u-un"> / kg</span></p>
+  </div>
+
+  <div class="tool">
+    <h2>2 · Peso de un reporte por antigüedad</h2>
+    <p>Pesa 100 % durante 48 h. Después se reduce a la mitad cada 72 h. Un reporte con foto pesa más.</p>
+    <label for="v-h">Antigüedad: <b id="v-hl">120 h</b></label>
+    <input id="v-h" type="range" min="0" max="720" value="120">
+    <label><input id="v-f" type="checkbox"> Con foto (multiplicador del parámetro <code>peso_con_foto</code>, aquí 1,2 como ejemplo)</label>
+    <p style="margin-top:10px">Peso relativo: <span class="out" id="v-out">0,61</span> <span id="v-s"></span></p>
+    <p style="color:var(--muted);font-size:14px">Fórmula: <code>peso = reputación × 0,5^((horas − 48) / 72) × factor_foto</code>, con reputación = 1 en el ejemplo.</p>
+  </div>
+
+  <div class="tool">
+    <h2>3 · ¿Es anómalo este precio?</h2>
+    <p>Con n ≥ 5 referencias se usa el z-score modificado y se marca si |M| &gt; 3,5. Con 3 o 4 referencias, o si MAD = 0, se usa desviación porcentual &gt; 30 %.</p>
+    <label for="a-r">Precios de referencia (COP, separados por coma)</label>
+    <input id="a-r" type="text" value="2600, 2700, 2650, 2800, 2750" style="width:100%;font:500 16px var(--f-m);padding:9px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)">
+    <div class="row" style="margin-top:10px"><div><label for="a-x">Precio reportado</label><input id="a-x" type="number" value="4200"></div></div>
+    <p style="margin-top:12px" id="a-out"></p>
+  </div>
+
+  <div class="card">
+    <h2>Sellos de confianza</h2>
+    <div class="scroll"><table>
+      <tr><th>Sello</th><th>Cuándo</th><th>Bloque</th></tr>
+      <tr><td><span class="pill ok">confiable</span></td><td>Día 1 a 7, ≥ 3 reportes de ≥ 2 fuentes</td><td>1</td></tr>
+      <tr><td><span class="pill">pocos_datos</span></td><td>Día 1 a 7, menos que lo anterior</td><td>1</td></tr>
+      <tr><td><span class="pill tag">oficial</span></td><td>Etapa 2: precio publicado por el comercio</td><td>1</td></tr>
+      <tr><td><span class="pill bad">en_disputa</span></td><td>≥ 3 reportes de ≥ 2 cuentas en 48 h con mediana ≥ 10 % distinta del oficial</td><td>1</td></tr>
+      <tr><td><span class="pill bad">desactualizado</span></td><td>Día 8 a 30</td><td>2</td></tr>
+      <tr><td><span class="pill bad">dudoso</span></td><td>Anómalo; no altera el precio vigente y abre caso al moderador</td><td>2</td></tr>
+    </table></div>
+    <p style="margin-top:12px">Después de 30 días el dato sale de la comparación activa y queda solo en el historial. Orden por defecto: precio por unidad base dentro de cada bloque; primero vigentes, al final dudosos y desactualizados.</p>
+  </div>
+
+  <div class="card">
+    <h2>Detección de falsos en tres capas</h2>
+    <ul>
+      <li><b>Rango duro:</b> $50 a $2.000.000 COP, parametrizable.</li>
+      <li><b>Referencia jerárquica:</b> misma presentación y tienda, luego misma presentación en el municipio, luego mismo producto por unidad base. Si no hay ninguna, <code>sin_referencia</code>.</li>
+      <li><b>Riesgo de contexto:</b> sin foto, cuenta nueva, baja reputación y ráfagas por huella de red.</li>
+    </ul>
+    <p>Las sanciones las aplica solo un moderador humano. El autor ve "Recibido, en revisión", nunca las señales internas.</p>
+  </div>
+</section>
+
+<!-- ========== CALIDAD ========== -->
+<section id="cal" class="stack" hidden>
+  <div class="card">
+    <h2>Por qué ISO/IEC 25010 y no Boehm</h2>
+    <p>Boehm (1978) fue pionero en jerarquizar la calidad, pero no cubre arquitecturas cloud, dispositivos móviles ni privacidad moderna. ISO/IEC 25010:2023 da características medibles para cada escenario del proyecto, y la norma 25040 aporta el proceso de evaluación en cinco pasos: requisitos, especificación, diseño, ejecución y conclusión.</p>
+  </div>
+
+  <div class="card">
+    <h2>Escenarios de calidad</h2>
+    <div class="scroll"><table>
+      <tr><th>ID</th><th>Atributo</th><th>Meta</th><th>Resultado en el repo</th></tr>
+      <tr><td>EC-01</td><td>Operabilidad</td><td>Reporte en ≤ 15 s, 8 de 10 intentos</td><td>Prueba con usuarios (entregable 7), axe sin violaciones críticas</td></tr>
+      <tr><td>EC-02</td><td>Actualidad</td><td>Precio viejo fuera en ≤ 60 s, 100 de 100</td><td>100/100, máximo 6,94 s</td></tr>
+      <tr><td>EC-03</td><td>Credibilidad</td><td>≥ 9/10 falsos individuales, ≥ 7/10 grupales, ≤ 1/10 falsos positivos</td><td>Informe EC-03</td></tr>
+      <tr><td>EC-04</td><td>Desempeño</td><td>500 usuarios, p95 ≤ 2 s, error &lt; 1 %</td><td>0,00 % de error en prueba ASGI</td></tr>
+      <tr><td>EC-05</td><td>Modificabilidad</td><td>Módulo comercial sin rediseñar el núcleo</td><td>Pendiente con Etapa 2</td></tr>
+      <tr><td>EC-06</td><td>Neutralidad</td><td>Orden idéntico con y sin promociones</td><td>import-linter + test <code>comparacion_ec06</code></td></tr>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <h2>Las 8 características y cómo se verifican</h2>
+    <div class="scroll"><table>
+      <tr><th>Característica</th><th>Mecanismo en el proyecto</th></tr>
+      <tr><td>Adecuación funcional</td><td>pytest del dominio, contrato OpenAPI, import-linter</td></tr>
+      <tr><td>Eficiencia de desempeño</td><td>Caché L1/L2, k6 con 500 VUs</td></tr>
+      <tr><td>Compatibilidad</td><td>PWA multiplataforma, cliente tipado desde OpenAPI</td></tr>
+      <tr><td>Usabilidad</td><td>3 controles, WCAG 2.2 AA con axe-core</td></tr>
+      <tr><td>Confiabilidad</td><td>Circuit breaker con timeout de 3 s, fallback de Redis a Postgres, cola offline</td></tr>
+      <tr><td>Seguridad</td><td>RLS, rol mínimo, HMAC diario, pruebas SQL de aislamiento</td></tr>
+      <tr><td>Mantenibilidad</td><td>Hexagonal, dominio puro, <code>mypy --strict</code></td></tr>
+      <tr><td>Flexibilidad / portabilidad</td><td>Dockerfile estándar, config solo por variables de entorno</td></tr>
+    </table></div>
+    <p style="margin-top:12px"><b>Umbrales:</b> cobertura dominio ≥ 95 %, resto ≥ 80 %, violaciones axe críticas o serias = 0, errores de tipos = 0.</p>
+  </div>
+
+  <div class="card">
+    <h2>Calidad de datos ISO/IEC 25012</h2>
+    <p>Enfocada en siete atributos: <b>exactitud, credibilidad, actualidad, consistencia, completitud, trazabilidad y confidencialidad</b>. Cada uno se ancla a un mecanismo concreto: el rango duro y el z-score (exactitud y credibilidad), la vigencia con decaimiento (actualidad), las tablas inmutables (trazabilidad) y el HMAC de red (confidencialidad).</p>
+  </div>
+</section>
+
+<!-- ========== SEGURIDAD ========== -->
+<section id="seg" class="stack" hidden>
+  <div class="card">
+    <h2>Evidencia frente a proyección</h2>
+    <p><code>reporte_precio</code> y <code>auditoria</code> no se pueden modificar ni borrar: lo impiden un trigger PL/pgSQL y la revocación de <code>UPDATE</code> y <code>DELETE</code> al rol de aplicación. <code>precio_vigente</code> es solo un resumen recalculado de forma atómica tras cada reporte aceptado o decisión de moderación.</p>
+  </div>
+  <div class="card">
+    <h2>Ley 1581 de 2012 por diseño</h2>
+    <ul>
+      <li>Autorización previa e informada en <code>autorizacion_datos</code>, con versión de la política. Sin ella, <code>403 AUTORIZACION_REQUERIDA</code>.</li>
+      <li>Las coordenadas del usuario no se guardan ni se registran en logs; viven en memoria durante la petición.</li>
+      <li><code>huella_red = HMAC-SHA256(IP, secreto_diario)</code>, purgada a los 30 días. No se guardan IP en claro.</li>
+      <li><code>DELETE /v1/mi-cuenta</code> anonimiza: <code>reportante_id = NULL</code>, alias reemplazado, fotos eliminadas. Se conserva la evidencia estadística.</li>
+      <li>Solo la denominación comercial de las tiendas, nunca datos del propietario persona natural.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h2>Otras normas del proyecto</h2>
+    <ul>
+      <li><b>Ley 1480 de 2011:</b> precios en COP enteros con impuestos incluidos; promociones con condiciones y fecha de fin o <code>hasta_revocar</code>.</li>
+      <li><b>Libre competencia:</b> ningún comercio ve precios no públicos de otro ni hay mensajería entre comercios.</li>
+      <li><b>Propiedad intelectual:</b> OpenStreetMap y Open Food Facts con atribución ODbL en pantalla, sin extracción masiva.</li>
+      <li><b>Accesibilidad:</b> WCAG 2.2 AA con axe y navegación por teclado.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h2>Cola offline e idempotencia</h2>
+    <p>Si el reportante no tiene señal, el reporte queda en <code>IndexedDB</code>. Cada envío lleva una <code>Idempotency-Key</code>, así que un reintento nunca duplica el precio. Las fotos se comprimen a WebP en el cliente y se limpia el EXIF.</p>
+  </div>
+</section>
+
+<!-- ========== REPASO ========== -->
+<section id="rep" class="stack" hidden>
+  <div class="card">
+    <h2>Tarjetas</h2>
+    <p>Toca una tarjeta para ver la respuesta.</p>
+    <div class="grid" id="fcs"></div>
+  </div>
+  <div class="card">
+    <h2>Preguntas</h2>
+    <p class="score" id="score">0 / 0</p>
+    <div class="stack" id="qs"></div>
+  </div>
+</section>
+</div>
+
+<script>
+/* pestañas con hash */
+const tabs=[...document.querySelectorAll('nav button')];
+function show(id){
+  if(!document.getElementById(id)) id='vision';
+  tabs.forEach(b=>b.setAttribute('aria-selected',b.dataset.t===id));
+  document.querySelectorAll('section').forEach(s=>s.hidden=s.id!==id);
+  try{history.replaceState(null,'','#'+id)}catch(e){}
+}
+tabs.forEach(b=>b.onclick=()=>{show(b.dataset.t);window.scrollTo(0,0)});
+show(location.hash.slice(1)||'vision');
+addEventListener('hashchange',()=>show(location.hash.slice(1)));
+
+const fmt=n=>'$'+Math.round(n).toLocaleString('es-CO');
+const $=id=>document.getElementById(id);
+
+/* 1 unidad base */
+function unidad(){
+  const p=+$('u-p').value,c=+$('u-c').value,f=+$('u-u').value,t=$('u-u').selectedOptions[0].text;
+  const base=c*f; const kilo=(t==='kg'||t==='g'); const un=kilo?'/ kg':'/ litro';
+  $('u-out').textContent=base>0?fmt(p/base*1000):'—'; $('u-un').textContent=' '+un;
+}
+['u-p','u-c','u-u'].forEach(i=>$(i).oninput=unidad); unidad();
+
+/* 2 peso */
+function peso(){
+  const h=+$('v-h').value; $('v-hl').textContent=h+' h ('+(h/24).toFixed(1).replace('.',',')+' días)';
+  const w=Math.pow(.5,Math.max(0,h-48)/72)*($('v-f').checked?1.2:1);
+  $('v-out').textContent=w.toFixed(2).replace('.',',');
+  const d=h/24; const s=$('v-s');
+  if(d<=7){s.className='pill ok';s.textContent='ventana vigente'}
+  else if(d<=30){s.className='pill bad';s.textContent='desactualizado'}
+  else{s.className='pill bad';s.textContent='fuera de la comparación'}
+}
+$('v-h').oninput=peso;$('v-f').onchange=peso;peso();
+
+/* 3 anomalía */
+function med(a){const s=[...a].sort((x,y)=>x-y),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2}
+function anom(){
+  const r=$('a-r').value.split(',').map(x=>parseFloat(x)).filter(x=>!isNaN(x)),x=+$('a-x').value,o=$('a-out');
+  if(r.length<3){o.innerHTML='<span class="pill">sin_referencia</span> Se necesitan al menos 3 precios.';return}
+  const m=med(r),mad=med(r.map(v=>Math.abs(v-m))); let html,bad;
+  if(r.length>=5&&mad>0){const z=.6745*(x-m)/mad;bad=Math.abs(z)>3.5;
+    html=`Mediana ${fmt(m)} · MAD ${mad.toFixed(0)} · M = <b>${z.toFixed(2).replace('.',',')}</b> (umbral 3,5)`}
+  else{const d=Math.abs(x-m)/m*100;bad=d>30;
+    html=`Mediana ${fmt(m)} · desviación <b>${d.toFixed(1).replace('.',',')} %</b> (umbral 30 %)`}
+  o.innerHTML=html+' &rarr; '+(bad?'<span class="pill bad">dudoso: abre caso</span>':'<span class="pill ok">aceptado</span>');
+}
+['a-r','a-x'].forEach(i=>$(i).oninput=anom);anom();
+
+/* tarjetas y preguntas */
+const FC=[
+ ['¿Qué unidad usa la comparación?','Precio por unidad base (g, ml o unidad), mostrado por kg o litro.'],
+ ['¿Qué pasa con un precio anómalo?','Queda dudoso: no altera el precio vigente y abre un caso al moderador.'],
+ ['¿Quién aplica sanciones?','Solo un moderador humano.'],
+ ['¿Por qué el dominio no hace I/O?','Para probarlo con TDD sin base de datos ni reloj, con cobertura ≥ 95 %.'],
+ ['¿Cómo se garantiza EC-06?','Promociones en bloque separado, y import-linter impide que precios importe comercial.'],
+ ['¿Por qué reporte_precio es inmutable?','Es la evidencia. precio_vigente es una proyección que se puede recalcular.'],
+ ['¿Qué es huella_red?','HMAC-SHA256 de la IP con secreto diario, purgada a los 30 días.'],
+ ['¿Qué evita duplicar un reporte reenviado?','La Idempotency-Key en el envío.'],
+ ['¿Qué hace el rol app_backend?','Mínimo privilegio: sin UPDATE ni DELETE sobre evidencia.'],
+ ['¿Dónde viven los umbrales de negocio?','En la tabla config_parametro, editables en caliente.']
+];
+$('fcs').innerHTML=FC.map(([q,a])=>`<button class="fc" aria-pressed="false"><b>${q}</b><span class="a">${a}</span></button>`).join('');
+document.querySelectorAll('.fc').forEach(b=>b.onclick=()=>b.setAttribute('aria-pressed',b.getAttribute('aria-pressed')!=='true'));
+
+const Q=[
+ ['Un paquete de 500 g cuesta $2.800 y uno de 1 kg cuesta $5.000. ¿Cuál es más barato?',['El de 500 g, $5.600/kg','El de 1 kg, $5.000/kg','Valen lo mismo'],1,'Se compara por unidad base: 5.600/kg frente a 5.000/kg.'],
+ ['Un reporte tiene 120 h de antigüedad. ¿Cómo está su peso?',['100 %','Reducido a la mitad cada 72 h tras las primeras 48 h','Cero'],1,'Mantiene 100 % hasta 48 h y luego decae con vida media de 72 h.'],
+ ['¿Cuántos reportes y fuentes da el sello confiable?',['≥ 3 reportes de ≥ 2 fuentes','≥ 1 reporte','≥ 5 reportes de 1 fuente'],0,'Menos que eso es pocos_datos.'],
+ ['¿Qué ocurre a los 30 días sin reportes nuevos?',['Se borra','Sale de la comparación y queda en historial','Pasa a oficial'],1,'La evidencia nunca se borra.'],
+ ['¿Por qué FastAPI + REST y no GraphQL?',['Moda','Claves de caché deterministas y rate limit por ruta','GraphQL no existe en Python'],1,'ADR-003: facilita invalidar caché y controlar ráfagas.'],
+ ['¿Cuál de estos NO está en el núcleo v1?',['Comparación por unidad base','Promociones de comercios','Cola offline'],1,'Etapa 2. El núcleo solo deja tres puntos de extensión.'],
+ ['¿Qué verifica EC-02?',['Que el precio viejo deje de ser vigente en ≤ 60 s','Que el p95 sea ≤ 2 s','Que haya 10 usuarios'],0,'Actualidad. Se certificó con 100 repeticiones.'],
+ ['¿Por qué se guarda HMAC de la IP y no la IP?',['Menos espacio','Detectar ráfagas sin conservar datos personales','Por velocidad'],1,'Ley 1581: minimización de datos.'],
+ ['¿Qué modelo se justificó frente a Boehm?',['CMMI','ISO/IEC 25010:2023','McCall'],1,'Con 25040 como proceso y 25012 para datos.'],
+ ['¿Cuál es el umbral de z-score modificado para marcar anomalía?',['|M| > 1','|M| > 3,5','|M| > 10'],1,'Con n ≥ 5. Con 3 o 4 se usa desviación de 30 %.']
+];
+let right=0,done=0;
+$('qs').innerHTML=Q.map((q,i)=>`<div class="q" data-i="${i}"><b>${i+1}. ${q[0]}</b><div class="opts">${q[1].map((o,j)=>`<button data-j="${j}">${o}</button>`).join('')}</div><div class="why">${q[3]}</div></div>`).join('');
+document.querySelectorAll('.q').forEach(el=>{
+  const q=Q[+el.dataset.i];
+  el.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    if(el.classList.contains('done'))return;
+    el.classList.add('done'); const j=+b.dataset.j; done++;
+    if(j===q[2]){right++;b.classList.add('right')}else{b.classList.add('wrong');el.querySelector(`[data-j="${q[2]}"]`).classList.add('right')}
+    $('score').textContent=right+' / '+done+' correctas';
+  });
+});
+</script>
