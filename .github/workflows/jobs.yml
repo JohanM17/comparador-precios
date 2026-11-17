@@ -60,7 +60,7 @@ jobs:
           ejecutar_endpoint() {
             JOB_NAME="$1"
             echo "Ejecutando job: $JOB_NAME"
-            curl -s -S -X POST "$URL_BASE/internal/jobs/$JOB_NAME" \
+            curl --globoff -s -S -X POST "$URL_BASE/internal/jobs/$JOB_NAME" \
               -H "X-Job-Token: $TOKEN" \
               -H "Content-Type: application/json" \
               --fail-with-body
