@@ -22,38 +22,43 @@ interface ConfiguracionSello {
   readonly respaldo: string;
 }
 
+/*
+ * Los sellos son anillos de un pixel sin relleno. No usan el verde esmeralda:
+ * ese color esta reservado para el ahorro, y gastarlo aqui le quitaria el
+ * significado. La confianza se distingue por icono y texto, nunca solo por color.
+ */
 const CONFIG_SELLOS: Readonly<Record<string, ConfiguracionSello>> = {
   confiable: {
-    clases: "bg-emerald-100 text-emerald-900 ring-emerald-300",
+    clases: "text-slate-700 ring-slate-300",
     Icono: CheckCircle2,
     etiquetaFija: "Confiable",
     respaldo: "Confiable",
   },
   oficial: {
-    clases: "bg-sky-100 text-sky-950 ring-sky-300",
+    clases: "text-blue-600 ring-blue-200",
     Icono: BadgeCheck,
     etiquetaFija: "Precio oficial",
     respaldo: "Precio oficial",
   },
   pocos_datos: {
-    clases: "bg-oro-100 text-amber-950 ring-oro-300",
+    clases: "text-oro-700 ring-oro-300",
     Icono: HelpCircle,
     etiquetaFija: "Pocos datos: ayúdanos a confirmarlo",
     respaldo: "Pocos datos: ayúdanos a confirmarlo",
   },
   en_disputa: {
-    clases: "bg-orange-100 text-orange-950 ring-orange-300",
+    clases: "text-cereza-600 ring-cereza-200",
     Icono: Scale,
     etiquetaFija: "En disputa: comercio vs. usuarios",
     respaldo: "En disputa: comercio vs. usuarios",
   },
   desactualizado: {
-    clases: "bg-slate-100 text-slate-700 ring-slate-300",
+    clases: "text-slate-500 ring-slate-300",
     Icono: Clock,
     respaldo: "Precio desactualizado",
   },
   dudoso: {
-    clases: "bg-cereza-50 text-cereza-700 ring-cereza-100",
+    clases: "text-cereza-600 ring-cereza-200",
     Icono: AlertTriangle,
     respaldo: "En revisión",
   },
@@ -72,7 +77,7 @@ export default function SelloConfianza({
 
   return (
     <output
-      className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${clases}`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12px] font-medium ring-1 ring-inset ${clases}`}
     >
       <Icono className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
       <span>{texto}</span>

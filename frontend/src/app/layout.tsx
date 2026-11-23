@@ -1,18 +1,24 @@
 import type { Metadata, Viewport } from "next";
 import React from "react";
-import { Bricolage_Grotesque, DM_Sans } from "next/font/google";
+import { Instrument_Serif, Schibsted_Grotesk } from "next/font/google";
 import "./globals.css";
 import AppShell from "@/components/AppShell";
 
-const fuenteTitulo = Bricolage_Grotesque({
+/**
+ * Una sola familia sostiene toda la interfaz. La cursiva con gracias aparece en
+ * dos o tres sitios contados y es el unico contraste tipografico del diseno.
+ */
+const fuenteCuerpo = Schibsted_Grotesk({
   subsets: ["latin"],
-  variable: "--font-titulo",
+  variable: "--font-cuerpo",
   display: "swap",
 });
 
-const fuenteCuerpo = DM_Sans({
+const fuenteCursiva = Instrument_Serif({
   subsets: ["latin"],
-  variable: "--font-cuerpo",
+  weight: "400",
+  style: ["normal", "italic"],
+  variable: "--font-cursiva",
   display: "swap",
 });
 
@@ -41,7 +47,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0a2b20",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f7f6f3" },
+    { media: "(prefers-color-scheme: dark)", color: "#141511" },
+  ],
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
@@ -61,12 +70,12 @@ export default function RootLayout({
     <html
       lang="es-CO"
       suppressHydrationWarning
-      className={`h-full ${fuenteTitulo.variable} ${fuenteCuerpo.variable}`}
+      className={`h-full ${fuenteCuerpo.variable} ${fuenteCursiva.variable}`}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: SCRIPT_TEMA }} />
       </head>
-      <body className="h-full bg-slate-50 font-sans text-slate-900 antialiased selection:bg-cereza-100 selection:text-slate-900">
+      <body className="h-full bg-slate-50 font-sans text-slate-900 antialiased selection:bg-emerald-100 selection:text-slate-900">
         <AppShell>{children}</AppShell>
       </body>
     </html>

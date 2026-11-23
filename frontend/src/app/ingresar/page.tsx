@@ -63,7 +63,7 @@ export default function PaginaIngresar(): React.JSX.Element {
 
   return (
     <div className="mx-auto grid max-w-5xl px-4 py-8 sm:px-6 lg:grid-cols-5 lg:py-14">
-      <div className="curvas-nivel rounded-t-3xl bg-bosque-900 p-8 text-white sm:p-10 lg:col-span-2 lg:rounded-l-3xl lg:rounded-tr-none">
+      <div className="rounded-t-3xl bg-bosque-900 p-8 text-white sm:p-10 lg:col-span-2 lg:rounded-l-3xl lg:rounded-tr-none">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-miel-300">Tu cuenta</p>
         <h1 className="mt-3 text-4xl font-bold leading-[1.05] tracking-tight">Acceso y privacidad</h1>
         <p className="mt-4 text-sm leading-relaxed text-bosque-100">

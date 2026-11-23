@@ -197,55 +197,27 @@ export default function ComparadorProducto({
     <div>
       <AvisoDatosDemo visible={Boolean(datos?.meta.datos_de_demostracion)} />
 
-      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 lg:px-8">
-        <div className="mb-4">
-          <Link
-            href="/"
-            className="inline-flex min-h-10 items-center gap-1.5 text-sm font-semibold text-emerald-800 hover:text-cereza-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
-          >
-            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            Volver al catálogo
-          </Link>
-        </div>
+      <div className="mx-auto max-w-5xl px-5 py-8 sm:px-6">
+        <Link
+          href="/"
+          className="inline-flex min-h-10 items-center gap-1.5 text-[13.5px] text-slate-600 underline decoration-slate-300 underline-offset-4 transition-colors hover:text-slate-900 hover:decoration-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          Volver al catálogo
+        </Link>
 
         {datos && (
-          <section className="mb-8 rounded-2xl border border-slate-300 bg-superficie p-6 sm:p-8">
-            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-              <div>
-                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-cereza-700">
-                  Comparado por {datos.producto.unidad_visualizacion}
-                </span>
-                <h1 className="mt-2 font-display text-4xl font-bold leading-none tracking-tight text-slate-900 sm:text-5xl">
-                  {datos.producto.nombre}
-                </h1>
-              </div>
+          <section className="mb-10 mt-7">
+            <p className="rotulo">Comparado por {datos.producto.unidad_visualizacion}</p>
+            <h1 className="mt-3 font-cursiva text-[clamp(2.1rem,6vw,3.3rem)] font-normal leading-[1.04] tracking-[-0.012em] text-slate-900">
+              {datos.producto.nombre}
+            </h1>
 
-              <button
-                type="button"
-                onClick={activarCercania}
-                disabled={buscandoGps}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-slate-400 bg-superficie px-5 py-2 text-sm font-semibold text-slate-900 transition-colors hover:border-emerald-800 hover:bg-emerald-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 disabled:opacity-60"
-              >
-                {ubicacion ? (
-                  <MapPin className="h-4 w-4 text-emerald-700" aria-hidden="true" />
-                ) : (
-                  <Navigation className="h-4 w-4 text-slate-600" aria-hidden="true" />
-                )}
-                <span>{etiquetaGps}</span>
-              </button>
-            </div>
-
-            {errorGps && (
-              <p role="alert" className="mt-3 text-xs font-medium text-rose-700">
-                {errorGps}
-              </p>
-            )}
-
-            <div className="mt-5 grid grid-cols-1 gap-4 border-t border-slate-100 pt-4 sm:grid-cols-2">
-              <div>
+            <div className="mt-8 flex flex-col gap-5 border-t border-slate-200 pt-6 sm:flex-row sm:items-end sm:gap-10">
+              <div className="min-w-0 flex-1">
                 <label
                   htmlFor="filtro-presentacion"
-                  className="block text-xs font-semibold text-slate-700"
+                  className="block text-[12.5px] font-medium text-slate-500"
                 >
                   Presentación comercial
                 </label>
@@ -253,7 +225,7 @@ export default function ComparadorProducto({
                   id="filtro-presentacion"
                   value={presentacionId}
                   onChange={(e) => manejarCambioPresentacion(e.target.value)}
-                  className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 text-sm text-slate-900 focus:border-emerald-700 focus:bg-superficie focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
+                  className="mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-0"
                 >
                   <option value="">Todas las presentaciones</option>
                   {datos.producto.presentaciones.map((p) => (
@@ -264,10 +236,10 @@ export default function ComparadorProducto({
                 </select>
               </div>
 
-              <div>
+              <div className="min-w-0 flex-1">
                 <label
                   htmlFor="selector-orden"
-                  className="block text-xs font-semibold text-slate-700"
+                  className="block text-[12.5px] font-medium text-slate-500"
                 >
                   Criterio de ordenamiento
                 </label>
@@ -275,7 +247,7 @@ export default function ComparadorProducto({
                   id="selector-orden"
                   value={orden}
                   onChange={(e) => setOrden(e.target.value as CriterioOrden)}
-                  className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 text-sm text-slate-900 focus:border-emerald-700 focus:bg-superficie focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
+                  className="mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-0"
                 >
                   <option value="precio_unitario">
                     Precio por {datos.producto.unidad_visualizacion} (menor primero)
@@ -286,11 +258,31 @@ export default function ComparadorProducto({
                   <option value="distancia">Distancia al establecimiento</option>
                 </select>
               </div>
+
+              <button
+                type="button"
+                onClick={activarCercania}
+                disabled={buscandoGps}
+                className="inline-flex min-h-11 flex-none items-center gap-2 pb-2 text-[13.5px] text-slate-600 underline decoration-slate-300 underline-offset-4 transition-colors hover:text-slate-900 hover:decoration-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 disabled:opacity-60"
+              >
+                {ubicacion ? (
+                  <MapPin className="h-4 w-4 text-emerald-600" aria-hidden="true" />
+                ) : (
+                  <Navigation className="h-4 w-4" aria-hidden="true" />
+                )}
+                <span>{etiquetaGps}</span>
+              </button>
             </div>
+
+            {errorGps && (
+              <p role="alert" className="mt-3 text-[13px] text-cereza-600">
+                {errorGps}
+              </p>
+            )}
           </section>
         )}
 
-        {cargando && <Cargando filas={5} etiqueta="Cargando comparación de precios..." />}
+        {cargando && <Cargando filas={5} etiqueta="Cargando comparación de precios…" />}
 
         {!cargando && error && (
           <EstadoError

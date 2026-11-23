@@ -153,7 +153,7 @@ export default function FormularioReportar(): React.JSX.Element {
 
   return (
     <div>
-    <div className="curvas-nivel bg-bosque-900 text-white">
+    <div className="bg-bosque-900 text-white">
     <div className="mx-auto max-w-xl px-4 pb-8 pt-8 sm:px-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>

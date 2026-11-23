@@ -55,7 +55,7 @@ const SELLOS_CIUDADANOS: readonly ExplicacionSello[] = [
 export default function PaginaLegal(): React.JSX.Element {
   return (
     <div>
-      <div className="curvas-nivel bg-bosque-900 text-white">
+      <div className="bg-bosque-900 text-white">
         <div className="mx-auto max-w-4xl px-4 pb-10 pt-8 sm:px-6 lg:px-8">
           <Link
             href="/"

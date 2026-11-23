@@ -43,10 +43,10 @@ export default function ToggleTema(): React.JSX.Element {
       onClick={alternar}
       aria-label="Cambiar entre modo claro y oscuro"
       title="Modo claro / oscuro"
-      className="inline-flex h-10 w-10 items-center justify-center rounded-full text-bosque-100 transition-colors hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-miel-300"
+      className="inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-500 transition-colors hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
     >
-      <Sun className="hidden h-5 w-5 dark:block" aria-hidden="true" />
-      <Moon className="h-5 w-5 dark:hidden" aria-hidden="true" />
+      <Sun className="hidden h-[18px] w-[18px] dark:block" aria-hidden="true" />
+      <Moon className="h-[18px] w-[18px] dark:hidden" aria-hidden="true" />
     </button>
   );
 }
