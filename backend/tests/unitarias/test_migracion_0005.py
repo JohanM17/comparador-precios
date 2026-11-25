@@ -6,10 +6,7 @@ import re
 from pathlib import Path
 
 RUTA_SQL = (
-    Path(__file__).resolve().parents[3]
-    / "supabase"
-    / "migrations"
-    / "0005_historial_precios.sql"
+    Path(__file__).resolve().parents[3] / "supabase" / "migrations" / "0005_historial_precios.sql"
 )
 
 
