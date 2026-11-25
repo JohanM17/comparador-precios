@@ -24,5 +24,5 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/001-nucleo-comparador/plan.md
+at specs/002-ampliacion-corte3/plan.md
 <!-- SPECKIT END -->
