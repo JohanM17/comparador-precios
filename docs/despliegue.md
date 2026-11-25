@@ -32,6 +32,25 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
 > [!IMPORTANT]
 > En redes locales Windows sin enrutamiento IPv6 hacia Supabase, utiliza siempre la URL del **Session Pooler (puerto `5432`, host `*.pooler.supabase.com`)** para migraciones y desarrollo local. No subas el archivo `.env` al repositorio.
 
+#### Variables de observabilidad (OpenTelemetry, B1)
+
+Estas variables configuran la telemetría de la ampliación B1 (trazas, métricas y logs vía OTLP/HTTP). El SDK se inicializa en las tareas `T-103` y `T-120`; por ahora solo se declaran y documentan.
+
+| Variable | Valor por defecto | Descripción |
+|---|---|---|
+| `OTEL_SDK_DISABLED` | `false` | Con `true` desactiva toda la telemetría y deja la API operativa. Es el interruptor de emergencia. |
+| `OTEL_SERVICE_NAME` | `comparador-precios-backend` | Nombre del servicio que aparece en trazas y métricas. |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | vacío | Endpoint OTLP/HTTP del colector (Grafana Cloud o equivalente). Obligatorio cuando B1 está activo. |
+| `OTEL_EXPORTER_OTLP_HEADERS` | vacío | Cabeceras de autenticación del colector, por ejemplo `Authorization=Basic <credencial>`. **Es un secreto**: configúralo en el panel del proveedor o en GitHub Secrets, nunca en el repositorio. |
+| `OTEL_TRACES_SAMPLER` | `parentbased_traceidratio` | Estrategia de muestreo de trazas. |
+| `OTEL_TRACES_SAMPLER_ARG` | `0.2` | Proporción de trazas exitosas muestreadas; los errores se muestrean al 100 %. |
+| `OTEL_METRICS_EXPORTER` | `otlp` | Exportador de métricas. |
+| `OTEL_LOGS_EXPORTER` | `otlp` | Exportador de logs cuando se habilite. |
+| `SIMULAR_LATENCIA_MS` | `0` | Latencia artificial para el simulacro EC-11. **Solo para entornos de prueba**; en producción debe ser `0`. |
+
+> [!IMPORTANT]
+> No incluyas credenciales reales en `.env.example` ni en este documento. Usa únicamente placeholders y mantén `OTEL_EXPORTER_OTLP_HEADERS` fuera del control de versiones.
+
 ### 3. Inicialización de Backend, Base de Datos y Semilla
 
 ```powershell
