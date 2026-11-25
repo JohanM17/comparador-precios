@@ -166,6 +166,8 @@ def resolver_sampler(config: Configuracion) -> Sampler:
 def configurar_telemetria(config: Configuracion) -> None:
     """Inicializa trazas, metricas y logs de OpenTelemetry sin afectar la API.
 
+    `OTEL_EXPORTER_OTLP_ENDPOINT` es una URL base: a cada exportador se le
+    agrega la ruta de su senal (`/v1/traces`, `/v1/metrics`, `/v1/logs`).
     Si la telemetria esta deshabilitada o no hay endpoint OTLP, la funcion
     retorna sin excepcion. Cualquier fallo de inicializacion se registra como
     advertencia generica y la aplicacion continua operativa.
@@ -185,20 +187,21 @@ def configurar_telemetria(config: Configuracion) -> None:
     try:
         resource = _construir_resource(config)
         headers = parsear_headers_otlp(config.OTEL_EXPORTER_OTLP_HEADERS)
+        base = endpoint.rstrip("/")
 
         tracer_provider = TracerProvider(
             resource=resource,
             sampler=resolver_sampler(config),
         )
         tracer_provider.add_span_processor(
-            BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint, headers=headers))
+            BatchSpanProcessor(OTLPSpanExporter(endpoint=f"{base}/v1/traces", headers=headers))
         )
 
         lectores_metricas: list[PeriodicExportingMetricReader] = []
         if config.OTEL_METRICS_EXPORTER.strip().lower() == "otlp":
             lectores_metricas.append(
                 PeriodicExportingMetricReader(
-                    OTLPMetricExporter(endpoint=endpoint, headers=headers)
+                    OTLPMetricExporter(endpoint=f"{base}/v1/metrics", headers=headers)
                 )
             )
         meter_provider = MeterProvider(resource=resource, metric_readers=lectores_metricas)
@@ -206,7 +209,9 @@ def configurar_telemetria(config: Configuracion) -> None:
         logger_provider = LoggerProvider(resource=resource)
         if config.OTEL_LOGS_EXPORTER.strip().lower() == "otlp":
             logger_provider.add_log_record_processor(
-                BatchLogRecordProcessor(OTLPLogExporter(endpoint=endpoint, headers=headers))
+                BatchLogRecordProcessor(
+                    OTLPLogExporter(endpoint=f"{base}/v1/logs", headers=headers)
+                )
             )
 
         trace.set_tracer_provider(tracer_provider)

@@ -293,15 +293,20 @@ def test_configurar_telemetria_falla_sin_propagrar_y_no_filtra_secretos(
     assert "Authorization" not in caplog.text
 
 
+@pytest.mark.parametrize(
+    "endpoint",
+    ["http://127.0.0.1:4318", "http://127.0.0.1:4318/"],
+)
 def test_configurar_telemetria_inicializa_trazas_metricas_y_logs(
     monkeypatch: pytest.MonkeyPatch,
+    endpoint: str,
 ) -> None:
-    """Con endpoint y exportadores habilitados configura los tres providers."""
+    """Con endpoint base configura las rutas de senal de los tres providers."""
     creados, registrados = _instalar_dobles_otel(monkeypatch)
     configuracion = _configuracion(
         OTEL_SERVICE_NAME="comparador-pruebas",
         ENTORNO="pruebas",
-        OTEL_EXPORTER_OTLP_ENDPOINT="http://127.0.0.1:4318",
+        OTEL_EXPORTER_OTLP_ENDPOINT=endpoint,
         OTEL_EXPORTER_OTLP_HEADERS="Authorization=Basic abc==,X-Entorno=pruebas",
         OTEL_TRACES_SAMPLER="always_on",
         OTEL_METRICS_EXPORTER="otlp",
@@ -324,8 +329,13 @@ def test_configurar_telemetria_inicializa_trazas_metricas_y_logs(
     assert proveedor_trazas.sampler is telemetria.ALWAYS_ON
     assert len(proveedor_trazas.procesadores) == 1
 
-    for nombre in ("trazas", "metricas", "logs"):
-        assert creados[nombre][0].endpoint == "http://127.0.0.1:4318"
+    rutas_senal = {
+        "trazas": "/v1/traces",
+        "metricas": "/v1/metrics",
+        "logs": "/v1/logs",
+    }
+    for nombre, ruta_senal in rutas_senal.items():
+        assert creados[nombre][0].endpoint == f"http://127.0.0.1:4318{ruta_senal}"
         assert creados[nombre][0].headers == {
             "Authorization": "Basic abc==",
             "X-Entorno": "pruebas",
