@@ -55,7 +55,7 @@ def _oficial(precio_cop: int, dias_atras: float = 1.0) -> PrecioOficialVigente:
     return PrecioOficialVigente(
         precio_cop=precio_cop,
         cantidad_base=CANTIDAD,
-        actualizado_en=AHORA - timedelta(days=dias_atras),
+        confirmado_en=AHORA - timedelta(days=dias_atras),
     )
 
 

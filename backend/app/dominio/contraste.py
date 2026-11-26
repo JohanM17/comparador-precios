@@ -39,7 +39,8 @@ class PrecioOficialVigente:
 
     precio_cop: int
     cantidad_base: Decimal
-    actualizado_en: datetime
+    confirmado_en: datetime
+    """Ultima vez que el comercio confirmo el precio, al publicarlo o al revalidarlo."""
 
 
 @dataclass(frozen=True)
@@ -127,7 +128,7 @@ def _resultado_oficial(
         n_reportes_validos=comunidad.n_reportes_validos if comunidad else 0,
         n_fuentes=comunidad.n_fuentes if comunidad else 0,
         dispersion=comunidad.dispersion if comunidad else None,
-        ultimo_reporte_en=oficial.actualizado_en,
+        ultimo_reporte_en=oficial.confirmado_en,
         reporte_origen_id=None,
     )
 
@@ -173,7 +174,7 @@ def contrastar_oficial_con_comunidad(
             hay_disputa=False,
         )
 
-    dias_sin_cambios = int((ahora - oficial.actualizado_en).total_seconds() // 86400)
+    dias_sin_cambios = int((ahora - oficial.confirmado_en).total_seconds() // 86400)
     requiere_revalidacion = dias_sin_cambios >= params.vigencia_comercio_revalidar_dias
 
     voz = _escuchar_comunidad(reportes, ahora, params)
