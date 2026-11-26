@@ -73,9 +73,13 @@ class FiltroPrivacidadLey1581(logging.Filter):
     redacta el traceback (`exc_info`/`exc_text`) y el `stack_info`.
 
     Contrato para handlers y logging estructurado futuro: despues del filtro
-    `record.msg` contiene el mensaje final redactado, `record.args` queda vacio
-    y `record.exc_text`/`record.stack_info` ya estan saneados. Los handlers deben
-    formatear `%(message)s` y no depender de `record.args`.
+    `record.msg` contiene el mensaje final redactado, `record.args` queda vacio,
+    `record.exc_text`/`record.stack_info` ya estan saneados y `record.exc_info`
+    queda en `None`. Anular `exc_info` evita que consumidores posteriores (por
+    ejemplo el `LoggingHandler` de OpenTelemetry) vuelvan a formatear el
+    traceback crudo en atributos; el formateador estandar sigue mostrando el
+    traceback porque usa `record.exc_text`. Los handlers deben formatear
+    `%(message)s` y no depender de `record.args`.
     """
 
     def filter(self, record: logging.LogRecord) -> bool:
@@ -95,6 +99,8 @@ class FiltroPrivacidadLey1581(logging.Filter):
                 except Exception:  # La redaccion nunca debe romper el logging
                     rastro = str(record.exc_info[1])
                 record.exc_text = redactar_texto_sensible(rastro)
+            # El traceback crudo ya no hace falta: el formateador usa `exc_text`.
+            record.exc_info = None
         elif record.exc_text:
             record.exc_text = redactar_texto_sensible(record.exc_text)
 
@@ -104,16 +110,21 @@ class FiltroPrivacidadLey1581(logging.Filter):
 
 
 class FiltroCorrelacionTrazas(logging.Filter):
-    """Inyecta `trace_id` y `span_id` del span actual en cada registro de log.
+    """Inyecta la correlacion de trazas del span actual en cada registro.
 
-    Fuera de un span valido los atributos quedan como cadenas vacias, de modo
-    que los formateadores pueden referenciarlos sin errores.
+    Publica `trace_id`/`span_id` (formato del formateador de texto) y sus
+    equivalentes `otelTraceID`/`otelSpanID`, que es el nombre que consumen los
+    exportadores de logging estructurado. Fuera de un span valido los atributos
+    quedan como cadenas vacias, de modo que los formateadores pueden
+    referenciarlos sin errores.
     """
 
     def filter(self, record: logging.LogRecord) -> bool:
         trace_id, span_id = _ids_traza_actuales()
         record.__dict__["trace_id"] = trace_id
         record.__dict__["span_id"] = span_id
+        record.__dict__["otelTraceID"] = trace_id
+        record.__dict__["otelSpanID"] = span_id
         return True
 
 
@@ -168,17 +179,32 @@ def _agregar_filtro_si_falta(
 
 
 def configurar_logging() -> None:
-    """Inicializa el logging con privacidad y correlacion de trazas."""
+    """Inicializa el logging con privacidad y correlacion de trazas.
+
+    Instala un `StreamHandler` en la raiz solo si no hay ninguno, de modo que
+    los INFO de `app.*` se emitan incluso bajo Uvicorn (que configura sus
+    propios loggers con `propagate=False` y no toca la raiz). Es idempotente:
+    llamarla varias veces no duplica handlers ni filtros.
+    """
     filtro_privacidad = FiltroPrivacidadLey1581()
     filtro_correlacion = FiltroCorrelacionTrazas()
     logger_raiz = logging.getLogger()
     logger_raiz.setLevel(logging.INFO)
+
+    if not logger_raiz.handlers:
+        logger_raiz.addHandler(logging.StreamHandler())
 
     for handler in logger_raiz.handlers:
         _agregar_filtro_si_falta(handler, filtro_privacidad)
         _agregar_filtro_si_falta(handler, filtro_correlacion)
         if handler.formatter is None:
             handler.setFormatter(logging.Formatter(FORMATO_LOG_CORRELACION))
+
+    # El access log nativo consume `record.args` al formatear, por lo que no se
+    # le puede aplicar el filtro de privacidad; ademas registra la IP del
+    # cliente y la URL completa con query string (`lat`/`lng`). `app.acceso`
+    # emite el access log ya saneado, asi que el nativo se desactiva.
+    logging.getLogger("uvicorn.access").disabled = True
 
     logger_app = logging.getLogger("app")
     logger_app.setLevel(logging.INFO)

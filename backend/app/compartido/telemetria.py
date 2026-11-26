@@ -2,14 +2,18 @@
 
 La inicializacion aplica una politica de muestreo errores-primero: todos los
 spans se crean y los errores se exportan siempre; los spans exitosos se exportan
-con probabilidad `OTEL_TRACES_SAMPLER_ARG` (20 % por defecto). El apagado es
-tolerante a fallos para que la observabilidad nunca tumbe la API.
+con probabilidad `OTEL_TRACES_SAMPLER_ARG` (20 % por defecto). Cuando el
+exportador de logs es `otlp`, el logging de Python se conecta al `LoggerProvider`
+mediante un `LoggingHandler`: solo los registros que llegan al logger raiz (los
+de `app.*`) se exportan, porque los loggers de Uvicorn usan `propagate=False`.
+El apagado es tolerante a fallos para que la observabilidad nunca tumbe la API.
 """
 
 from __future__ import annotations
 
 import logging
 import math
+import warnings
 from collections.abc import Mapping
 from importlib import metadata
 from typing import Any
@@ -21,7 +25,7 @@ from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.metrics import Meter
-from opentelemetry.sdk._logs import LoggerProvider
+from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
@@ -37,7 +41,11 @@ from opentelemetry.sdk.trace.sampling import (
 )
 from opentelemetry.trace import Status, StatusCode, Tracer
 
-from app.compartido.logging_cfg import redactar_texto_sensible
+from app.compartido.logging_cfg import (
+    FiltroCorrelacionTrazas,
+    FiltroPrivacidadLey1581,
+    redactar_texto_sensible,
+)
 from app.config import Configuracion
 
 _logger = logging.getLogger("app.telemetria")
@@ -84,6 +92,7 @@ _telemetria_activa = False
 _tracer_provider: TracerProvider | None = None
 _meter_provider: MeterProvider | None = None
 _logger_provider: LoggerProvider | None = None
+_handler_logs: LoggingHandler | None = None
 
 _MASCARA_TRACE_ID = (1 << 64) - 1
 _ESCALA_TRACE_ID = float(1 << 64)
@@ -304,6 +313,43 @@ def resolver_sampler_errores_primero() -> Sampler:
     return ALWAYS_ON
 
 
+def _adjuntar_handler_logs(logger_provider: LoggerProvider) -> None:
+    """Conecta el logging de Python con el `LoggerProvider` de OpenTelemetry.
+
+    Usa el `LoggingHandler` del SDK como puente sin anadir
+    `opentelemetry-instrumentation-logging`: en esta tarea no se incorporan
+    dependencias nuevas. Ese handler esta deprecado, por lo que se silencia su
+    `DeprecationWarning` y se retirara al migrar a la instrumentacion dedicada.
+    Los filtros de privacidad y correlacion se aplican al handler para sanear
+    el cuerpo y anular `exc_info` antes de exportar. Solo se exportan los
+    registros que llegan al logger raiz (`app.*`); los loggers de Uvicorn con
+    `propagate=False` (`uvicorn.error`) quedan fuera por diseno.
+
+    Es idempotente: si ya habia un handler adjunto, se retira antes de crear
+    otro para no duplicar la exportacion.
+    """
+    global _handler_logs
+    _quitar_handler_logs()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        handler = LoggingHandler(level=logging.INFO, logger_provider=logger_provider)
+    handler.addFilter(FiltroPrivacidadLey1581())
+    handler.addFilter(FiltroCorrelacionTrazas())
+    logging.getLogger().addHandler(handler)
+    _handler_logs = handler
+
+
+def _quitar_handler_logs() -> None:
+    """Retira del logger raiz el handler OTLP de logs, si esta adjunto."""
+    global _handler_logs
+    handler = _handler_logs
+    if handler is None:
+        return
+    _handler_logs = None
+    logging.getLogger().removeHandler(handler)
+    handler.close()
+
+
 def configurar_telemetria(config: Configuracion) -> None:
     """Inicializa trazas, metricas y logs de OpenTelemetry sin afectar la API.
 
@@ -316,8 +362,12 @@ def configurar_telemetria(config: Configuracion) -> None:
     Si la telemetria esta deshabilitada o no hay endpoint OTLP, la funcion
     retorna sin excepcion. Cualquier fallo de inicializacion se registra como
     advertencia generica y la aplicacion continua operativa.
+
+    Con `OTEL_LOGS_EXPORTER=otlp` el logging de Python se conecta al provider
+    mediante `_adjuntar_handler_logs`; con otro exportador no se adjunta nada.
     """
     global _logger_provider, _meter_provider, _telemetria_activa, _tracer_provider
+    _quitar_handler_logs()
     _telemetria_activa = False
     _tracer_provider = None
     _meter_provider = None
@@ -363,7 +413,8 @@ def configurar_telemetria(config: Configuracion) -> None:
         _meter_provider = meter_provider
 
         logger_provider = LoggerProvider(resource=resource)
-        if config.OTEL_LOGS_EXPORTER.strip().lower() == "otlp":
+        exportar_logs = config.OTEL_LOGS_EXPORTER.strip().lower() == "otlp"
+        if exportar_logs:
             logger_provider.add_log_record_processor(
                 BatchLogRecordProcessor(
                     OTLPLogExporter(endpoint=f"{base}/v1/logs", headers=headers)
@@ -374,6 +425,8 @@ def configurar_telemetria(config: Configuracion) -> None:
         trace.set_tracer_provider(tracer_provider)
         metrics.set_meter_provider(meter_provider)
         set_logger_provider(logger_provider)
+        if exportar_logs:
+            _adjuntar_handler_logs(logger_provider)
         _telemetria_activa = True
         _logger.info("Telemetria OpenTelemetry inicializada")
     except Exception as error:  # La observabilidad nunca debe tumbar la API
@@ -407,10 +460,12 @@ def apagar_telemetria() -> None:
     """Apaga ordenadamente los providers de trazas, metricas y logs.
 
     Es seguro llamarla varias veces o cuando la telemetria nunca se inicializo.
-    Los errores de `force_flush` o `shutdown` se registran de forma generica y
+    Primero se retira el handler de logs para dejar de emitir hacia el provider;
+    los errores de `force_flush` o `shutdown` se registran de forma generica y
     no se propagan.
     """
     global _logger_provider, _meter_provider, _telemetria_activa, _tracer_provider
+    _quitar_handler_logs()
     tracer_provider = _tracer_provider
     meter_provider = _meter_provider
     logger_provider = _logger_provider
