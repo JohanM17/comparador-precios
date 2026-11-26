@@ -28,7 +28,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Tasa de peticiones HTTP por ruta, calculada sobre el contador del histograma de duracion del servidor. La etiqueta esperada es http_route; si el colector solo expone http_target, la consulta se ajusta en T-126.",
+      "description": "Tasa de peticiones HTTP por ruta, calculada sobre el contador del histograma de duracion del servidor. La etiqueta usada es http_target, la ruta plantilla que exporta la instrumentacion ASGI actual (por ejemplo, /v1/productos/{id}/comparacion). Si T-126 cambia a las convenciones semanticas nuevas, se ajustan las consultas.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -104,8 +104,8 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "sum by (http_route) (rate(http_server_duration_milliseconds_count{service_name=\"comparador-precios-backend\", http_route!=\"\"}[$__rate_interval]))",
-          "legendFormat": "{{http_route}}",
+          "expr": "sum by (http_target) (rate(http_server_duration_milliseconds_count{service_name=\"comparador-precios-backend\", http_target!=\"\"}[$__rate_interval]))",
+          "legendFormat": "{{http_target}}",
           "range": true,
           "refId": "A"
         }
@@ -198,7 +198,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.50, sum by (le) (rate(http_server_duration_milliseconds_bucket{service_name=\"comparador-precios-backend\", http_route=\"/v1/productos/{id}/comparacion\"}[$__rate_interval]))) / 1000",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(http_server_duration_milliseconds_bucket{service_name=\"comparador-precios-backend\", http_target=\"/v1/productos/{id}/comparacion\"}[$__rate_interval]))) / 1000",
           "legendFormat": "p50",
           "range": true,
           "refId": "A"
@@ -209,7 +209,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_duration_milliseconds_bucket{service_name=\"comparador-precios-backend\", http_route=\"/v1/productos/{id}/comparacion\"}[$__rate_interval]))) / 1000",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_duration_milliseconds_bucket{service_name=\"comparador-precios-backend\", http_target=\"/v1/productos/{id}/comparacion\"}[$__rate_interval]))) / 1000",
           "legendFormat": "p95",
           "range": true,
           "refId": "B"
@@ -220,7 +220,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_duration_milliseconds_bucket{service_name=\"comparador-precios-backend\", http_route=\"/v1/productos/{id}/comparacion\"}[$__rate_interval]))) / 1000",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_duration_milliseconds_bucket{service_name=\"comparador-precios-backend\", http_target=\"/v1/productos/{id}/comparacion\"}[$__rate_interval]))) / 1000",
           "legendFormat": "p99",
           "range": true,
           "refId": "C"
@@ -761,7 +761,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "(sum(rate(http_server_duration_milliseconds_bucket{service_name=\"comparador-precios-backend\", http_route=\"/v1/productos/{id}/comparacion\", le=\"1000\", http_status_code!~\"5..\"}[7d])) + (2000 - 1000) / (2500 - 1000) * (sum(rate(http_server_duration_milliseconds_bucket{service_name=\"comparador-precios-backend\", http_route=\"/v1/productos/{id}/comparacion\", le=\"2500\", http_status_code!~\"5..\"}[7d])) - sum(rate(http_server_duration_milliseconds_bucket{service_name=\"comparador-precios-backend\", http_route=\"/v1/productos/{id}/comparacion\", le=\"1000\", http_status_code!~\"5..\"}[7d])))) / sum(rate(http_server_duration_milliseconds_count{service_name=\"comparador-precios-backend\", http_route=\"/v1/productos/{id}/comparacion\"}[7d]))",
+          "expr": "(sum(rate(http_server_duration_milliseconds_bucket{service_name=\"comparador-precios-backend\", http_target=\"/v1/productos/{id}/comparacion\", le=\"1000\", http_status_code!~\"5..\"}[7d])) + (2000 - 1000) / (2500 - 1000) * (sum(rate(http_server_duration_milliseconds_bucket{service_name=\"comparador-precios-backend\", http_target=\"/v1/productos/{id}/comparacion\", le=\"2500\", http_status_code!~\"5..\"}[7d])) - sum(rate(http_server_duration_milliseconds_bucket{service_name=\"comparador-precios-backend\", http_target=\"/v1/productos/{id}/comparacion\", le=\"1000\", http_status_code!~\"5..\"}[7d])))) / sum(rate(http_server_duration_milliseconds_count{service_name=\"comparador-precios-backend\", http_target=\"/v1/productos/{id}/comparacion\"}[7d]))",
           "instant": true,
           "legendFormat": "SLI 7d",
           "range": false,
@@ -835,7 +835,7 @@
             "uid": "${datasource}"
           },
           "editorMode": "code",
-          "expr": "clamp_min(1 - ((sum(rate(http_server_duration_milliseconds_bucket{service_name=\"comparador-precios-backend\", http_route=\"/v1/productos/{id}/comparacion\", le=\"1000\", http_status_code!~\"5..\"}[7d])) + (2000 - 1000) / (2500 - 1000) * (sum(rate(http_server_duration_milliseconds_bucket{service_name=\"comparador-precios-backend\", http_route=\"/v1/productos/{id}/comparacion\", le=\"2500\", http_status_code!~\"5..\"}[7d])) - sum(rate(http_server_duration_milliseconds_bucket{service_name=\"comparador-precios-backend\", http_route=\"/v1/productos/{id}/comparacion\", le=\"1000\", http_status_code!~\"5..\"}[7d])))) / sum(rate(http_server_duration_milliseconds_count{service_name=\"comparador-precios-backend\", http_route=\"/v1/productos/{id}/comparacion\"}[7d]))), 0) / 0.01",
+          "expr": "clamp_min(1 - ((sum(rate(http_server_duration_milliseconds_bucket{service_name=\"comparador-precios-backend\", http_target=\"/v1/productos/{id}/comparacion\", le=\"1000\", http_status_code!~\"5..\"}[7d])) + (2000 - 1000) / (2500 - 1000) * (sum(rate(http_server_duration_milliseconds_bucket{service_name=\"comparador-precios-backend\", http_target=\"/v1/productos/{id}/comparacion\", le=\"2500\", http_status_code!~\"5..\"}[7d])) - sum(rate(http_server_duration_milliseconds_bucket{service_name=\"comparador-precios-backend\", http_target=\"/v1/productos/{id}/comparacion\", le=\"1000\", http_status_code!~\"5..\"}[7d])))) / sum(rate(http_server_duration_milliseconds_count{service_name=\"comparador-precios-backend\", http_target=\"/v1/productos/{id}/comparacion\"}[7d]))), 0) / 0.01",
           "instant": true,
           "legendFormat": "presupuesto consumido",
           "range": false,

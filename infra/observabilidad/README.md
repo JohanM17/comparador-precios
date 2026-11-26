@@ -32,8 +32,10 @@ endpoints reales.**
 2. Copia `grafana/provisioning/dashboards.yml` en
    `/etc/grafana/provisioning/dashboards/`.
 3. Asegura que el usuario de Grafana puede leer ambos directorios.
-4. Grafana recarga los providers cada 30 segundos; si el provider aún no
-   aparece, reinicia Grafana una vez.
+4. El YAML de provisioning se lee al iniciar o recargar Grafana; el
+   `updateIntervalSeconds: 30` del provider solo hace que Grafana vuelva a
+   escanear los archivos de dashboards. Si cambias el YAML, recarga o reinicia
+   Grafana.
 5. Verifica en **Dashboards → Comparador de Precios** que el tablero
    `Comparador de Precios — Observabilidad` esté disponible.
 
@@ -64,7 +66,7 @@ filtro porque la serie la genera el motor de alertas.
 | `precios_comparaciones_total` | `precios.comparaciones` | Counter, `1` | `cache_hit`, `service_name` | Cache hit ratio |
 | `precios_db_ms_bucket` (+ `_sum`, `_count`) | `precios.db_ms` | Histogram, `ms` | `le`, `cache_hit`, `service_name` | Latencia de base de datos p95 |
 | `precios_reportes_total` | `precios.reportes` | Counter, `1` | `estado`, `idempotente`, `service_name` | Reportes por estado |
-| `http_server_duration_milliseconds_bucket` (+ `_count`) | `http.server.duration` | Histogram, `ms` | `http_route`, `http_status_code`, `service_name` | Solicitudes, latencia, errores 5xx y SLO |
+| `http_server_duration_milliseconds_bucket` (+ `_count`) | `http.server.duration` | Histogram, `ms` | `http_target`, `http_status_code`, `service_name` | Solicitudes, latencia, errores 5xx y SLO |
 | `ALERTS` | Serie generada por el motor de alertas | Gauge | `alertname`, `alertstate` | Estado de alertas |
 
 Notas sobre las etiquetas:
@@ -75,10 +77,17 @@ Notas sobre las etiquetas:
   `otro`; la normalización la hace el backend antes de registrar la métrica.
 - `cache_hit` toma `true` o `false`.
 - `http_status_code` es el código HTTP (`200`, `500`, etc.).
-- `http_route` es la ruta plantilla, por ejemplo
-  `/v1/productos/{id}/comparacion`. La instrumentación ASGI puede exportar en su
-  lugar `http_target` (ruta concreta con el UUID); si T-126 lo confirma, se
-  ajusta la consulta o la instrumentación sin cambiar los paneles.
+- `http_target` es la ruta plantilla de baja cardinalidad que exporta la
+  instrumentación ASGI actual (`route.path_format`), por ejemplo
+  `/v1/productos/{id}/comparacion`; **no** es la URL concreta con el UUID. Las
+  consultas HTTP del tablero usan esta etiqueta.
+- `http_route` pertenece a las convenciones semánticas nuevas de HTTP y no está
+  activada por defecto en la instrumentación instalada. Si se activa, se
+  sustituye `http_target` por `http_route` en las consultas; el diseño de los
+  paneles no cambia.
+- `precios_db_ms` tiene unidad `ms`. El nombre esperado es
+  `precios_db_ms_bucket`, pero algunos traductores podrían exponerlo como
+  `precios_db_ms_milliseconds_bucket`; T-126 debe confirmar cuál aplica.
 - Si la instrumentación usa las convenciones semánticas nuevas de HTTP, el
   histograma puede llamarse `http_server_request_duration_seconds_bucket` y sus
   etiquetas ser `http_route`, `http_response_status_code` y `url_path`. En ese
@@ -101,7 +110,7 @@ Notas sobre las etiquetas:
   100 % el SLO está incumplido.
 
 La consulta del panel usa los buckets `le="1000"` y `le="2500"` del histograma en
-milisegundos y excluye `http_status_code=~"5.."` del numerador. El denominador es
+milisegundos y excluye `http_status_code!~"5.."` del numerador. El denominador es
 el total de comparaciones. La ventana del SLI es fija de 7 días, independiente
 del rango de 6 horas que muestra el tablero por defecto.
 
