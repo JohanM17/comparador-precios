@@ -10,11 +10,11 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bd import obtener_sesion
+from app.compartido.dependencias import obtener_puerto_cache
 from app.compartido.errores import NoAutenticadoError
 from app.compartido.parametros import obtener_parametros_dominio
 from app.config import obtener_configuracion
 from app.dominio.reputacion import calcular_reputacion_bayesiana
-from app.modulos.precios.api import obtener_puerto_cache
 from app.puertos.cache import PuertoCache
 from app.puertos.politica_precio import SoloUsuarios
 

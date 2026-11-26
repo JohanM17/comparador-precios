@@ -9,6 +9,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Query, Request, Response
 
 from app.bd import sesion_transaccional
+from app.compartido.dependencias import obtener_puerto_cache
 from app.compartido.seguridad import UsuarioAutenticado, requiere_autorizacion_datos
 from app.modulos.precios.esquemas import (
     CrearReporteEntrada,
@@ -23,11 +24,6 @@ from app.modulos.precios.servicio_historial import ServicioHistorial
 from app.puertos.cache import PuertoCache
 
 router = APIRouter(tags=["Precios y Comparaciones"])
-
-
-def obtener_puerto_cache() -> PuertoCache:
-    """Proveedor inyectable del puerto de cache (configurado en main.py)."""
-    raise NotImplementedError("El puerto de cache debe ser inyectado por FastAPI.")
 
 
 @router.post(

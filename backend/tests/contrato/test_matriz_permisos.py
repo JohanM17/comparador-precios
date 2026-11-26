@@ -10,10 +10,10 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.adaptadores.cache_dos_niveles import CacheDosNiveles
+from app.compartido.dependencias import obtener_puerto_cache
 from app.config import obtener_configuracion
 from app.main import app
 from app.modulos.fotos.api import limitador_fotos
-from app.modulos.precios.api import obtener_puerto_cache
 from app.modulos.precios.servicio import limitador_escritura
 from tests.contrato.ayudantes_rbac import (
     ROLES_RBAC,

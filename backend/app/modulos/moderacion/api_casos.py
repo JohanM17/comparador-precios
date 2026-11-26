@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bd import obtener_sesion
+from app.compartido.dependencias import obtener_puerto_cache
 from app.compartido.seguridad import (
     UsuarioAutenticado,
     requiere_rol,
@@ -29,7 +30,6 @@ from app.modulos.moderacion.esquemas_casos import (
 from app.modulos.moderacion.servicio_casos import ServicioCasosModeracion
 from app.modulos.moderacion.servicio_parametros import ServicioParametros
 from app.modulos.moderacion.servicio_sanciones import ServicioSancionesAuditoria
-from app.modulos.precios.api import obtener_puerto_cache
 from app.puertos.cache import PuertoCache
 
 router = APIRouter(prefix="/moderacion", tags=["Moderacion de Casos y Parametros"])
