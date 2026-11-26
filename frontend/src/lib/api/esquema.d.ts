@@ -58,6 +58,130 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/comercio/establecimientos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Listar los establecimientos verificados del comercio
+         * @description Incluye cuantos precios oficiales tiene cada uno y cuantos piden revalidacion.
+         */
+        get: operations["listar_establecimientos_v1_comercio_establecimientos_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/comercio/establecimientos/{establecimiento_id}/precios": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Publicar o actualizar precios oficiales en lote
+         * @description Hasta 200 precios por lote. Recalcula el precio vigente de cada par al instante.
+         */
+        put: operations["publicar_precios_v1_comercio_establecimientos__establecimiento_id__precios_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/comercio/establecimientos/{establecimiento_id}/promociones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Listar las promociones del establecimiento
+         * @description Incluye las revocadas, para que el comercio vea su historial.
+         */
+        get: operations["listar_promociones_v1_comercio_establecimientos__establecimiento_id__promociones_get"];
+        put?: never;
+        /**
+         * Publicar una promocion
+         * @description Sin condiciones o sin vigencia declarada se responde 422 (Ley 1480, articulo 33).
+         */
+        post: operations["crear_promocion_v1_comercio_establecimientos__establecimiento_id__promociones_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/comercio/establecimientos/{establecimiento_id}/promociones/{promocion_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revocar una promocion
+         * @description La promocion queda inactiva y con fecha de revocacion; no se borra la fila.
+         */
+        delete: operations["revocar_promocion_v1_comercio_establecimientos__establecimiento_id__promociones__promocion_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/comercio/establecimientos/{establecimiento_id}/revalidar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirmar que los precios siguen igual
+         * @description Accion «Todo sigue igual»: renueva la fecha sin cambiar ningun valor (D-06).
+         */
+        post: operations["revalidar_precios_v1_comercio_establecimientos__establecimiento_id__revalidar_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/comercio/reclamos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reclamar la titularidad de un establecimiento
+         * @description Cualquier cuenta puede reclamar un establecimiento; la decision es de un moderador.
+         */
+        post: operations["reclamar_titularidad_v1_comercio_reclamos_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/establecimientos": {
         parameters: {
             query?: never;
@@ -305,6 +429,26 @@ export interface paths {
         get: operations["consultar_catalogo_externo_endpoint_v1_moderacion_catalogo_externo_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/moderacion/comercios/{solicitud_id}/verificar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Aprobar o rechazar un reclamo de titularidad
+         * @description Al aprobar, enlaza el establecimiento con la cuenta y le asigna el rol de comercio.
+         */
+        post: operations["verificar_comercio_v1_moderacion_comercios__solicitud_id__verificar_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1064,6 +1208,31 @@ export interface components {
             tipo?: string | null;
         };
         /**
+         * EstablecimientoComercioResumen
+         * @description Establecimiento verificado del comercio y el estado de sus precios oficiales.
+         */
+        EstablecimientoComercioResumen: {
+            /** Barrio */
+            barrio: string | null;
+            /** Direccion */
+            direccion: string | null;
+            /** Estado Verificacion */
+            estado_verificacion: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** N Por Revalidar */
+            n_por_revalidar: number;
+            /** N Precios Oficiales */
+            n_precios_oficiales: number;
+            /** Nombre */
+            nombre: string;
+            /** Tipo */
+            tipo: string;
+        };
+        /**
          * EstablecimientoComparacion
          * @description Detalle del comercio en una fila de comparacion.
          */
@@ -1421,6 +1590,32 @@ export interface components {
             version: string;
         };
         /**
+         * PrecioOficialEntrada
+         * @description Precio de gondola que el comercio publica para una presentacion.
+         */
+        PrecioOficialEntrada: {
+            /** Precio Cop */
+            precio_cop: number;
+            /**
+             * Presentacion Id
+             * Format: uuid
+             */
+            presentacion_id: string;
+        };
+        /**
+         * PrecioRechazado
+         * @description Precio que no se pudo publicar, con el motivo en lenguaje llano.
+         */
+        PrecioRechazado: {
+            /** Motivo */
+            motivo: string;
+            /**
+             * Presentacion Id
+             * Format: uuid
+             */
+            presentacion_id: string;
+        };
+        /**
          * PrecioUnidad
          * @description Precio unitario normalizado para comparacion equitativa.
          */
@@ -1462,6 +1657,24 @@ export interface components {
              * Format: date-time
              */
             ultimo_reporte_en: string;
+        };
+        /**
+         * PreciosLoteEntrada
+         * @description Lote de precios oficiales. El modo rapido manda entre 20 y 30 por vez.
+         */
+        PreciosLoteEntrada: {
+            /** Precios */
+            precios: components["schemas"]["PrecioOficialEntrada"][];
+        };
+        /**
+         * PreciosLoteRespuesta
+         * @description Resultado del lote: lo que entro y lo que no, sin ocultar lo segundo.
+         */
+        PreciosLoteRespuesta: {
+            /** Actualizados */
+            actualizados: number;
+            /** Rechazados */
+            rechazados: components["schemas"]["PrecioRechazado"][];
         };
         /**
          * PresentacionActualizarEntrada
@@ -1695,6 +1908,100 @@ export interface components {
             unidad_visualizacion: string;
         };
         /**
+         * PromocionEntrada
+         * @description Promocion que publica el comercio, sujeta al articulo 33 de la Ley 1480.
+         */
+        PromocionEntrada: {
+            /** Condiciones */
+            condiciones: string;
+            /**
+             * Hasta Revocar
+             * @default false
+             */
+            hasta_revocar: boolean;
+            /** Lleve Y */
+            lleve_y?: number | null;
+            /** Pague X */
+            pague_x?: number | null;
+            /** Porcentaje Descuento */
+            porcentaje_descuento?: number | null;
+            /** Precio Especial Cop */
+            precio_especial_cop?: number | null;
+            /** Presentacion Id */
+            presentacion_id?: string | null;
+            /**
+             * Producto Id
+             * Format: uuid
+             */
+            producto_id: string;
+            /** Tipo */
+            tipo: string;
+            /** Titulo */
+            titulo: string;
+            /**
+             * Vigente Desde
+             * Format: date-time
+             */
+            vigente_desde: string;
+            /** Vigente Hasta */
+            vigente_hasta?: string | null;
+        };
+        /**
+         * PromocionRespuesta
+         * @description Promocion publicada. Viaja siempre marcada como contenido comercial.
+         */
+        PromocionRespuesta: {
+            /** Activa */
+            activa: boolean;
+            /** Condiciones */
+            condiciones: string;
+            /**
+             * Es Promocion
+             * @default true
+             */
+            es_promocion: boolean;
+            /**
+             * Establecimiento Id
+             * Format: uuid
+             */
+            establecimiento_id: string;
+            /** Hasta Revocar */
+            hasta_revocar: boolean;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Lleve Y */
+            lleve_y: number | null;
+            /** Pague X */
+            pague_x: number | null;
+            /** Porcentaje Descuento */
+            porcentaje_descuento: number | null;
+            /** Precio Especial Cop */
+            precio_especial_cop: number | null;
+            /** Presentacion Id */
+            presentacion_id: string | null;
+            /**
+             * Producto Id
+             * Format: uuid
+             */
+            producto_id: string;
+            /** Tipo */
+            tipo: string;
+            /** Titulo */
+            titulo: string;
+            /** Vigente */
+            vigente: boolean;
+            /**
+             * Vigente Desde
+             * Format: date-time
+             */
+            vigente_desde: string;
+            /** Vigente Hasta */
+            vigente_hasta: string | null;
+        };
+        /**
          * PuntoHistorial
          * @description Punto publico de la serie historica, sin datos personales.
          */
@@ -1730,6 +2037,44 @@ export interface components {
         RechazarSugerenciaEntrada: {
             /** Motivo */
             motivo: string;
+        };
+        /**
+         * ReclamoComercioEntrada
+         * @description Solicitud de un usuario para reclamar la titularidad de un establecimiento (D-09).
+         */
+        ReclamoComercioEntrada: {
+            /**
+             * Establecimiento Id
+             * Format: uuid
+             */
+            establecimiento_id: string;
+            /** Mensaje */
+            mensaje: string;
+            /** Telefono Contacto */
+            telefono_contacto: string;
+        };
+        /**
+         * ReclamoComercioRespuesta
+         * @description Acuse del reclamo, que queda en la cola de un moderador humano.
+         */
+        ReclamoComercioRespuesta: {
+            /**
+             * Creado En
+             * Format: date-time
+             */
+            creado_en: string;
+            /**
+             * Establecimiento Id
+             * Format: uuid
+             */
+            establecimiento_id: string;
+            /** Estado */
+            estado: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
         };
         /** ResolverApelacionEntrada */
         ResolverApelacionEntrada: {
@@ -1811,6 +2156,19 @@ export interface components {
             rol: string;
             /** Usuario Id */
             usuario_id: string;
+        };
+        /**
+         * RevalidarRespuesta
+         * @description Resultado de la accion «Todo sigue igual» (D-06).
+         */
+        RevalidarRespuesta: {
+            /**
+             * Revalidado En
+             * Format: date-time
+             */
+            revalidado_en: string;
+            /** Revalidados */
+            revalidados: number;
         };
         /** SancionDirectaEntrada */
         SancionDirectaEntrada: {
@@ -1946,6 +2304,36 @@ export interface components {
             /** Error Type */
             type: string;
         };
+        /**
+         * VerificarComercioEntrada
+         * @description Decision del moderador sobre un reclamo de titularidad.
+         */
+        VerificarComercioEntrada: {
+            /** Aprobar */
+            aprobar: boolean;
+            /** Nota */
+            nota?: string | null;
+        };
+        /**
+         * VerificarComercioRespuesta
+         * @description Resultado de la verificacion de un comercio.
+         */
+        VerificarComercioRespuesta: {
+            /** Comercio Id */
+            comercio_id: string | null;
+            /**
+             * Establecimiento Id
+             * Format: uuid
+             */
+            establecimiento_id: string;
+            /** Estado */
+            estado: string;
+            /**
+             * Solicitud Id
+             * Format: uuid
+             */
+            solicitud_id: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -2033,6 +2421,244 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CategoriaRespuesta"][];
+                };
+            };
+        };
+    };
+    listar_establecimientos_v1_comercio_establecimientos_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EstablecimientoComercioResumen"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    publicar_precios_v1_comercio_establecimientos__establecimiento_id__precios_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                establecimiento_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreciosLoteEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreciosLoteRespuesta"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listar_promociones_v1_comercio_establecimientos__establecimiento_id__promociones_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                establecimiento_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromocionRespuesta"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    crear_promocion_v1_comercio_establecimientos__establecimiento_id__promociones_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                establecimiento_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PromocionEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PromocionRespuesta"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revocar_promocion_v1_comercio_establecimientos__establecimiento_id__promociones__promocion_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                establecimiento_id: string;
+                promocion_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revalidar_precios_v1_comercio_establecimientos__establecimiento_id__revalidar_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                establecimiento_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevalidarRespuesta"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reclamar_titularidad_v1_comercio_reclamos_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReclamoComercioEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReclamoComercioRespuesta"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -2537,6 +3163,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConsultaCatalogoExternoRespuesta"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verificar_comercio_v1_moderacion_comercios__solicitud_id__verificar_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                solicitud_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerificarComercioEntrada"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VerificarComercioRespuesta"];
                 };
             };
             /** @description Validation Error */

@@ -3,7 +3,7 @@
 **Tarea:** `T-60` del plan de construcción. **Entregable 10, parte 1.**
 **Fecha de registro:** 26 de noviembre de 2026.
 **Regla:** este archivo debe estar confirmado en Git **antes** del commit de `T-61`
-(migración `0004_modulo_comercial.sql`). El historial es la evidencia.
+(migración `0006_modulo_comercial.sql`). El historial es la evidencia.
 
 > EC-05 mide la capacidad de la arquitectura para evolucionar: «se incorpora el módulo comercial
 > sobre el núcleo construido en el corte 2; se registran los componentes modificados y el
@@ -64,7 +64,7 @@ guía valora que una decisión inadecuada se identifique y se corrija, no que nu
 
 | Componente | Tipo de cambio | Est. (h) | Real (h) | Observaciones |
 | :--- | :--- | ---: | ---: | :--- |
-| `supabase/migrations/0004_modulo_comercial.sql` | nuevo | 4 | | Aditiva: enumerado `tipo_promocion`, tablas `solicitud_verificacion_comercio`, `precio_oficial` y `promocion`, y tres columnas nuevas en `precio_vigente`. No altera ni borra nada existente. |
+| `supabase/migrations/0006_modulo_comercial.sql` | nuevo | 4 | | Aditiva: enumerado `tipo_promocion`, tablas `solicitud_verificacion_comercio`, `precio_oficial` y `promocion`, y tres columnas nuevas en `precio_vigente`. No altera ni borra nada existente. |
 | `establecimiento.comercio_id` | sin cambio | 0 | | Ya existe desde `0002` con su clave foránea. |
 | Enumerados `sello_precio`, `tipo_caso`, `estado_verificacion`, `fuente_precio` | sin cambio | 0 | | Ya contienen todos los valores de Etapa 2. |
 | `config_parametro` (parámetros de disputa) | sin cambio | 0 | | Ya sembrados en `0002`. |

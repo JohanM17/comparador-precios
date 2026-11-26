@@ -20,7 +20,7 @@
 | **A2 — Repositorio de precios** | Modificado | 6 | — | Consulta por producto/establecimiento/presentación y rango de 90 días; índice adicional si el plan lo confirma. |
 | **A2 — Servicio y esquemas de historial** | Nuevo | 8 | — | DTOs, validación de parámetros, ventana máxima, límite y `truncado`; sin datos personales. |
 | **A2 — Endpoint `GET /v1/productos/{id}/historial-precios`** | Nuevo | 4 | — | Contrato OpenAPI, códigos de error y pruebas de contrato. |
-| **A2 — Migración aditiva** | Nuevo | 3 | — | Índice para la consulta de serie; numeración posterior a `0004_modulo_comercial.sql`. |
+| **A2 — Migración aditiva** | Nuevo | 3 | — | Índice para la consulta de serie; se aplicó como `0005` antes que la del módulo comercial, que pasó a `0006`. |
 | **A2 — Componente de gráfica accesible** | Nuevo | 12 | — | Gráfica con origen/estado, leyenda, tabla alternativa, estados de carga/vacío/error y WCAG 2.2 AA. |
 | **A2 — Integración en ficha de producto** | Modificado | 4 | — | Selector de establecimiento/presentación y carga del historial. |
 | **A2 — Pruebas de integración y datos demo de 90 días** | Nuevo | 8 | — | Semilla/script con datos demo marcados `es_demo`; pruebas de ventana y cambio oficial. |
@@ -104,7 +104,7 @@
 | La instrumentación añade latencia | Baja | Medio | Exportador por lotes, muestreo y prueba de no degradación de `EC-04`. |
 | Se filtran datos personales en trazas/logs | Media | Alto (Ley 1581) | Lista de atributos prohibidos, prueba automatizada y revisión de spans. |
 | La alerta no se dispara en el simulacro | Media | Alto para EC-11 | Simulacro temprano, regla de alerta versionada y evidencia reproducible. |
-| La migración choca con `0004_modulo_comercial.sql` | Media | Bajo | Numeración aditiva posterior; no editar migraciones aplicadas. |
+| La migración choca con la del módulo comercial | Media | Bajo | **No se materializó.** `0005` se aplicó primero y el módulo comercial tomó `0006`; ninguna migración aplicada se editó. |
 | El equipo no alcanza el mínimo por el módulo comercial | Media | Alto | Priorizar el mínimo de A2/B1; extensiones opcionales al final; registrar lo logrado y la causa. |
 | La gráfica no cumple accesibilidad | Baja | Medio | Tabla alternativa, patrones además de color y auditoría axe. |
 
@@ -165,7 +165,7 @@ Además, se documentarán:
 
 El anexo exige el contraste de **dos cambios**. El módulo comercial tiene su propio plan (`T-60` a `T-69`) y su estimación debe producirse en `T-60` antes de `T-61`. Para esta ampliación se asume que el módulo comercial incluye, como mínimo:
 
-- Migración `0004_modulo_comercial.sql`.
+- Migración `0006_modulo_comercial.sql`.
 - Reclamo y verificación de comercios.
 - Precios oficiales por lote y revalidación.
 - Estrategia `OficialConContraste`.

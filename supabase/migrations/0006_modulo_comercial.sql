@@ -1,4 +1,9 @@
--- Migración 0004: Módulo Comercial (Etapa 2)
+-- Migración 0006: Módulo Comercial (Etapa 2)
+--
+-- Lleva el número 0006 y no 0004 porque la ampliación A2 aplicó primero
+-- 0005_historial_precios.sql sobre la base compartida. Una migración no se
+-- intercala por debajo de otra ya aplicada: el orden del archivo dejaría de
+-- coincidir con el orden real de _migraciones_historial.
 -- Basada en la Sección 4.4 de docs/PLAN_CONSTRUCCION.md (tarea T-61).
 --
 -- Migración ADITIVA: no altera ni elimina ninguna columna del núcleo.
