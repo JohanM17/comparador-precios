@@ -207,7 +207,6 @@ class ServicioComparacion:
             record_exception=False,
             set_status_on_exception=False,
         ) as span:
-            span.set_attribute("precios.orden", orden)
             span.set_attribute("precios.presentacion", presentacion_id is not None)
             if radio_km is not None:
                 span.set_attribute("precios.radio_km", float(radio_km))
@@ -225,12 +224,13 @@ class ServicioComparacion:
                 span.record_exception(error)
                 span.set_status(StatusCode.ERROR, type(error).__name__)
                 raise
+            span.set_attribute("precios.orden", orden)
             span.set_attribute("precios.cache_hit", cache_hit)
             span.set_attribute("precios.resultados_count", len(respuesta.datos.resultados))
             span.set_attribute("precios.db_ms", db_ms)
             span.set_status(StatusCode.OK)
             _contador_comparaciones.add(1, {"cache_hit": cache_hit})
-            _histograma_db_ms.record(db_ms)
+            _histograma_db_ms.record(db_ms, {"cache_hit": cache_hit})
             return respuesta
 
     async def _obtener_comparacion(

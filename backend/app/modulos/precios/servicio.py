@@ -44,6 +44,11 @@ _contador_reportes = meter.create_counter(
 )
 
 
+def _normalizar_estado_telemetria(estado: str) -> str:
+    """Limita el estado del reporte a las etiquetas de baja cardinalidad."""
+    return estado if estado in ("aceptado", "dudoso") else "otro"
+
+
 class ServicioPrecios:
     """Orquestador integral de logica de precios, comparacion y evaluacion comunitaria."""
 
@@ -145,10 +150,14 @@ class ServicioPrecios:
                 span.record_exception(error)
                 span.set_status(StatusCode.ERROR, type(error).__name__)
                 raise
-            span.set_attribute("precios.estado", estado)
+            estado_telemetria = _normalizar_estado_telemetria(estado)
+            span.set_attribute("precios.estado", estado_telemetria)
             span.set_attribute("precios.idempotente", not creado)
             span.set_status(StatusCode.OK)
-            _contador_reportes.add(1, {"estado": estado, "idempotente": not creado})
+            _contador_reportes.add(
+                1,
+                {"estado": estado_telemetria, "idempotente": not creado},
+            )
             return respuesta, creado
 
     async def _registrar_reporte(

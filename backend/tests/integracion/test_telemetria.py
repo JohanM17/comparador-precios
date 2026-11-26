@@ -11,10 +11,12 @@ from uuid import UUID, uuid4
 
 import pytest
 from fastapi import FastAPI
+from fastapi.testclient import TestClient
+from opentelemetry import trace as otel_trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
-from opentelemetry.trace import StatusCode
+from opentelemetry.trace import SpanKind, StatusCode
 
 from app import main as modulo_main
 from app.compartido import telemetria
@@ -214,7 +216,7 @@ async def test_comparacion_cache_hit_marca_db_ms_cero(
     assert atributos["precios.db_ms"] == pytest.approx(0.0)
     assert atributos["precios.resultados_count"] == 0
     assert contador.registros == [(1, {"cache_hit": True})]
-    assert histograma.registros == [(0.0, {})]
+    assert histograma.registros == [(0.0, {"cache_hit": True})]
 
 
 class _ConfianzaFalsa:
@@ -405,8 +407,6 @@ class _InstrumentadorFalso:
 def _preparar_lifespan(
     monkeypatch: pytest.MonkeyPatch,
     eventos: list[str],
-    *,
-    activa: bool,
 ) -> _InstrumentadorFalso:
     """Aisla el ciclo de vida de las dependencias externas."""
 
@@ -420,35 +420,18 @@ def _preparar_lifespan(
         modulo_main, "configurar_telemetria", lambda configuracion: eventos.append("telemetria")
     )
     monkeypatch.setattr(modulo_main, "obtener_configuracion", lambda: object())
-    monkeypatch.setattr(modulo_main, "telemetria_activa", lambda: activa)
     monkeypatch.setattr(modulo_main, "apagar_telemetria", lambda: eventos.append("apagar"))
     monkeypatch.setattr(modulo_main, "cerrar_conexiones", cerrar_conexiones)
     return instrumentador
 
 
 @pytest.mark.asyncio
-async def test_lifespan_instrumenta_fastapi_y_apaga_antes_de_cerrar(
+async def test_lifespan_configura_y_apaga_sin_instrumentar(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Con telemetria activa instrumenta FastAPI, excluye salud y apaga al final."""
+    """El lifespan configura telemetria y apaga, pero ya no instrumenta FastAPI."""
     eventos: list[str] = []
-    instrumentador = _preparar_lifespan(monkeypatch, eventos, activa=True)
-    aplicacion = FastAPI()
-
-    async with modulo_main.lifespan(aplicacion):
-        eventos.append("dentro")
-
-    assert eventos == ["logging", "telemetria", "dentro", "apagar", "cerrar"]
-    assert instrumentador.llamadas == [(aplicacion, "/v1/salud,/v1/salud/listo")]
-
-
-@pytest.mark.asyncio
-async def test_lifespan_sin_telemetria_no_instrumenta_fastapi(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Con telemetria inactiva la aplicacion arranca y apaga sin instrumentar."""
-    eventos: list[str] = []
-    instrumentador = _preparar_lifespan(monkeypatch, eventos, activa=False)
+    instrumentador = _preparar_lifespan(monkeypatch, eventos)
     aplicacion = FastAPI()
 
     async with modulo_main.lifespan(aplicacion):
@@ -458,21 +441,57 @@ async def test_lifespan_sin_telemetria_no_instrumenta_fastapi(
     assert instrumentador.llamadas == []
 
 
-@pytest.mark.asyncio
-async def test_lifespan_sobrevive_si_la_instrumentacion_falla(
+def test_create_app_instrumenta_antes_de_construir_la_pila(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Un fallo al instrumentar no impide arrancar ni apagar la aplicacion."""
-    eventos: list[str] = []
-    instrumentador = _preparar_lifespan(monkeypatch, eventos, activa=True)
+    """La instrumentacion se registra en create_app, antes del primer request."""
+    instrumentador = _InstrumentadorFalso()
+    monkeypatch.setattr(modulo_main, "FastAPIInstrumentor", instrumentador)
 
-    def instrumentar_con_error(app: FastAPI, excluded_urls: str | None = None) -> None:
-        raise RuntimeError("instrumentacion no disponible")
+    aplicacion = modulo_main.create_app()
 
-    monkeypatch.setattr(instrumentador, "instrument_app", instrumentar_con_error)
-    aplicacion = FastAPI()
+    assert aplicacion.middleware_stack is None
+    assert instrumentador.llamadas == [(aplicacion, "/v1/salud,/v1/salud/listo")]
 
-    async with modulo_main.lifespan(aplicacion):
-        eventos.append("dentro")
 
-    assert eventos == ["logging", "telemetria", "dentro", "apagar", "cerrar"]
+def test_http_real_genera_span_y_excluye_salud() -> None:
+    """Con un provider real, una ruta normal se traza y la salud no genera spans."""
+    exportador = InMemorySpanExporter()
+    proveedor = TracerProvider(sampler=telemetria.ALWAYS_ON)
+    proveedor.add_span_processor(
+        telemetria.ProcesadorErroresPrimero(
+            SimpleSpanProcessor(exportador),
+            ratio_exitos=1.0,
+        )
+    )
+    otel_trace.set_tracer_provider(proveedor)
+
+    try:
+        with TestClient(modulo_main.app) as cliente:
+            respuesta = cliente.get("/openapi.json?orden=persona%40example.com&lat%3D4.53")
+            assert respuesta.status_code == 200
+            assert cliente.get("/v1/salud").status_code == 200
+            assert cliente.get("/v1/salud/listo").status_code in (200, 503)
+
+        spans = list(exportador.get_finished_spans())
+    finally:
+        proveedor.shutdown()
+
+    assert any("openapi" in span.name.lower() for span in spans)
+    span_openapi = next(
+        span for span in spans if span.kind == SpanKind.SERVER and "openapi" in span.name.lower()
+    )
+    assert span_openapi.kind == SpanKind.SERVER
+    assert not any(span.name.startswith("fastapi.") for span in spans)
+    assert not any("/v1/salud" in span.name for span in spans)
+    atributos_openapi = dict(span_openapi.attributes or {})
+    assert "[REDACTADO_EMAIL]" in str(atributos_openapi.get("http.url", ""))
+    assert "[REDACTADO_COORD]" in str(atributos_openapi.get("http.url", ""))
+    assert "persona%40example.com" not in str(atributos_openapi)
+    assert "net.peer.ip" not in atributos_openapi
+    assert "4.53" not in str(atributos_openapi)
+    for span in spans:
+        atributos = dict(span.attributes or {})
+        assert atributos.get("http.route") not in ("/v1/salud", "/v1/salud/listo")
+        assert "/v1/salud" not in str(atributos.get("http.target", ""))
+        assert "/v1/salud" not in str(atributos.get("url.path", ""))

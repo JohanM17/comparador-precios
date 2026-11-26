@@ -13,8 +13,18 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 _PATRON_EMAIL = re.compile(r"\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b")
+_PATRON_EMAIL_CODIFICADO = re.compile(
+    r"\b[a-zA-Z0-9._%+-]+%40[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b", re.IGNORECASE
+)
 _PATRON_COORDENADAS = re.compile(r"(lat|lng|latitude|longitude)=[-+]?(\d*\.\d+|\d+)")
+_PATRON_COORDENADAS_CODIFICADAS = re.compile(
+    r"(lat|lng|latitude|longitude)%3D[-+]?(\d*\.\d+|\d+)", re.IGNORECASE
+)
 _PATRON_BEARER = re.compile(r"Bearer\s+[-a-z0-9._~+/]+=*", re.IGNORECASE)
+
+FORMATO_LOG_CORRELACION = (
+    "%(asctime)s %(levelname)s %(name)s [trace_id=%(trace_id)s span_id=%(span_id)s] %(message)s"
+)
 
 
 def _ids_traza_actuales() -> tuple[str, str]:
@@ -26,11 +36,13 @@ def _ids_traza_actuales() -> tuple[str, str]:
 
 
 def redactar_texto_sensible(texto: str) -> str:
-    """Redacta correos, coordenadas lat/lng y tokens Bearer de cualquier cadena."""
+    """Redacta correos, coordenadas y tokens, incluidas variantes percent-encoded."""
     if not texto:
         return texto
     redactado = _PATRON_EMAIL.sub("[REDACTADO_EMAIL]", texto)
+    redactado = _PATRON_EMAIL_CODIFICADO.sub("[REDACTADO_EMAIL]", redactado)
     redactado = _PATRON_COORDENADAS.sub(r"\1=[REDACTADO_COORD]", redactado)
+    redactado = _PATRON_COORDENADAS_CODIFICADAS.sub(r"\1%3D[REDACTADO_COORD]", redactado)
     redactado = _PATRON_BEARER.sub("Bearer [REDACTADO_TOKEN]", redactado)
     return redactado
 
@@ -129,6 +141,8 @@ def configurar_logging() -> None:
     for handler in logger_raiz.handlers:
         _agregar_filtro_si_falta(handler, filtro_privacidad)
         _agregar_filtro_si_falta(handler, filtro_correlacion)
+        if handler.formatter is None:
+            handler.setFormatter(logging.Formatter(FORMATO_LOG_CORRELACION))
 
     logger_app = logging.getLogger("app")
     logger_app.setLevel(logging.INFO)

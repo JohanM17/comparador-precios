@@ -26,7 +26,7 @@ from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import ReadableSpan, Span, SpanProcessor, TracerProvider
+from opentelemetry.sdk.trace import Event, ReadableSpan, Span, SpanProcessor, TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.sdk.trace.sampling import (
     ALWAYS_OFF,
@@ -35,7 +35,7 @@ from opentelemetry.sdk.trace.sampling import (
     Sampler,
     TraceIdRatioBased,
 )
-from opentelemetry.trace import StatusCode, Tracer
+from opentelemetry.trace import Status, StatusCode, Tracer
 
 from app.compartido.logging_cfg import redactar_texto_sensible
 from app.config import Configuracion
@@ -121,10 +121,25 @@ class ProcesadorErroresPrimero(SpanProcessor):
         self._procesador.on_start(span, parent_context)
 
     def on_end(self, span: ReadableSpan) -> None:
-        """Sanitiza el span y decide si se exporta."""
-        _sanitizar_span(span)
-        if self._debe_exportar(span):
+        """Sanitiza el span y decide si se exporta sin propagar fallos."""
+        try:
+            _sanitizar_span(span)
+            exportar = self._debe_exportar(span)
+        except Exception as error:  # La observabilidad nunca debe tumbar la API
+            _logger.warning(
+                "Se descarta un span por fallo en la sanitizacion (%s)",
+                type(error).__name__,
+            )
+            return
+        if not exportar:
+            return
+        try:
             self._procesador.on_end(span)
+        except Exception as error:  # La observabilidad nunca debe tumbar la API
+            _logger.warning(
+                "No fue posible exportar un span (%s)",
+                type(error).__name__,
+            )
 
     def shutdown(self) -> None:
         """Apaga el procesador envuelto."""
@@ -202,16 +217,36 @@ def sanitizar_atributos(atributos: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def _sanitizar_span(span: ReadableSpan) -> None:
-    """Aplica la sanitizacion de atributos a un span antes de exportarlo.
+    """Aplica la sanitizacion a atributos, eventos y estado de un span.
 
     La instrumentacion automatica de FastAPI puede capturar la URL completa con
-    coordenadas en la cadena de consulta; este paso garantiza que ninguna PII
-    llegue al colector.
+    coordenadas en la cadena de consulta; los eventos de excepcion tambien
+    pueden contener mensajes con datos personales. Este paso garantiza que
+    ninguna PII llegue al colector.
+
+    Se apoya en los campos privados de `ReadableSpan` del SDK de OpenTelemetry
+    1.45.x (`_attributes`, `_events` y `_status`). `ProcesadorErroresPrimero`
+    captura cualquier fallo y descarta el span, de modo que un cambio interno
+    del SDK nunca afecta la peticion.
     """
     atributos = span._attributes
-    if not atributos:
-        return
-    span._attributes = sanitizar_atributos(atributos)
+    if atributos:
+        span._attributes = sanitizar_atributos(atributos)
+
+    eventos_saneados: list[Event] = []
+    for evento in span._events:
+        atributos_evento = evento.attributes
+        if atributos_evento:
+            evento._attributes = sanitizar_atributos(atributos_evento)
+        eventos_saneados.append(evento)
+    span._events = tuple(eventos_saneados)
+
+    descripcion = span.status.description
+    if descripcion:
+        span._status = Status(
+            span.status.status_code,
+            redactar_texto_sensible(descripcion),
+        )
 
 
 def _version_servicio() -> str:

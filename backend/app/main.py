@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -28,11 +29,7 @@ from app.compartido.logging_cfg import (
     configurar_logging,
 )
 from app.compartido.seguridad import UsuarioAutenticado, requiere_rol, requiere_usuario
-from app.compartido.telemetria import (
-    apagar_telemetria,
-    configurar_telemetria,
-    telemetria_activa,
-)
+from app.compartido.telemetria import apagar_telemetria, configurar_telemetria
 from app.config import obtener_configuracion
 from app.modulos.catalogo.api import router as catalogo_router
 from app.modulos.cuentas.api import (
@@ -115,20 +112,31 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     configurar_logging()
     configurar_telemetria(obtener_configuracion())
 
-    if telemetria_activa():
-        try:
-            FastAPIInstrumentor.instrument_app(app, excluded_urls="/v1/salud,/v1/salud/listo")
-        except Exception as error:  # La observabilidad nunca debe tumbar la API
-            _logger.warning(
-                "No fue posible instrumentar FastAPI con OpenTelemetry (%s)",
-                type(error).__name__,
-            )
-
     try:
         yield
     finally:
         apagar_telemetria()
         await cerrar_conexiones()
+
+
+def _opciones_telemetria_nativa() -> dict[str, Any]:
+    """Desactiva la telemetria nativa de FastAPI para evitar spans duplicados.
+
+    FastAPI 0.165 incorpora instrumentacion OpenTelemetry propia que ignora
+    `excluded_urls` y trazaria tambien los endpoints de salud. La deteccion por
+    firma mantiene compatibilidad con las versiones 0.115 en adelante.
+    """
+    if "telemetry" not in inspect.signature(FastAPI.__init__).parameters:
+        return {}
+    return {
+        "telemetry": {
+            "tracing": False,
+            "metrics": False,
+            "logs": False,
+            "operation_spans": False,
+            "auto_configure": False,
+        }
+    }
 
 
 def create_app() -> FastAPI:
@@ -140,6 +148,7 @@ def create_app() -> FastAPI:
         version="1.0.0",
         description="Backend API para la plataforma colaborativa de comparacion de precios",
         lifespan=lifespan,
+        **_opciones_telemetria_nativa(),
     )
 
     # Middlewares en orden de ejecucion (el ultimo agregado es el primero en recibir)
@@ -227,6 +236,17 @@ def create_app() -> FastAPI:
         return app.openapi_schema
 
     app.openapi = custom_openapi  # type: ignore[method-assign]
+
+    # La instrumentacion se registra antes de que Starlette construya la pila de
+    # middlewares (primer request o primer TestClient). El tracer global es un
+    # proxy no-op hasta que el lifespan configura el provider real.
+    try:
+        FastAPIInstrumentor.instrument_app(app, excluded_urls="/v1/salud,/v1/salud/listo")
+    except Exception as error:  # La observabilidad nunca debe tumbar la API
+        _logger.warning(
+            "No fue posible instrumentar FastAPI con OpenTelemetry (%s)",
+            type(error).__name__,
+        )
     return app
 
 

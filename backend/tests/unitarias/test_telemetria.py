@@ -9,11 +9,16 @@ from typing import Any
 
 import pytest
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.trace import StatusCode
+from opentelemetry.trace import Status, StatusCode
 
 from app.compartido import telemetria
-from app.compartido.logging_cfg import FiltroCorrelacionTrazas, FiltroPrivacidadLey1581
+from app.compartido.logging_cfg import (
+    FiltroCorrelacionTrazas,
+    FiltroPrivacidadLey1581,
+    redactar_texto_sensible,
+)
 from app.config import Configuracion
+from app.modulos.precios.servicio import _normalizar_estado_telemetria
 
 
 @pytest.fixture(autouse=True)
@@ -529,8 +534,8 @@ def test_procesador_errores_primero_delega_vaciado_y_apagado() -> None:
     assert destino.apagado is True
 
 
-def test_procesador_errores_primero_sanitiza_atributos_antes_de_exportar() -> None:
-    """Los cuerpos, coordenadas y correos se eliminan o redactan al cerrar el span."""
+def test_procesador_errores_primero_sanitiza_atributos_eventos_y_estado() -> None:
+    """Cuerpos, coordenadas, correos y mensajes de excepcion se redactan al cerrar."""
     destino = _ProcesadorDestino()
     proveedor = TracerProvider(sampler=telemetria.ALWAYS_ON)
     proveedor.add_span_processor(telemetria.ProcesadorErroresPrimero(destino, 1.0))
@@ -542,20 +547,105 @@ def test_procesador_errores_primero_sanitiza_atributos_antes_de_exportar() -> No
             span.set_attribute("lat", 4.53)
             span.set_attribute("request.body", '{"lng": -75.68}')
             span.set_attribute(
-                "url.full", "https://app.example.com/v1?lat=4.53&lng=-75.68&email=a@b.co"
+                "url.query",
+                "email=persona%40example.com&orden=lat%3D4.53&lng%3D-75.68",
+            )
+            span.record_exception(RuntimeError("correo persona%40example.com con lat%3D4.53"))
+            span.set_status(
+                Status(
+                    StatusCode.ERROR,
+                    "fallo con persona@example.com y lng=-75.68",
+                )
             )
     finally:
         proveedor.shutdown()
 
     assert len(destino.spans) == 1
-    atributos = dict(destino.spans[0].attributes or {})
+    span_exportado = destino.spans[0]
+    atributos = dict(span_exportado.attributes or {})
     assert atributos["precios.estado"] == "aceptado"
     assert "lat" not in atributos
     assert "request.body" not in atributos
-    assert atributos["url.full"] == (
-        "https://app.example.com/v1?lat=[REDACTADO_COORD]&lng=[REDACTADO_COORD]"
-        "&email=[REDACTADO_EMAIL]"
+    assert atributos["url.query"] == (
+        "email=[REDACTADO_EMAIL]&orden=lat%3D[REDACTADO_COORD]&lng%3D[REDACTADO_COORD]"
     )
+
+    assert span_exportado.status.description == (
+        "fallo con [REDACTADO_EMAIL] y lng=[REDACTADO_COORD]"
+    )
+    evento = next(evento for evento in span_exportado.events if evento.name == "exception")
+    mensaje = dict(evento.attributes or {})["exception.message"]
+    assert mensaje == "correo [REDACTADO_EMAIL] con lat%3D[REDACTADO_COORD]"
+
+
+def test_procesador_errores_primero_no_propaga_fallo_de_sanitizacion(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Un fallo de sanitizacion descarta el span y no tumba la peticion."""
+    destino = _ProcesadorDestino()
+    proveedor = TracerProvider(sampler=telemetria.ALWAYS_ON)
+    proveedor.add_span_processor(telemetria.ProcesadorErroresPrimero(destino, 0.0))
+
+    def sanitizar_con_error(span: Any) -> None:
+        raise RuntimeError("fallo de sanitizacion")
+
+    monkeypatch.setattr(telemetria, "_sanitizar_span", sanitizar_con_error)
+    with caplog.at_level(logging.WARNING, logger="app.telemetria"):
+        try:
+            _emitir_span(proveedor, "error", error=True)
+        finally:
+            proveedor.shutdown()
+
+    assert destino.spans == []
+    assert "Se descarta un span por fallo en la sanitizacion" in caplog.text
+
+
+def test_procesador_errores_primero_no_propaga_fallo_de_exportacion(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Un fallo del procesador destino no se propaga al cerrar el span."""
+
+    class _ProcesadorRoto(_ProcesadorDestino):
+        def on_end(self, span: Any) -> None:
+            raise RuntimeError("exportador caido")
+
+    proveedor = TracerProvider(sampler=telemetria.ALWAYS_ON)
+    proveedor.add_span_processor(telemetria.ProcesadorErroresPrimero(_ProcesadorRoto(), 1.0))
+
+    with caplog.at_level(logging.WARNING, logger="app.telemetria"):
+        try:
+            _emitir_span(proveedor, "exito")
+        finally:
+            proveedor.shutdown()
+
+    assert "No fue posible exportar un span" in caplog.text
+
+
+def test_redactar_texto_sensible_cubre_percent_encoding() -> None:
+    """Los correos y coordenadas percent-encoded tambien se redactan."""
+    texto = "email=persona%40example.com&orden=lat%3D4.53&lng%3D-75.68"
+
+    redactado = redactar_texto_sensible(texto)
+
+    assert redactado == (
+        "email=[REDACTADO_EMAIL]&orden=lat%3D[REDACTADO_COORD]&lng%3D[REDACTADO_COORD]"
+    )
+
+
+@pytest.mark.parametrize(
+    ("estado", "esperado"),
+    [
+        ("aceptado", "aceptado"),
+        ("dudoso", "dudoso"),
+        ("rechazado", "otro"),
+        ("desconocido", "otro"),
+    ],
+)
+def test_normalizar_estado_telemetria(estado: str, esperado: str) -> None:
+    """El estado de telemetria se limita a etiquetas de baja cardinalidad."""
+    assert _normalizar_estado_telemetria(estado) == esperado
 
 
 class _ProviderApagable:
