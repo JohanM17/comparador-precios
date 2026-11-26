@@ -121,43 +121,49 @@
   - **Resp.**: **B**
   - **Archivos**: `backend/app/main.py`, `backend/app/compartido/logging_cfg.py`, `backend/app/modulos/precios/servicio.py`, `backend/app/modulos/precios/servicio_comparacion.py`, `backend/tests/integracion/test_telemetria.py`
   - **Hecho cuando…**: ambos flujos generan spans y métricas; logs con `trace_id`/`span_id`; atributos permitidos; sin PII; `OTEL_SDK_DISABLED=true` no rompe nada.
+  - **Fix posterior**: logging real (handler, access log saneado y puente OTLP) en commits `37fa735..04da550`, revisado y aprobado.
   - **Pendiente de colector**: validar la exportación real a OTLP/Grafana en T-126.
 
-- [ ] **T-121** [US-B1] | **Versionar el tablero de Grafana como código**
+- [x] **T-121** [US-B1] | **Versionar el tablero de Grafana como código**
   - **Depende de**: T-120
   - **Resp.**: **D**
   - **Archivos**: `infra/observabilidad/grafana/dashboards/`, `infra/observabilidad/README.md`
   - **Hecho cuando…**: el tablero incluye tasa, p50/p95/p99, errores, caché, base de datos, SLO y presupuesto de error; se aprovisiona sin pasos manuales; el JSON es válido.
+  - **Nota**: consultas alineadas con `http_target`; nombres OTel→Prometheus pendientes de validar en T-126.
 
-- [ ] **T-122** [US-B1] | **Definir el SLO y la alerta como código, y validarlos en CI**
+- [x] **T-122** [US-B1] | **Definir el SLO y la alerta como código, y validarlos en CI**
   - **Depende de**: T-121
   - **Resp.**: **B + D**
   - **Archivos**: `infra/observabilidad/grafana/alertas/`, `.github/workflows/ci.yml`
   - **Hecho cuando…**: SLO 99 % / 7 días / presupuesto 1 %; alerta de burn rate/consumo; CI valida sintaxis; la notificación está configurada sin secretos en el repo.
+  - **Nota**: validador sin red y pruebas de artefactos; sintaxis PromQL y disparo real pendientes de T-126.
 
-- [ ] **T-123** [US-B1] | **Implementar la inyección de latencia y el escenario k6 de EC-11**
+- [x] **T-123** [US-B1] | **Implementar la inyección de latencia y el escenario k6 de EC-11**
   - **Depende de**: T-120
   - **Resp.**: **B + D**
   - **Archivos**: `backend/app/main.py` o middleware de pruebas, `infra/k6/ec04_carga.js`, `docs/observabilidad.md`
   - **Hecho cuando…**: `SIMULAR_LATENCIA_MS` funciona solo fuera de producción; k6 ejerce comparación; el simulacro produce latencia observable y no afecta datos.
+  - **Nota**: k6 resuelve un producto real en `setup()`; el simulacro real queda para T-126.
 
-- [ ] **T-124** [US-B1] | **Probar privacidad y degradación de la telemetría**
+- [x] **T-124** [US-B1] | **Probar privacidad y degradación de la telemetría**
   - **Depende de**: T-120
   - **Resp.**: **B**
   - **Archivos**: `backend/tests/integracion/test_telemetria.py`
   - **Hecho cuando…**: una prueba falla si aparece cualquier atributo prohibido; un exportador caído no afecta la API; `OTEL_SDK_DISABLED=true` funciona; no hay secretos en logs.
 
-- [ ] **T-125** [US-B1] | **Documentar el runbook de observabilidad y el despliegue**
+- [x] **T-125** [US-B1] | **Documentar el runbook de observabilidad y el despliegue**
   - **Depende de**: T-121, T-122, T-123, T-124
   - **Resp.**: **D**
   - **Archivos**: `docs/observabilidad.md`, `docs/despliegue.md`, `.env.example`
   - **Hecho cuando…**: el runbook explica tablero, SLO, alerta, simulacro, diagnóstico, muestreo, retención y reversión; las variables están documentadas; no hay secretos.
+  - **Nota**: runbook alineado con el logging real; validación del colector, retención y disparo de alerta quedan para T-126.
 
 - [ ] **T-126** [US-B1] | **Certificar EC-11 con el simulacro y la evidencia**
   - **Depende de**: T-122, T-123, T-125
   - **Resp.**: **B + D**
   - **Archivos**: `docs/calidad/informe_ec11.md` (nuevo), capturas/enlaces en el repositorio
   - **Hecho cuando…**: alerta ≤ 5 min; traza identifica el componente; tablero muestra SLO/presupuesto; evidencia reproducible; 0 PII; p95 de comparación no se degrada.
+  - **BLOQUEADA — pendiente de entorno**: requiere `.env`, colector OTLP/Grafana, reglas cargadas, `k6` y un producto real del seed. La plantilla reproducible está en `docs/calidad/informe_ec11.md`; no se ha ejecutado ni certificado.
 
 ---
 
