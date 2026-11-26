@@ -111,6 +111,8 @@ este indicador por una mejora cosmética.
 | `pytest backend/tests/unitarias` | **288 pruebas, todas en verde** |
 | Sincronización del contrato OpenAPI | regenerado; sin rutas ni esquemas perdidos |
 | `tsc --noEmit` y `next lint` | limpios |
+| `scripts/migrar.py` sobre Supabase | `0006` aplicada; una sola migración pendiente |
+| API en vivo contra la base migrada | comparación, historial y catálogo en `200`; las tres rutas comerciales en `401` sin credencial |
 
 De esas 288 pruebas, 36 son del módulo comercial y se escribieron antes que el código que
 verifican: 12 de la regla de contraste `D-01`, 16 de la validación de promociones de la Ley 1480,
@@ -137,13 +139,38 @@ había añadido a la consulta de candidatos.
 
 ---
 
-## 5. Lo que este documento no afirma
+## 5. La migración sobre la base compartida
 
-- **La migración `0006` no se ha aplicado a la base compartida.** Las tablas
-  `solicitud_verificacion_comercio`, `precio_oficial` y `promocion` no existen todavía en
-  Supabase. Todo lo medido aquí es estructural: código, contrato y fronteras.
-- **No hay pruebas de integración ejecutadas** contra una base con el esquema comercial, y por
-  tanto no se ha verificado el comportamiento de las siete rutas de extremo a extremo.
+`0006_modulo_comercial.sql` se aplicó el 26 de noviembre de 2026 con `scripts/migrar.py`, que la
+ejecuta en una transacción y la registra. Antes se ensayó en una transacción revertida para
+comprobar que el SQL era válido contra el esquema real.
+
+| Comprobación posterior | Resultado |
+| :--- | :--- |
+| `_migraciones_historial` | `0001`, `0002`, `0003`, `0005`, `0006`, en ese orden |
+| Filas de `producto` / `establecimiento` / `reporte_precio` / `precio_vigente` | 134 / 43 / 1797 / 624, idénticas a antes |
+| Índice `idx_reporte_historial_serie` de A2 | intacto |
+| Tablas nuevas | las tres, con *row level security* activa (`ADR-012`) |
+| Columnas nuevas en `precio_vigente` | `precio_oficial_cop` y `diferencia_pct` anulables; `requiere_revalidacion` con valor por omisión `false` |
+
+El orden del historial es la razón del renumerado. Con el nombre original se habría leído
+`0001, 0002, 0003, 0005, 0004`, y el orden de los archivos habría dejado de significar el orden
+de aplicación.
+
+---
+
+## 6. Lo que este documento no afirma
+
+- **Solo se verificaron las lecturas.** La comparación, el historial y el catálogo responden
+  contra la base migrada, y las rutas comerciales rechazan correctamente a quien no se
+  identifica. La **escritura** en las columnas y tablas nuevas no se ha ejercitado contra la base.
+- **No hay pruebas de integración ejecutadas** sobre el esquema comercial. La suite de
+  `backend/tests/integracion` no aísla sus escrituras en transacciones revertidas, así que
+  correrla contra la base compartida dejaría datos; necesita una base propia. Es trabajo de
+  `T-68`.
+- **La política por omisión no cambió.** `ServicioPrecios`, `servicio_casos` y el trabajo de
+  reconstrucción siguen usando `SoloUsuarios`. `OficialConContraste` solo es la implementación
+  por omisión dentro del servicio comercial, que es donde corresponde.
 - **EC-05 mide modificabilidad, no corrección funcional.** Que el módulo entre sin rediseñar el
   núcleo no dice que sus reglas sean las correctas; eso lo dicen las pruebas de dominio y, cuando
   existan, las de integración.
