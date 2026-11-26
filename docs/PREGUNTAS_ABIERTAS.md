@@ -1,4 +1,4 @@
-# Registro de Preguntas Abiertas (`PA-01` a `PA-04`)
+# Registro de Preguntas Abiertas (`PA-01` a `PA-06`)
 
 Este documento constituye el registro formal y auditable de requisitos ambiguos, dependencias externas o decisiones operativas pendientes de confirmación, conforme al principio de no invención y fidelidad al diseño del proyecto.
 
@@ -12,6 +12,8 @@ Este documento constituye el registro formal y auditable de requisitos ambiguos,
 | **PA-02** | Esquema de firma de JWT en Supabase | Esquema de firma de JWT activo en el proyecto de Supabase (asimétrico `JWKS` ES256/RS256 vs. secreto simétrico legado `HS256`). | **Resuelto en T-03:** `backend/app/compartido/seguridad.py` implementa soporte dual: si `SUPABASE_JWKS_URL` está configurada, valida vía JWKS asimétrico; en su defecto, valida con `SUPABASE_JWT_SECRET` (HS256). | `RESUELTA` |
 | **PA-03** | Levantamiento de campo en Armenia | Distribución operativa entre los 4 integrantes para el levantamiento de precios en 5 a 8 tiendas y supermercados de Armenia (`supabase/seed/precios_semilla.csv`). | Estructura CSV y script `scripts/semilla.py` listos; se utiliza carga de prueba con `es_demo = true` mientras se ejecuta el trabajo de campo de la Ola 1. | `POR CONFIRMAR` |
 | **PA-04** | Alojamiento definitivo de contenedor | Proveedor definitivo de alojamiento del contenedor backend al agotar los $5 USD de prueba de Railway (Railway Hobby vs. Render Free vs. Fly.io). | El `Dockerfile` multi-etapa se diseñó 100 % agnóstico y portable (`ADR-017`), permitiendo migrar de Railway a Render Free o Fly.io en minutos sin cambiar código. | `POR CONFIRMAR` |
+| **PA-05** | Proveedor y cuotas de observabilidad | Backend OTLP definitivo para la ampliación B1: Grafana Cloud Free, observabilidad nativa de Railway/Render o un colector propio. Definir cuotas, retención, muestreo y costo. | Se propone OpenTelemetry + OTLP/HTTP a Grafana Cloud Free, con muestreo de éxitos configurable y 100 % de errores (`ADR-0020`). Confirmar disponibilidad y límites de la capa gratuita. | `POR CONFIRMAR` |
+| **PA-06** | Mapeo de entregables del anexo | El Anexo 1 habla de «Entregable 5» y «Entregable 6» por asignatura; la numeración global de `PROYECTO.md` no coincide (5 = arquitectura v1, 6 = ADRs, 10 = arquitectura v2, 13/14 = calidad y proceso). | Confirmar con la guía del curso el mapeo exacto antes de rotular los documentos del corte 3; por contenido, la ampliación se integra en arquitectura v2, ADRs, evaluación de calidad y plan de mejora. | `POR CONFIRMAR` |
 
 ---
 

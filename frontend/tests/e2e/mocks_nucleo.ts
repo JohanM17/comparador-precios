@@ -7,6 +7,55 @@ export const TIENDA_A = "11111111-2222-3333-4444-555555555555";
 export const TIENDA_B = "22222222-3333-4444-5555-666666666666";
 export const CASO_ID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
 
+export type OrigenHistorialMock = "usuario" | "comercio" | "semilla";
+export type EstadoHistorialMock = "aceptado" | "dudoso";
+
+export interface PuntoHistorialMock {
+  readonly id: string;
+  readonly observado_en: string;
+  readonly precio_cop: number;
+  readonly precio_por_unidad: {
+    readonly valor_cop: number;
+    readonly por: "kg" | "l" | "unidad";
+  };
+  readonly origen: OrigenHistorialMock;
+  readonly estado: EstadoHistorialMock;
+  readonly es_demo: boolean;
+  readonly presentacion_id: string | null;
+  readonly cantidad_base: number;
+}
+
+export interface RespuestaHistorialMock {
+  readonly datos: {
+    readonly producto: {
+      readonly id: string;
+      readonly nombre: string;
+      readonly unidad_base: "g";
+      readonly unidad_visualizacion: "kg";
+    };
+    readonly establecimiento: {
+      readonly id: string;
+      readonly nombre: string;
+      readonly municipio: string;
+    };
+    readonly presentacion: null;
+    readonly desde: string;
+    readonly hasta: string;
+    readonly puntos: readonly PuntoHistorialMock[];
+    readonly total: number;
+    readonly truncado: boolean;
+    readonly datos_de_demostracion: boolean;
+  };
+}
+
+export interface OpcionesHistorialMock {
+  readonly puntos?: readonly PuntoHistorialMock[];
+  readonly truncado?: boolean;
+  readonly datos_de_demostracion?: boolean;
+  readonly desde?: string;
+  readonly hasta?: string;
+}
+
 export interface OpcionesMock {
   rol?: "reportante" | "moderador";
   autorizadoInicial?: boolean;
@@ -57,6 +106,200 @@ function construirComparacion(): unknown {
       },
     },
   };
+}
+
+function haceDias(dias: number): string {
+  return new Date(Date.now() - dias * 86_400_000).toISOString();
+}
+
+function crearPuntoHistorial(
+  id: string,
+  diasAtras: number,
+  precioCop: number,
+  origen: OrigenHistorialMock,
+  estado: EstadoHistorialMock,
+  esDemo: boolean
+): PuntoHistorialMock {
+  return {
+    id,
+    observado_en: haceDias(diasAtras),
+    precio_cop: precioCop,
+    precio_por_unidad: { valor_cop: precioCop, por: "kg" },
+    origen,
+    estado,
+    es_demo: esDemo,
+    presentacion_id: null,
+    cantidad_base: 1000,
+  };
+}
+
+const HISTORIAL_POR_ESTABLECIMIENTO: Readonly<
+  Record<string, { readonly nombre: string; readonly puntos: readonly PuntoHistorialMock[] }>
+> = {
+  [TIENDA_A]: {
+    nombre: "Tienda La Esquina",
+    puntos: [
+      crearPuntoHistorial(
+        "a1111111-1111-4111-8111-111111111111",
+        80,
+        5000,
+        "usuario",
+        "aceptado",
+        false
+      ),
+      crearPuntoHistorial(
+        "a2222222-2222-4222-8222-222222222222",
+        45,
+        5250,
+        "comercio",
+        "aceptado",
+        false
+      ),
+      crearPuntoHistorial(
+        "a3333333-3333-4333-8333-333333333333",
+        20,
+        4800,
+        "semilla",
+        "dudoso",
+        true
+      ),
+      crearPuntoHistorial(
+        "a4444444-4444-4444-8444-444444444444",
+        3,
+        5100,
+        "usuario",
+        "aceptado",
+        false
+      ),
+    ],
+  },
+  [TIENDA_B]: {
+    nombre: "Supermercado Central",
+    puntos: [
+      crearPuntoHistorial(
+        "b1111111-1111-4111-8111-111111111111",
+        70,
+        6300,
+        "usuario",
+        "aceptado",
+        false
+      ),
+      crearPuntoHistorial(
+        "b2222222-2222-4222-8222-222222222222",
+        30,
+        6400,
+        "comercio",
+        "aceptado",
+        false
+      ),
+      crearPuntoHistorial(
+        "b3333333-3333-4333-8333-333333333333",
+        7,
+        6000,
+        "usuario",
+        "dudoso",
+        false
+      ),
+      crearPuntoHistorial(
+        "b4444444-4444-4444-8444-444444444444",
+        40,
+        6200,
+        "semilla",
+        "aceptado",
+        true
+      ),
+    ],
+  },
+};
+
+/**
+ * Construye una respuesta valida del historial para las tiendas del mock.
+ * Devuelve `null` cuando el establecimiento no existe, para responder 422.
+ */
+export function construirRespuestaHistorial(
+  establecimientoId: string,
+  opciones: OpcionesHistorialMock = {}
+): RespuestaHistorialMock | null {
+  const establecimiento = HISTORIAL_POR_ESTABLECIMIENTO[establecimientoId];
+  if (!establecimiento) {
+    return null;
+  }
+
+  const puntos = opciones.puntos ?? establecimiento.puntos;
+  return {
+    datos: {
+      producto: {
+        id: PROD_ID,
+        nombre: "Arroz blanco",
+        unidad_base: "g",
+        unidad_visualizacion: "kg",
+      },
+      establecimiento: {
+        id: establecimientoId,
+        nombre: establecimiento.nombre,
+        municipio: "Armenia",
+      },
+      presentacion: null,
+      desde: opciones.desde ?? haceDias(89),
+      hasta: opciones.hasta ?? new Date().toISOString(),
+      puntos,
+      total: puntos.length,
+      truncado: opciones.truncado ?? false,
+      datos_de_demostracion:
+        opciones.datos_de_demostracion ?? puntos.some((punto) => punto.es_demo),
+    },
+  };
+}
+
+function esRutaHistorial(ruta: string): boolean {
+  const partes = ruta.split("/");
+  return (
+    partes.length === 5 &&
+    partes[1] === "v1" &&
+    partes[2] === "productos" &&
+    partes[4] === "historial-precios"
+  );
+}
+
+async function responderHistorial(route: Route, ruta: string): Promise<boolean> {
+  if (!esRutaHistorial(ruta) || route.request().method() !== "GET") {
+    return false;
+  }
+
+  const productoId = ruta.split("/")[3];
+  if (productoId !== PROD_ID) {
+    await route.fulfill({
+      status: 404,
+      json: {
+        type: "https://comparador.armenia.gov.co/errores/no-encontrado",
+        title: "No encontrado",
+        status: 404,
+        detail: "Producto no encontrado o inactivo.",
+        codigo: "NO_ENCONTRADO",
+      },
+    });
+    return true;
+  }
+
+  const establecimientoId =
+    new URL(route.request().url()).searchParams.get("establecimiento_id") ?? "";
+  const respuesta = construirRespuestaHistorial(establecimientoId);
+  if (!respuesta) {
+    await route.fulfill({
+      status: 422,
+      json: {
+        type: "https://comparador.armenia.gov.co/errores/validacion",
+        title: "Solicitud invalida",
+        status: 422,
+        detail: "El establecimiento_id es obligatorio y debe existir.",
+        codigo: "VALIDACION",
+      },
+    });
+    return true;
+  }
+
+  await route.fulfill({ json: respuesta });
+  return true;
 }
 
 async function responderPublicos(route: Route, ruta: string): Promise<boolean> {
@@ -171,6 +414,7 @@ export async function configurarMocksNucleo(page: Page, opts: OpcionesMock = {})
       return;
     }
     const metodo = req.method();
+    if (await responderHistorial(route, ruta)) return;
     if (await responderPublicos(route, ruta)) return;
     if (await responderCuentaYReportes(route, ruta, metodo, estado)) return;
     if (await responderModeracion(route, ruta, metodo, estado)) return;

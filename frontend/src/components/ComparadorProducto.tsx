@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, MapPin, Navigation } from "lucide-react";
 import {
   clienteApi,
   type DatosComparacion,
+  type DatosHistorial,
   type ItemPromocion,
 } from "@/lib/api/clienteApi";
 import { extraerInfoError, type InfoErrorVisible } from "@/lib/formato";
@@ -14,6 +15,7 @@ import BloquePromociones from "@/components/BloquePromociones";
 import Cargando from "@/components/Cargando";
 import EstadoError from "@/components/EstadoError";
 import EstadoVacio from "@/components/EstadoVacio";
+import GraficaHistorialPrecios from "@/components/GraficaHistorialPrecios";
 import ListaPrecios from "@/components/ListaPrecios";
 
 type CriterioOrden = "precio_unitario" | "precio" | "distancia";
@@ -21,6 +23,12 @@ type CriterioOrden = "precio_unitario" | "precio" | "distancia";
 interface CoordenadasMemoria {
   readonly lat: number;
   readonly lng: number;
+}
+
+interface OpcionEstablecimientoHistorial {
+  readonly id: string;
+  readonly nombre: string;
+  readonly barrio: string | null;
 }
 
 export interface ComparadorProductoProps {
@@ -43,6 +51,11 @@ export default function ComparadorProducto({
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<InfoErrorVisible | null>(null);
 
+  const [establecimientoHistorialId, setEstablecimientoHistorialId] = useState<string>("");
+  const [historial, setHistorial] = useState<DatosHistorial | null>(null);
+  const [cargandoHistorial, setCargandoHistorial] = useState(false);
+  const [errorHistorial, setErrorHistorial] = useState<InfoErrorVisible | null>(null);
+
   const cargarComparacion = useCallback(async () => {
     setCargando(true);
     setError(null);
@@ -64,6 +77,85 @@ export default function ComparadorProducto({
   useEffect(() => {
     void cargarComparacion();
   }, [cargarComparacion]);
+
+  const establecimientosHistorial = useMemo<readonly OpcionEstablecimientoHistorial[]>(() => {
+    const unicos = new Map<string, OpcionEstablecimientoHistorial>();
+    for (const resultado of datos?.resultados ?? []) {
+      const { id, nombre, barrio } = resultado.establecimiento;
+      if (!unicos.has(id)) {
+        unicos.set(id, { id, nombre, barrio: barrio ?? null });
+      }
+    }
+    return Array.from(unicos.values());
+  }, [datos]);
+
+  const hayEstablecimientosHistorial = establecimientosHistorial.length > 0;
+
+  // Mantiene una seleccion valida cuando cambian el producto o los resultados.
+  useEffect(() => {
+    if (establecimientosHistorial.length === 0) {
+      setEstablecimientoHistorialId("");
+      return;
+    }
+    const seleccionValida = establecimientosHistorial.some(
+      (establecimiento) => establecimiento.id === establecimientoHistorialId
+    );
+    const primero = establecimientosHistorial[0];
+    if (!seleccionValida && primero) {
+      setEstablecimientoHistorialId(primero.id);
+    }
+  }, [establecimientosHistorial, establecimientoHistorialId]);
+
+  // Numero de la ultima solicitud: descarta respuestas de selecciones anteriores.
+  const solicitudHistorialRef = useRef(0);
+
+  const cargarHistorial = useCallback(async (): Promise<void> => {
+    if (!establecimientoHistorialId || !hayEstablecimientosHistorial) {
+      solicitudHistorialRef.current += 1;
+      setHistorial(null);
+      setErrorHistorial(null);
+      setCargandoHistorial(false);
+      return;
+    }
+
+    const numeroSolicitud = solicitudHistorialRef.current + 1;
+    solicitudHistorialRef.current = numeroSolicitud;
+
+    setHistorial(null);
+    setCargandoHistorial(true);
+    setErrorHistorial(null);
+
+    try {
+      const respuesta = await clienteApi.obtenerHistorialProducto(productoId, {
+        establecimiento_id: establecimientoHistorialId,
+        presentacion_id: presentacionId || null,
+        limite: 200,
+      });
+      if (solicitudHistorialRef.current !== numeroSolicitud) {
+        return;
+      }
+      setHistorial(respuesta.datos);
+    } catch (err) {
+      if (solicitudHistorialRef.current !== numeroSolicitud) {
+        return;
+      }
+      setErrorHistorial(extraerInfoError(err, "No pudimos cargar el historial de precios."));
+    } finally {
+      if (solicitudHistorialRef.current === numeroSolicitud) {
+        setCargandoHistorial(false);
+      }
+    }
+  }, [productoId, presentacionId, establecimientoHistorialId, hayEstablecimientosHistorial]);
+
+  useEffect(() => {
+    void cargarHistorial();
+    return () => {
+      // Invalida la solicitud en curso si la ficha se desmonta o cambia la seleccion.
+      solicitudHistorialRef.current += 1;
+    };
+  }, [cargarHistorial]);
+
+  const tituloHistorialId = React.useId();
 
   const manejarCambioPresentacion = (nuevoId: string): void => {
     setPresentacionId(nuevoId);
@@ -226,6 +318,57 @@ export default function ComparadorProducto({
             productoId={productoId}
           />
         )}
+
+        {!cargando &&
+          !error &&
+          datos &&
+          establecimientoHistorialId &&
+          hayEstablecimientosHistorial && (
+            <section
+              aria-labelledby={tituloHistorialId}
+              className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+            >
+              <h2 id={tituloHistorialId} className="text-lg font-semibold text-slate-900 sm:text-xl">
+                Historial de precios
+              </h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Consulta cómo ha cambiado el precio en un establecimiento. Esta selección es
+                independiente del orden de la comparación.
+              </p>
+
+              <div className="mt-4">
+                <label
+                  htmlFor="selector-establecimiento-historial"
+                  className="block text-xs font-semibold text-slate-700"
+                >
+                  Establecimiento del historial
+                </label>
+                <select
+                  id="selector-establecimiento-historial"
+                  value={establecimientoHistorialId}
+                  onChange={(e) => setEstablecimientoHistorialId(e.target.value)}
+                  className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 text-sm text-slate-900 focus:border-emerald-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700/20 sm:max-w-md"
+                >
+                  {establecimientosHistorial.map((establecimiento) => (
+                    <option key={establecimiento.id} value={establecimiento.id}>
+                      {establecimiento.barrio
+                        ? `${establecimiento.nombre} · ${establecimiento.barrio}`
+                        : establecimiento.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="mt-5">
+                <GraficaHistorialPrecios
+                  datos={historial}
+                  cargando={cargandoHistorial}
+                  error={errorHistorial?.detalle ?? null}
+                  onReintentar={() => void cargarHistorial()}
+                />
+              </div>
+            </section>
+          )}
 
         {!cargando && !error && datos && <BloquePromociones promociones={promociones} />}
       </div>

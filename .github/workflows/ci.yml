@@ -69,6 +69,11 @@ jobs:
           source .venv/bin/activate
           pytest backend/tests/unitarias -v
 
+      - name: Validar artefactos de observabilidad
+        run: |
+          source .venv/bin/activate
+          python scripts/validar_observabilidad.py
+
   frontend-calidad:
     name: Frontend - TypeScript Estricto, Linter y Build de Producción
     runs-on: ubuntu-latest

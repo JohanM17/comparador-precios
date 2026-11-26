@@ -3,16 +3,19 @@
 from __future__ import annotations
 
 import math
+import time
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
+from opentelemetry.trace import StatusCode
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bd import sesion_transaccional
 from app.compartido.errores import NoEncontradoError, ValidacionError
+from app.compartido.telemetria import obtener_meter, obtener_tracer
 from app.dominio.orden import ItemComparacion, ordenar_comparacion
 from app.dominio.unidades import calcular_precio_visualizacion
 from app.modulos.precios.esquemas import (
@@ -26,6 +29,19 @@ from app.modulos.precios.esquemas import (
     RespuestaComparacion,
 )
 from app.puertos.cache import PuertoCache
+
+tracer = obtener_tracer("app.modulos.precios.servicio_comparacion")
+meter = obtener_meter("app.modulos.precios.servicio_comparacion")
+_contador_comparaciones = meter.create_counter(
+    "precios.comparaciones",
+    unit="1",
+    description="Comparaciones de precios servidas por acierto de cache",
+)
+_histograma_db_ms = meter.create_histogram(
+    "precios.db_ms",
+    unit="ms",
+    description="Latencia de la consulta a base de datos en comparaciones",
+)
 
 
 def _calcular_haversine_metros(lat1: float, lon1: float, lat2: float, lon2: float) -> int:
@@ -185,6 +201,48 @@ class ServicioComparacion:
         radio_km: float | None = None,
         ahora: datetime | None = None,
     ) -> RespuestaComparacion:
+        """Obtiene la comparacion dentro de un span sin atributos de ubicacion."""
+        with tracer.start_as_current_span(
+            "precios.obtener_comparacion",
+            record_exception=False,
+            set_status_on_exception=False,
+        ) as span:
+            span.set_attribute("precios.presentacion", presentacion_id is not None)
+            if radio_km is not None:
+                span.set_attribute("precios.radio_km", float(radio_km))
+            try:
+                respuesta, cache_hit, db_ms = await self._obtener_comparacion(
+                    producto_id=producto_id,
+                    presentacion_id=presentacion_id,
+                    orden=orden,
+                    lat=lat,
+                    lng=lng,
+                    radio_km=radio_km,
+                    ahora=ahora,
+                )
+            except Exception as error:
+                span.record_exception(error)
+                span.set_status(StatusCode.ERROR, type(error).__name__)
+                raise
+            span.set_attribute("precios.orden", orden)
+            span.set_attribute("precios.cache_hit", cache_hit)
+            span.set_attribute("precios.resultados_count", len(respuesta.datos.resultados))
+            span.set_attribute("precios.db_ms", db_ms)
+            span.set_status(StatusCode.OK)
+            _contador_comparaciones.add(1, {"cache_hit": cache_hit})
+            _histograma_db_ms.record(db_ms, {"cache_hit": cache_hit})
+            return respuesta
+
+    async def _obtener_comparacion(
+        self,
+        producto_id: UUID,
+        presentacion_id: UUID | None = None,
+        orden: str = "precio_unitario",
+        lat: float | None = None,
+        lng: float | None = None,
+        radio_km: float | None = None,
+        ahora: datetime | None = None,
+    ) -> tuple[RespuestaComparacion, bool, float]:
         instante = ahora if ahora is not None else datetime.now(UTC)
         _validar_parametros_consulta(orden, presentacion_id, lat, lng)
 
@@ -194,8 +252,9 @@ class ServicioComparacion:
         if es_cacheable:
             datos_cache = await self.cache.obtener(producto_id, subllave)
             if datos_cache:
-                return RespuestaComparacion.model_validate(datos_cache)
+                return RespuestaComparacion.model_validate(datos_cache), True, 0.0
 
+        inicio_bd = time.perf_counter()
         if self.sesion is not None:
             fila_prod, presentaciones_dto, filas = await self._consultar_bd(
                 self.sesion, producto_id, presentacion_id
@@ -205,6 +264,7 @@ class ServicioComparacion:
                 fila_prod, presentaciones_dto, filas = await self._consultar_bd(
                     sesion, producto_id, presentacion_id
                 )
+        db_ms = (time.perf_counter() - inicio_bd) * 1000.0
 
         items_dominio: list[ItemComparacion] = []
         mapa_filas: dict[UUID, tuple[Any, int | None]] = {}
@@ -259,4 +319,4 @@ class ServicioComparacion:
                 producto_id, subllave, respuesta.model_dump(mode="json"), ttl_segundos=60
             )
 
-        return respuesta
+        return respuesta, False, db_ms

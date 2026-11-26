@@ -31,3 +31,5 @@ EC-03,Escenario,Deteccion de anomalias >= 90 pct y rafagas,modulos/confianza,scr
 EC-04,Escenario,Carga 500 VUs p95 <= 2000 ms error < 1 pct,infra/k6,infra/k6/ec04_carga.js,T-53,Prueba de estres k6 con 500 usuarios concurrentes en verde
 EC-05,Escenario,Modificabilidad etapa 2 esfuerzo <= 1.25x,arquitectura,docs/calidad/ec05-resultado.md,T-69,Esfuerzo real vs estimado sin redisenar el nucleo base
 EC-06,Escenario,Neutralidad comercial verificada al 100 pct,arquitectura,backend/tests/integracion/test_comparacion_ec06.py,T-68,import-linter y pruebas de contrato confirman cero sesgo
+EC-08,Escenario,Historial de 90 dias con origen y confiabilidad,modulos/precios,backend/tests/integracion/test_historial_precios.py,T-119,Serie de 90 dias con origen y estado; cambio visible <= 60 s; 0 PII
+EC-11,Escenario,Observabilidad OTel con SLO y alerta,compartido/telemetria,backend/tests/integracion/test_telemetria.py,T-126,Alerta <= 5 min; traza identifica componente; 0 PII en telemetria
