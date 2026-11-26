@@ -23,6 +23,7 @@ from app.compartido.errores import (
     ServicioNoDisponibleError,
     registrar_manejadores_errores,
 )
+from app.compartido.latencia_simulada import LatenciaSimuladaMiddleware
 from app.compartido.logging_cfg import (
     LoggingAccesoMiddleware,
     RequestIdMiddleware,
@@ -61,6 +62,22 @@ from app.modulos.precios.api import (
 from app.tareas.router_jobs import router as jobs_router
 
 _logger = logging.getLogger("app")
+
+# Prefijos de negocio que reciben la latencia artificial del simulacro EC-11.
+# Salud y documentacion quedan fuera para no degradar sondas ni el arranque.
+RUTAS_LATENCIA_SIMULADA: tuple[str, ...] = (
+    "/v1/auth",
+    "/v1/categorias",
+    "/v1/establecimientos",
+    "/v1/fotos",
+    "/v1/legal",
+    "/v1/mi-cuenta",
+    "/v1/mis-reportes",
+    "/v1/moderacion",
+    "/v1/productos",
+    "/v1/reportes",
+    "/v1/sugerencias-presentacion",
+)
 
 
 class RespuestaSalud(BaseModel):
@@ -152,6 +169,13 @@ def create_app() -> FastAPI:
     )
 
     # Middlewares en orden de ejecucion (el ultimo agregado es el primero en recibir)
+    # La latencia va dentro del logging para que la duracion registrada la incluya.
+    app.add_middleware(
+        LatenciaSimuladaMiddleware,
+        milisegundos=cfg.SIMULAR_LATENCIA_MS,
+        entorno=cfg.ENTORNO,
+        rutas=RUTAS_LATENCIA_SIMULADA,
+    )
     app.add_middleware(LoggingAccesoMiddleware)
     app.add_middleware(RequestIdMiddleware)
     app.add_middleware(

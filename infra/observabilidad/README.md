@@ -192,6 +192,70 @@ Advertencias de interpretación:
   visuales; la fuente de verdad es la consulta PromQL y la regla de grabación de
   `grafana/alertas/slo-comparador.yml`.
 
+## Simulacro EC-11: latencia controlada y k6
+
+El backend incluye `LatenciaSimuladaMiddleware`
+(`backend/app/compartido/latencia_simulada.py`). La espera solo se aplica cuando
+`ENTORNO` no es `production`, `SIMULAR_LATENCIA_MS` es mayor que cero y la ruta
+pertenece a los prefijos de negocio configurados. Las rutas de salud
+(`/v1/salud` y `/v1/salud/listo`) quedan fuera para no degradar las sondas.
+Con el valor por defecto `SIMULAR_LATENCIA_MS=0` la API no cambia.
+
+`infra/k6/ec11_latencia.js` genera la carga del simulacro: 200 VUs durante
+3 minutos contra
+`GET /v1/productos/{id}/comparacion?orden=precio_unitario`, con la etiqueta
+`endpoint=comparacion` y una pausa de 1 s entre iteraciones. El guion **no fija
+thresholds**: durante el simulacro se espera que la latencia supere el SLO, y un
+umbral haría fallar k6 justo por el comportamiento buscado.
+
+### Procedimiento
+
+1. Configura el backend de pruebas con la latencia y las variables OTLP del
+   entorno de pruebas ya definidas:
+
+   ```bash
+   ENTORNO=pruebas SIMULAR_LATENCIA_MS=3000 \
+     uv --directory backend run uvicorn app.main:app --port 8000
+   ```
+
+2. Ejecuta el escenario de carga desde otra terminal:
+
+   ```bash
+   k6 run infra/k6/ec11_latencia.js
+   ```
+
+   `BASE_URL` (por defecto `http://127.0.0.1:8000`) y `PRODUCTO_ID` son
+   configurables:
+
+   ```bash
+   BASE_URL=http://127.0.0.1:8000 \
+     PRODUCTO_ID=3b241101-e2bb-4255-8caf-4136c566a962 \
+     k6 run infra/k6/ec11_latencia.js
+   ```
+
+   `3b241101-e2bb-4255-8caf-4136c566a962` es el UUID de ejemplo de los
+   contratos para el arroz blanco tradicional. El seed genera los IDs al
+   ejecutarse, así que confirma el real con
+   `SELECT id, nombre FROM producto WHERE nombre = 'Arroz blanco tradicional';`.
+
+3. Observa el tablero y el estado de la alerta. La alerta
+   `ComparadorSLOComparacionIncumplido` debe dispararse en **≤ 5 minutos**.
+   **La carga real, la alerta y su captura son parte de T-126**; esta tarea solo
+   deja el mecanismo y el escenario listos. No se afirma aquí que la alerta ya
+   se haya disparado.
+
+4. Verifica en la traza más lenta de
+   `GET /v1/productos/{id}/comparacion` que la duración del span del servidor
+   refleja la espera. El log de acceso `app.acceso` también muestra la duración
+   con la latencia incluida.
+
+5. Restablece la normalidad: detén el backend, pon `SIMULAR_LATENCIA_MS=0` y
+   vuelve a arrancarlo.
+
+6. En producción el middleware ignora la variable: si `ENTORNO=production`, no
+   duerme aunque `SIMULAR_LATENCIA_MS` tenga un valor positivo. Aun así, el
+   valor desplegado debe ser `0`.
+
 ## Validación
 
 La validación es local, determinista y no necesita red ni credenciales:
