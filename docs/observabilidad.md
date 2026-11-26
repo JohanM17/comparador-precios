@@ -166,9 +166,10 @@ guiones bajos, contadores con sufijo `_total` e histogramas con `_bucket`,
 
 Advertencias:
 
-- La etiqueta `http_target` es la **ruta plantilla** de baja cardinalidad
-  (`/v1/productos/{id}/comparacion`), no la URL con el UUID. Si la
-  instrumentación cambia a las convenciones semánticas nuevas, la etiqueta
+- La etiqueta `http_target` es la **ruta plantilla** de baja cardinalidad que
+  exporta la instrumentación (`/productos/{id}/comparacion`, sin el prefijo
+  `/v1`; el endpoint público es `/v1/productos/{id}/comparacion`), no la URL
+  con el UUID. Si la instrumentación cambia a las convenciones semánticas nuevas, la etiqueta
   puede llamarse `http_route` y el histograma
   `http_server_request_duration_seconds_bucket`; en ese caso se ajustan las
   consultas sin cambiar el diseño de los paneles.
@@ -196,7 +197,8 @@ Advertencias:
   incumplido.
 
 La consulta del SLI usa la etiqueta `http_target` con el valor
-`/v1/productos/{id}/comparacion`. No usa la URL concreta porque cada UUID
+`/productos/{id}/comparacion`, la ruta plantilla sin el prefijo `/v1` que
+exporta la instrumentación. No usa la URL concreta porque cada UUID
 crearía una serie distinta de altísima cardinalidad; la ruta plantilla agrupa
 todas las comparaciones y es la misma que exporta la instrumentación ASGI.
 
@@ -412,7 +414,7 @@ histogram_quantile(0.95,
   sum by (le) (
     rate(http_server_duration_milliseconds_bucket{
       service_name="comparador-precios-backend",
-      http_target="/v1/productos/{id}/comparacion"
+      http_target="/productos/{id}/comparacion"
     }[5m])
   )
 ) / 1000
