@@ -204,17 +204,26 @@ Con el valor por defecto `SIMULAR_LATENCIA_MS=0` la API no cambia.
 `infra/k6/ec11_latencia.js` genera la carga del simulacro: 200 VUs durante
 3 minutos contra
 `GET /v1/productos/{id}/comparacion?orden=precio_unitario`, con la etiqueta
-`endpoint=comparacion` y una pausa de 1 s entre iteraciones. El guion **no fija
-thresholds**: durante el simulacro se espera que la latencia supere el SLO, y un
-umbral haría fallar k6 justo por el comportamiento buscado.
+`endpoint=comparacion` y una pausa de 1 s entre iteraciones. El guion fija solo
+el threshold `http_req_failed: rate<0.01` y **ningún threshold de latencia**:
+durante el simulacro se espera que la latencia supere el SLO, y un umbral de
+latencia haría fallar k6 justo por el comportamiento buscado. En `setup()` se
+resuelve un producto real con `GET /v1/productos?q=arroz&limite=1`; si no hay
+resultados, el escenario falla con un error explícito en lugar de ejercer carga
+contra un UUID inexistente.
 
 ### Procedimiento
 
-1. Configura el backend de pruebas con la latencia y las variables OTLP del
-   entorno de pruebas ya definidas:
+1. Configura el backend de pruebas. Además de `ENTORNO=pruebas` y
+   `SIMULAR_LATENCIA_MS=3000`, define `OTEL_EXPORTER_OTLP_ENDPOINT` y
+   `OTEL_EXPORTER_OTLP_HEADERS` para que trazas y métricas lleguen al colector;
+   sin esas variables la API responde, pero no habrá datos que observar en el
+   tablero:
 
    ```bash
    ENTORNO=pruebas SIMULAR_LATENCIA_MS=3000 \
+     OTEL_EXPORTER_OTLP_ENDPOINT="<endpoint-otlp>" \
+     OTEL_EXPORTER_OTLP_HEADERS="Authorization=Basic <credencial>" \
      uv --directory backend run uvicorn app.main:app --port 8000
    ```
 
@@ -224,18 +233,20 @@ umbral haría fallar k6 justo por el comportamiento buscado.
    k6 run infra/k6/ec11_latencia.js
    ```
 
+   Por defecto `setup()` busca un producto de arroz en el seed y usa su ID.
    `BASE_URL` (por defecto `http://127.0.0.1:8000`) y `PRODUCTO_ID` son
-   configurables:
+   opcionales:
 
    ```bash
    BASE_URL=http://127.0.0.1:8000 \
-     PRODUCTO_ID=3b241101-e2bb-4255-8caf-4136c566a962 \
+     PRODUCTO_ID=<uuid-real-del-seed> \
      k6 run infra/k6/ec11_latencia.js
    ```
 
    `3b241101-e2bb-4255-8caf-4136c566a962` es el UUID de ejemplo de los
-   contratos para el arroz blanco tradicional. El seed genera los IDs al
-   ejecutarse, así que confirma el real con
+   contratos, **no un ID fijo del seed**: `scripts/semilla.py` inserta los
+   productos sin `id` y PostgreSQL genera UUIDs aleatorios. Solo si usas el
+   override, confirma el ID real con
    `SELECT id, nombre FROM producto WHERE nombre = 'Arroz blanco tradicional';`.
 
 3. Observa el tablero y el estado de la alerta. La alerta
@@ -243,6 +254,10 @@ umbral haría fallar k6 justo por el comportamiento buscado.
    **La carga real, la alerta y su captura son parte de T-126**; esta tarea solo
    deja el mecanismo y el escenario listos. No se afirma aquí que la alerta ya
    se haya disparado.
+
+   La ventana del SLO es de 7 días: 3 minutos de carga pueden no bastar para
+   llevar el SLI por debajo de 0.99 si hay mucho tráfico previo. T-126 debe
+   verificar la magnitud real y ajustar la carga o la duración si hace falta.
 
 4. Verifica en la traza más lenta de
    `GET /v1/productos/{id}/comparacion` que la duración del span del servidor
@@ -252,9 +267,11 @@ umbral haría fallar k6 justo por el comportamiento buscado.
 5. Restablece la normalidad: detén el backend, pon `SIMULAR_LATENCIA_MS=0` y
    vuelve a arrancarlo.
 
-6. En producción el middleware ignora la variable: si `ENTORNO=production`, no
-   duerme aunque `SIMULAR_LATENCIA_MS` tenga un valor positivo. Aun así, el
-   valor desplegado debe ser `0`.
+6. En producción el middleware ignora la variable: `ENTORNO=production`
+   (normalizado a minúsculas y sin espacios) es el valor que desactiva la
+   simulación aunque `SIMULAR_LATENCIA_MS` sea positivo. Etiquetas como `prod` o
+   `produccion` no la desactivan; mantén `SIMULAR_LATENCIA_MS=0` en el
+   despliegue.
 
 ## Validación
 
