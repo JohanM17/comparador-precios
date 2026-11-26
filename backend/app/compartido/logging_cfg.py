@@ -35,6 +35,8 @@ FORMATO_LOG_CORRELACION = (
     "%(asctime)s %(levelname)s %(name)s [trace_id=%(trace_id)s span_id=%(span_id)s] %(message)s"
 )
 
+_NOMBRE_HANDLER_ADVERTENCIAS = "comparador-precios-advertencias-terceros"
+
 
 def _ids_traza_actuales() -> tuple[str, str]:
     """Devuelve `trace_id` y `span_id` del span actual, o cadenas vacias."""
@@ -179,16 +181,34 @@ def _agregar_filtro_si_falta(
         destino.addFilter(filtro)
 
 
+def _tiene_handler_advertencias(logger: logging.Logger) -> bool:
+    """Indica si el logger ya tiene el handler propio de advertencias."""
+    return any(
+        getattr(handler, "_nombre_handler", None) == _NOMBRE_HANDLER_ADVERTENCIAS
+        for handler in logger.handlers
+    )
+
+
 def configurar_logging() -> None:
     """Inicializa el logging con privacidad y correlacion de trazas.
 
-    Instala un `StreamHandler(sys.stdout)` en el logger `app` solo si ni `app`
-    ni la raiz tienen handlers, de modo que los INFO de `app.*` se emitan bajo
-    Uvicorn (que configura sus propios loggers con `propagate=False` y no toca
-    la raiz) sin duplicar la salida en pytest o plataformas que ya configuran
-    la raiz. El handler cuelga de `app` y no de la raiz: los logs de terceros
-    (`httpx`, etc.) no pasan por el filtro de privacidad ni por esta consola.
-    Es idempotente: llamarla varias veces no duplica handlers ni filtros.
+    Si ni `app` ni la raiz tienen handlers, instala dos handlers propios:
+
+    - `StreamHandler(sys.stdout)` en `app` para los INFO de `app.*`.
+    - `StreamHandler(sys.stderr)` nivel `WARNING` en la raiz para los
+      WARNING/ERROR de terceros (`httpx`, etc.). Sin este handler esos
+      registros caerian en `logging.lastResort`, que no aplica filtros y
+      filtraria la PII. Los filtros de un logger ancestro no se ejecutan en
+      `callHandlers`, por eso la redaccion debe vivir en el handler.
+
+    En ese escenario `app` deja de propagar para no duplicar sus WARNING/ERROR:
+    ya los emite su handler INFO a stdout. Si la raiz ya estaba configurada
+    (pytest o plataformas), no se instala nada y `app` sigue propagando. Es
+    idempotente: llamarla varias veces no duplica handlers ni filtros.
+
+    Los handlers de `uvicorn.error` reciben solo el filtro de privacidad porque
+    pueden incluir tracebacks con PII; no se exportan por OTLP al usar
+    `propagate=False`.
     """
     filtro_privacidad = FiltroPrivacidadLey1581()
     filtro_correlacion = FiltroCorrelacionTrazas()
@@ -198,8 +218,19 @@ def configurar_logging() -> None:
     logger_app = logging.getLogger("app")
     logger_app.setLevel(logging.INFO)
 
-    if not logger_app.handlers and not logger_raiz.handlers:
+    hay_handlers_raiz_externos = any(
+        getattr(handler, "_nombre_handler", None) != _NOMBRE_HANDLER_ADVERTENCIAS
+        for handler in logger_raiz.handlers
+    )
+    if not logger_app.handlers and not hay_handlers_raiz_externos:
         logger_app.addHandler(logging.StreamHandler(sys.stdout))
+        logger_app.propagate = False
+        if not _tiene_handler_advertencias(logger_raiz):
+            handler_advertencias = logging.StreamHandler(sys.stderr)
+            handler_advertencias.setLevel(logging.WARNING)
+            handler_advertencias.setFormatter(logging.Formatter(FORMATO_LOG_CORRELACION))
+            handler_advertencias._nombre_handler = _NOMBRE_HANDLER_ADVERTENCIAS  # type: ignore[attr-defined]
+            logger_raiz.addHandler(handler_advertencias)
 
     for handler in logger_raiz.handlers:
         _agregar_filtro_si_falta(handler, filtro_privacidad)
@@ -212,6 +243,11 @@ def configurar_logging() -> None:
         _agregar_filtro_si_falta(handler, filtro_correlacion)
         if handler.formatter is None:
             handler.setFormatter(logging.Formatter(FORMATO_LOG_CORRELACION))
+
+    # Uvicorn formatea con su propio formatter y puede incluir tracebacks con
+    # PII; se le añade el filtro de privacidad. No se exporta por OTLP.
+    for handler in logging.getLogger("uvicorn.error").handlers:
+        _agregar_filtro_si_falta(handler, filtro_privacidad)
 
     # El access log nativo consume `record.args` al formatear, por lo que no se
     # le puede aplicar el filtro de privacidad; ademas registra la IP del

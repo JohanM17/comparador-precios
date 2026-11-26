@@ -18,6 +18,7 @@ from opentelemetry.trace import Status, StatusCode
 
 from app.compartido import telemetria
 from app.compartido.logging_cfg import (
+    _NOMBRE_HANDLER_ADVERTENCIAS,
     FORMATO_LOG_CORRELACION,
     FiltroCorrelacionTrazas,
     FiltroPrivacidadLey1581,
@@ -56,19 +57,28 @@ def estado_logging() -> Iterator[None]:
     y retira los suyos en cada fase. Los de `app` son propios de la aplicacion,
     asi que la fixture los retira al empezar y restaura los previos al terminar.
     """
+    logger_raiz = logging.getLogger()
     logger_app = logging.getLogger("app")
     loggers = (
-        logging.getLogger(),
+        logger_raiz,
         logger_app,
         logging.getLogger("app.acceso"),
         logging.getLogger("uvicorn.access"),
     )
     estado_loggers = [
-        (logger, logger.level, logger.disabled, list(logger.filters)) for logger in loggers
+        (logger, logger.level, logger.disabled, logger.propagate, list(logger.filters))
+        for logger in loggers
     ]
     handlers_app = list(logger_app.handlers)
     for handler in handlers_app:
         logger_app.removeHandler(handler)
+    handlers_advertencias = [
+        handler
+        for handler in logger_raiz.handlers
+        if getattr(handler, "_nombre_handler", None) == _NOMBRE_HANDLER_ADVERTENCIAS
+    ]
+    for handler in handlers_advertencias:
+        logger_raiz.removeHandler(handler)
 
     try:
         yield
@@ -77,11 +87,20 @@ def estado_logging() -> Iterator[None]:
             logger_app.removeHandler(handler)
             if handler not in handlers_app:
                 handler.close()
+        for handler in list(logger_raiz.handlers):
+            if getattr(handler, "_nombre_handler", None) != _NOMBRE_HANDLER_ADVERTENCIAS:
+                continue
+            logger_raiz.removeHandler(handler)
+            if handler not in handlers_advertencias:
+                handler.close()
+        for handler in handlers_advertencias:
+            logger_raiz.addHandler(handler)
         for handler in handlers_app:
             logger_app.addHandler(handler)
-        for logger, nivel, deshabilitado, filtros in estado_loggers:
+        for logger, nivel, deshabilitado, propagar, filtros in estado_loggers:
             logger.setLevel(nivel)
             logger.disabled = deshabilitado
+            logger.propagate = propagar
             logger.filters[:] = filtros
 
 
@@ -1103,10 +1122,24 @@ def test_configurar_logging_instala_handler_en_app_idempotente_y_emite_info(
     tipos = {type(filtro) for filtro in handler.filters}
     assert FiltroPrivacidadLey1581 in tipos
     assert FiltroCorrelacionTrazas in tipos
-    assert logger_raiz.handlers == []
+
+    handlers_advertencias = list(logger_raiz.handlers)
+    assert len(handlers_advertencias) == 1
+    handler_advertencias = handlers_advertencias[0]
+    assert isinstance(handler_advertencias, logging.StreamHandler)
+    assert handler_advertencias.stream is sys.stderr
+    assert handler_advertencias.level == logging.WARNING
+    assert handler_advertencias.formatter is not None
+    assert handler_advertencias.formatter._fmt == FORMATO_LOG_CORRELACION
+    assert getattr(handler_advertencias, "_nombre_handler", None) == (_NOMBRE_HANDLER_ADVERTENCIAS)
+    tipos_advertencias = {type(filtro) for filtro in handler_advertencias.filters}
+    assert FiltroPrivacidadLey1581 in tipos_advertencias
+    assert FiltroCorrelacionTrazas in tipos_advertencias
+    assert logger_app.propagate is False
 
     configurar_logging()
     assert logger_app.handlers == handlers_instalados
+    assert logger_raiz.handlers == handlers_advertencias
 
     proveedor = TracerProvider(sampler=telemetria.ALWAYS_ON)
     tracer = proveedor.get_tracer("pruebas.logging")
@@ -1136,6 +1169,7 @@ def test_configurar_logging_no_instala_consola_si_la_raiz_ya_tiene_handler(
     try:
         configurar_logging()
         assert logger_app.handlers == []
+        assert logger_app.propagate is True
         tipos = {type(filtro) for filtro in handler_raiz.filters}
         assert FiltroPrivacidadLey1581 in tipos
         assert FiltroCorrelacionTrazas in tipos
@@ -1456,3 +1490,78 @@ def test_logs_de_terceros_no_pasan_por_handlers_de_app(
     assert salida.err == ""
     assert "550e8400-e29b-41d4-a716-446655440000" not in salida.out
     assert "foto_cedula_juan.jpg" not in salida.out
+
+
+def test_logs_de_terceros_warning_se_redactan_en_stderr(
+    estado_logging: None,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Un WARNING de httpx con PII sale una vez por stderr y redactado."""
+    _vaciar_handlers_raiz()
+    logger_httpx = logging.getLogger("httpx")
+    nivel_previo = logger_httpx.level
+    logger_httpx.setLevel(logging.INFO)
+
+    try:
+        configurar_logging()
+        logger_httpx.info("INFO_TERCEROS_NO_DEBE_SALIR")
+        logger_httpx.warning("fallo correo=persona@example.com lat=4.53 lng=-75.68 ip=190.1.2.3")
+        salida = capsys.readouterr()
+    finally:
+        logger_httpx.setLevel(nivel_previo)
+
+    texto = salida.err
+    assert "INFO_TERCEROS_NO_DEBE_SALIR" not in texto
+    assert "persona@example.com" not in texto
+    assert "lat=4.53" not in texto
+    assert "lng=-75.68" not in texto
+    assert "190.1.2.3" not in texto
+    assert "[REDACTADO_EMAIL]" in texto
+    assert "[REDACTADO_COORD]" in texto
+    assert "[REDACTADO_IP]" in texto
+    assert "WARNING httpx" in texto
+    assert salida.out == ""
+
+
+def test_warning_de_app_se_emite_una_sola_vez(
+    estado_logging: None,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Con `app.propagate=False` el WARNING no se duplica en el handler raiz."""
+    _vaciar_handlers_raiz()
+    configurar_logging()
+
+    logging.getLogger("app").warning("advertencia unica de app")
+    salida = capsys.readouterr()
+
+    assert salida.out.count("advertencia unica de app") == 1
+    assert "WARNING app" in salida.out
+    assert salida.err == ""
+
+
+def test_configurar_logging_filtra_handlers_de_uvicorn_error(
+    estado_logging: None,
+) -> None:
+    """Los handlers de uvicorn.error reciben el filtro de privacidad."""
+    logger_uvicorn = logging.getLogger("uvicorn.error")
+    salida = io.StringIO()
+    handler = logging.StreamHandler(salida)
+    handler.setFormatter(logging.Formatter("%(message)s"))
+    logger_uvicorn.addHandler(handler)
+
+    try:
+        configurar_logging()
+        tipos = {type(filtro) for filtro in handler.filters}
+        assert FiltroPrivacidadLey1581 in tipos
+        logger_uvicorn.error("fallo con persona@example.com lat=4.53 ip=190.1.2.3")
+        texto = salida.getvalue()
+    finally:
+        logger_uvicorn.removeHandler(handler)
+        handler.close()
+
+    assert "persona@example.com" not in texto
+    assert "lat=4.53" not in texto
+    assert "190.1.2.3" not in texto
+    assert "[REDACTADO_EMAIL]" in texto
+    assert "[REDACTADO_COORD]" in texto
+    assert "[REDACTADO_IP]" in texto

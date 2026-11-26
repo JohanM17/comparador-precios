@@ -28,6 +28,7 @@ from app import main as modulo_main
 from app.compartido import telemetria
 from app.compartido.errores import ValidacionError
 from app.compartido.logging_cfg import (
+    _NOMBRE_HANDLER_ADVERTENCIAS,
     FiltroCorrelacionTrazas,
     FiltroPrivacidadLey1581,
     LoggingAccesoMiddleware,
@@ -253,7 +254,8 @@ def logging_cableado(caplog: pytest.LogCaptureFixture) -> Iterator[None]:
     loggers = (logger_raiz, logger_app, logger_acceso, logger_uvicorn)
     handlers = [*logger_raiz.handlers, *logger_app.handlers]
     estado_loggers = [
-        (logger, logger.level, logger.disabled, list(logger.filters)) for logger in loggers
+        (logger, logger.level, logger.disabled, logger.propagate, list(logger.filters))
+        for logger in loggers
     ]
     estado_handlers = [
         (handler, handler.level, handler.formatter, list(handler.filters)) for handler in handlers
@@ -266,22 +268,27 @@ def logging_cableado(caplog: pytest.LogCaptureFixture) -> Iterator[None]:
         handler.filters[:] = [filtro for filtro in handler.filters if not isinstance(filtro, tipos)]
 
     configurar_logging()
-    handlers_nuevos = [
+    handlers_app_nuevos = [handler for handler in logger_app.handlers if handler not in handlers]
+    handlers_raiz_nuevos = [
         handler
-        for handler in [*logger_raiz.handlers, *logger_app.handlers]
+        for handler in logger_raiz.handlers
         if handler not in handlers
+        and getattr(handler, "_nombre_handler", None) == _NOMBRE_HANDLER_ADVERTENCIAS
     ]
     caplog.set_level(logging.INFO)
     try:
         yield
     finally:
-        for handler in handlers_nuevos:
+        for handler in handlers_raiz_nuevos:
             logger_raiz.removeHandler(handler)
+            handler.close()
+        for handler in handlers_app_nuevos:
             logger_app.removeHandler(handler)
             handler.close()
-        for logger, nivel, deshabilitado, filtros in estado_loggers:
+        for logger, nivel, deshabilitado, propagar, filtros in estado_loggers:
             logger.setLevel(nivel)
             logger.disabled = deshabilitado
+            logger.propagate = propagar
             logger.filters[:] = filtros
         for handler, nivel, formatter, filtros in estado_handlers:
             handler.setLevel(nivel)
@@ -307,7 +314,8 @@ def logging_limpio() -> Iterator[None]:
         logging.getLogger("uvicorn.access"),
     )
     estado_loggers = [
-        (logger, logger.level, logger.disabled, list(logger.filters)) for logger in loggers
+        (logger, logger.level, logger.disabled, logger.propagate, list(logger.filters))
+        for logger in loggers
     ]
     handlers_raiz = list(logger_raiz.handlers)
     handlers_app = list(logger_app.handlers)
@@ -320,6 +328,8 @@ def logging_limpio() -> Iterator[None]:
         yield
     finally:
         for handler in list(logger_raiz.handlers):
+            if getattr(handler, "_nombre_handler", None) != _NOMBRE_HANDLER_ADVERTENCIAS:
+                continue
             logger_raiz.removeHandler(handler)
             if handler not in handlers_raiz:
                 handler.close()
@@ -329,9 +339,10 @@ def logging_limpio() -> Iterator[None]:
                 handler.close()
         for handler in handlers_app:
             logger_app.addHandler(handler)
-        for logger, nivel, deshabilitado, filtros in estado_loggers:
+        for logger, nivel, deshabilitado, propagar, filtros in estado_loggers:
             logger.setLevel(nivel)
             logger.disabled = deshabilitado
+            logger.propagate = propagar
             logger.filters[:] = filtros
 
 
@@ -1046,23 +1057,39 @@ def test_lifespan_emite_logs_de_acceso_saneados_a_la_salida_estandar(
                 "550e8400-e29b-41d4-a716-446655440000",
                 "foto_cedula_juan.jpg",
             )
+            logging.getLogger("httpx").warning(
+                "fallo correo=persona@example.com lat=4.53 lng=-75.68 ip=190.1.2.3"
+            )
+            logging.getLogger("app").warning("advertencia de app")
         salida = capsys.readouterr()
     finally:
         proveedor.shutdown()
 
-    texto = salida.out
+    texto_salida = salida.out
+    texto_error = salida.err
     assert re.search(
         r"INFO app\.acceso \[trace_id=[0-9a-f]{32} span_id=[0-9a-f]{16}\] "
         r"GET http://testserver/openapi\.json\?lat=\[REDACTADO_COORD\]"
         r"&lng=\[REDACTADO_COORD\]&correo=\[REDACTADO_EMAIL\]",
-        texto,
+        texto_salida,
     )
-    assert not re.search(r'INFO:\s+\d{1,3}(?:\.\d{1,3}){3}:\d+ - "', texto)
-    assert "550e8400-e29b-41d4-a716-446655440000" not in texto
-    assert "foto_cedula_juan.jpg" not in texto
-    assert "HTTP Request" not in texto
+    assert texto_salida.count("INFO app.acceso") == 1
+    assert texto_salida.count("advertencia de app") == 1
+    assert "advertencia de app" not in texto_error
+    assert not re.search(r'INFO:\s+\d{1,3}(?:\.\d{1,3}){3}:\d+ - "', texto_error)
+    assert "550e8400-e29b-41d4-a716-446655440000" not in texto_salida
+    assert "foto_cedula_juan.jpg" not in texto_salida
+    assert "HTTP Request" not in texto_salida
+    assert "WARNING httpx" in texto_error
+    assert "persona@example.com" not in texto_error
+    assert "lat=4.53" not in texto_error
+    assert "lng=-75.68" not in texto_error
+    assert "190.1.2.3" not in texto_error
+    assert "[REDACTADO_EMAIL]" in texto_error
+    assert "[REDACTADO_COORD]" in texto_error
+    assert "[REDACTADO_IP]" in texto_error
     for valor in ("lat=4.53", "lng=-75.68", "persona@example.com"):
-        assert valor not in texto
+        assert valor not in texto_salida
 
 
 def test_exportador_que_falla_no_afecta_la_respuesta(
