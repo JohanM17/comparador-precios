@@ -1,0 +1,40 @@
+# Reglas de SLO y alertas del comparador de precios (Tarea T-122).
+# Compatible con Prometheus y Mimir. No contiene credenciales ni URLs de Grafana.
+# Los nombres de metricas son los esperados por el tablero y quedan pendientes de
+# validacion contra el colector real en T-126.
+# El runbook referenciado es docs/observabilidad.md (ruta relativa del repositorio).
+
+groups:
+  - name: comparador-slo
+    rules:
+      # La consulta debe coincidir con el panel "SLI de comparacion (7 dias)".
+      # Interpola la fraccion de peticiones de hasta 2 s entre los buckets de
+      # 1000 ms y 2500 ms, y excluye las respuestas 5xx del numerador.
+      - record: comparador:sli_comparacion_7d
+        expr: >-
+          (sum(rate(http_server_duration_milliseconds_bucket{service_name="comparador-precios-backend", http_target="/v1/productos/{id}/comparacion", le="1000", http_status_code!~"5.."}[7d]))
+          + (2000 - 1000) / (2500 - 1000)
+          * (sum(rate(http_server_duration_milliseconds_bucket{service_name="comparador-precios-backend", http_target="/v1/productos/{id}/comparacion", le="2500", http_status_code!~"5.."}[7d]))
+          - sum(rate(http_server_duration_milliseconds_bucket{service_name="comparador-precios-backend", http_target="/v1/productos/{id}/comparacion", le="1000", http_status_code!~"5.."}[7d]))))
+          / sum(rate(http_server_duration_milliseconds_count{service_name="comparador-precios-backend", http_target="/v1/productos/{id}/comparacion"}[7d]))
+
+      - alert: ComparadorSLOComparacionIncumplido
+        expr: comparador:sli_comparacion_7d < 0.99
+        for: 5m
+        labels:
+          severity: critical
+          service: comparador-precios-backend
+        annotations:
+          summary: "SLO de comparacion por debajo del 99 %"
+          description: "El SLI de comparacion a 7 dias esta por debajo de 0.99."
+          runbook_url: "docs/observabilidad.md"
+
+      - alert: ComparadorPresupuestoErrorAlto
+        expr: clamp_min(1 - comparador:sli_comparacion_7d, 0) / 0.01 > 0.75
+        for: 10m
+        labels:
+          severity: warning
+          service: comparador-precios-backend
+        annotations:
+          summary: "Presupuesto de error del SLO por encima del 75 %"
+          description: "Queda menos del 25 % del presupuesto de error de 7 dias."

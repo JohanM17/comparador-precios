@@ -65,6 +65,17 @@ class Configuracion(BaseSettings):
     HUELLA_SECRETO_MAESTRO: str = "secreto_maestro_hmac_desarrollo_local_32b"
     JOB_TOKEN: str = "token_interno_jobs_desarrollo_local"  # noqa: S105
 
+    # Observabilidad y Telemetria (OpenTelemetry B1)
+    OTEL_SDK_DISABLED: bool = False
+    OTEL_SERVICE_NAME: str = "comparador-precios-backend"
+    OTEL_EXPORTER_OTLP_ENDPOINT: str = ""
+    OTEL_EXPORTER_OTLP_HEADERS: str = ""
+    OTEL_TRACES_SAMPLER: str = "parentbased_traceidratio"
+    OTEL_TRACES_SAMPLER_ARG: float = 0.2
+    OTEL_METRICS_EXPORTER: str = "otlp"
+    OTEL_LOGS_EXPORTER: str = "otlp"
+    SIMULAR_LATENCIA_MS: int = 0
+
     # Contacto Legal y Servicios Externos
     CONTACTO_LEGAL_EMAIL: str = "contacto@cue.edu.co"
     OFF_USER_AGENT: str = "ComparadorPreciosArmenia/1.0"

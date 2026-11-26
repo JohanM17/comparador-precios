@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
+import { construirRespuestaHistorial } from "./mocks_nucleo";
 
 const PROD_ID = "3b241101-e2bb-4255-8caf-4136c566a962";
 const PRES_ID = "7c9e6679-7425-40de-944b-e07fc1f90ae7";
@@ -119,6 +120,26 @@ async function mockApiBasica(page: Page): Promise<void> {
           },
         },
       });
+      return;
+    }
+
+    if (ruta === `/v1/productos/${PROD_ID}/historial-precios`) {
+      const establecimientoId = url.searchParams.get("establecimiento_id") ?? TIENDA_ID;
+      const respuesta = construirRespuestaHistorial(establecimientoId);
+      if (!respuesta) {
+        await route.fulfill({
+          status: 422,
+          json: {
+            type: "https://comparador.armenia.gov.co/errores/validacion",
+            title: "Solicitud invalida",
+            status: 422,
+            detail: "El establecimiento_id es obligatorio y debe existir.",
+            codigo: "VALIDACION",
+          },
+        });
+        return;
+      }
+      await route.fulfill({ json: respuesta });
       return;
     }
 

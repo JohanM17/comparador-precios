@@ -167,7 +167,7 @@ export interface paths {
         };
         /**
          * Consultar perfil del titular y autorizacion vigente
-         * @description Retorna el perfil del usuario autenticado; exige consentimiento activo.
+         * @description Retorna el perfil del usuario autenticado; permite acceso a suspendidas (Ley 1581).
          */
         get: operations["obtener_perfil_usuario_v1_mi_cuenta_get"];
         put?: never;
@@ -631,6 +631,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/productos/{id}/historial-precios": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Historial publico de precios de un producto en un establecimiento (Historia A2) */
+        get: operations["consultar_historial_precios_v1_productos__id__historial_precios_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/reportes": {
         parameters: {
             query?: never;
@@ -909,6 +926,33 @@ export interface components {
             resultados: components["schemas"]["ItemResultadoComparacion"][];
         };
         /**
+         * DatosHistorial
+         * @description Cuerpo de datos del historial de precios de un producto y establecimiento.
+         */
+        DatosHistorial: {
+            /** Datos De Demostracion */
+            datos_de_demostracion: boolean;
+            /**
+             * Desde
+             * Format: date-time
+             */
+            desde: string;
+            establecimiento: components["schemas"]["EstablecimientoHistorial"];
+            /**
+             * Hasta
+             * Format: date-time
+             */
+            hasta: string;
+            presentacion: components["schemas"]["PresentacionHistorial"] | null;
+            producto: components["schemas"]["ProductoHistorial"];
+            /** Puntos */
+            puntos: components["schemas"]["PuntoHistorial"][];
+            /** Total */
+            total: number;
+            /** Truncado */
+            truncado: boolean;
+        };
+        /**
          * DatosReporteRespuesta
          * @description Detalle visible del reporte registrado.
          */
@@ -1111,6 +1155,21 @@ export interface components {
             precios_vigentes?: components["schemas"]["PrecioVigenteResumen"][];
             /** Tipo */
             tipo: string;
+        };
+        /**
+         * EstablecimientoHistorial
+         * @description Encabezado publico del establecimiento en la serie historica.
+         */
+        EstablecimientoHistorial: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Municipio */
+            municipio: string;
+            /** Nombre */
+            nombre: string;
         };
         /**
          * EstablecimientoResumen
@@ -1467,6 +1526,19 @@ export interface components {
             valor_cantidad: number | string;
         };
         /**
+         * PresentacionHistorial
+         * @description Presentacion solicitada para acotar la serie historica.
+         */
+        PresentacionHistorial: {
+            /** Etiqueta */
+            etiqueta: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+        };
+        /**
          * PresentacionResumen
          * @description Detalle resumido de una presentacion comercial.
          */
@@ -1576,6 +1648,23 @@ export interface components {
             unidad_visualizacion: string;
         };
         /**
+         * ProductoHistorial
+         * @description Encabezado publico del producto en la serie historica.
+         */
+        ProductoHistorial: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Nombre */
+            nombre: string;
+            /** Unidad Base */
+            unidad_base: string;
+            /** Unidad Visualizacion */
+            unidad_visualizacion: string;
+        };
+        /**
          * ProductoResumen
          * @description Resumen de un producto para listados y busqueda.
          */
@@ -1604,6 +1693,35 @@ export interface components {
             unidad_base: string;
             /** Unidad Visualizacion */
             unidad_visualizacion: string;
+        };
+        /**
+         * PuntoHistorial
+         * @description Punto publico de la serie historica, sin datos personales.
+         */
+        PuntoHistorial: {
+            /** Cantidad Base */
+            cantidad_base: number;
+            /** Es Demo */
+            es_demo: boolean;
+            /** Estado */
+            estado: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Observado En
+             * Format: date-time
+             */
+            observado_en: string;
+            /** Origen */
+            origen: string;
+            /** Precio Cop */
+            precio_cop: number;
+            precio_por_unidad: components["schemas"]["PrecioUnidad"];
+            /** Presentacion Id */
+            presentacion_id: string | null;
         };
         /**
          * RechazarSugerenciaEntrada
@@ -1637,6 +1755,13 @@ export interface components {
          */
         RespuestaComparacion: {
             datos: components["schemas"]["DatosComparacion"];
+        };
+        /**
+         * RespuestaHistorial
+         * @description Respuesta completa de GET /v1/productos/{id}/historial-precios.
+         */
+        RespuestaHistorial: {
+            datos: components["schemas"]["DatosHistorial"];
         };
         /** RespuestaListo */
         RespuestaListo: {
@@ -3074,6 +3199,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RespuestaComparacion"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    consultar_historial_precios_v1_productos__id__historial_precios_get: {
+        parameters: {
+            query: {
+                establecimiento_id: string;
+                presentacion_id?: string | null;
+                desde?: string | null;
+                hasta?: string | null;
+                limite?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RespuestaHistorial"];
                 };
             };
             /** @description Validation Error */

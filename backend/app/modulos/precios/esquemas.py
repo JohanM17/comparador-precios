@@ -1,4 +1,4 @@
-"""Esquemas Pydantic para reportes de precios, historial y comparaciones (T-23 y T-26)."""
+"""Esquemas Pydantic para reportes, historial y comparaciones de precios (T-23, T-26 y T-113)."""
 
 from __future__ import annotations
 
@@ -159,3 +159,73 @@ class RespuestaComparacion(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     datos: DatosComparacion
+
+
+class ProductoHistorial(BaseModel):
+    """Encabezado publico del producto en la serie historica."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: UUID
+    nombre: str
+    unidad_base: str
+    unidad_visualizacion: str
+
+
+class EstablecimientoHistorial(BaseModel):
+    """Encabezado publico del establecimiento en la serie historica."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: UUID
+    nombre: str
+    municipio: str
+
+
+class PresentacionHistorial(BaseModel):
+    """Presentacion solicitada para acotar la serie historica."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: UUID
+    etiqueta: str
+
+
+class PuntoHistorial(BaseModel):
+    """Punto publico de la serie historica, sin datos personales."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: UUID
+    observado_en: datetime
+    precio_cop: int
+    precio_por_unidad: PrecioUnidad
+    origen: str
+    estado: str
+    es_demo: bool
+    presentacion_id: UUID | None
+    cantidad_base: float
+
+
+class DatosHistorial(BaseModel):
+    """Cuerpo de datos del historial de precios de un producto y establecimiento."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    producto: ProductoHistorial
+    establecimiento: EstablecimientoHistorial
+    presentacion: PresentacionHistorial | None
+    desde: datetime
+    hasta: datetime
+    puntos: list[PuntoHistorial]
+    total: int
+    truncado: bool
+    datos_de_demostracion: bool
+
+
+class RespuestaHistorial(BaseModel):
+    """Respuesta completa de GET /v1/productos/{id}/historial-precios."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    datos: DatosHistorial

@@ -14,6 +14,13 @@ export type ItemComparacion = components["schemas"]["ItemResultadoComparacion"];
 export type MetaComparacion = components["schemas"]["MetaComparacion"];
 export type EstablecimientoDetalle = components["schemas"]["EstablecimientoDetalleRespuesta"];
 export type PrecioVigenteResumen = components["schemas"]["PrecioVigenteResumen"];
+export type PrecioUnidad = components["schemas"]["PrecioUnidad"];
+export type RespuestaHistorial = components["schemas"]["RespuestaHistorial"];
+export type DatosHistorial = components["schemas"]["DatosHistorial"];
+export type PuntoHistorial = components["schemas"]["PuntoHistorial"];
+export type ProductoHistorial = components["schemas"]["ProductoHistorial"];
+export type EstablecimientoHistorial = components["schemas"]["EstablecimientoHistorial"];
+export type PresentacionHistorial = components["schemas"]["PresentacionHistorial"];
 export type SolicitudCorreccionEntrada = components["schemas"]["SolicitudCorreccionEntrada"];
 export type SolicitudCorreccionRespuesta = components["schemas"]["SolicitudCorreccionRespuesta"];
 export type PoliticaTratamiento = components["schemas"]["PoliticaTratamientoRespuesta"];
@@ -72,6 +79,14 @@ export interface FiltrosComparacion {
   readonly lat?: number | null;
   readonly lng?: number | null;
   readonly radio_km?: number | null;
+}
+
+export interface FiltrosHistorial {
+  readonly establecimiento_id: string;
+  readonly presentacion_id?: string | null;
+  readonly desde?: string | null;
+  readonly hasta?: string | null;
+  readonly limite?: number;
 }
 
 function normalizarUrlApi(valorCrudo: string | undefined): string {
@@ -168,6 +183,16 @@ export const clienteApi = {
       radio_km: filtros.radio_km,
     });
     return solicitarApi<RespuestaComparacion>(`/v1/productos/${id}/comparacion${qs}`);
+  },
+  obtenerHistorialProducto: (id: string, filtros: FiltrosHistorial) => {
+    const qs = construirQuery({
+      establecimiento_id: filtros.establecimiento_id,
+      presentacion_id: filtros.presentacion_id,
+      desde: filtros.desde,
+      hasta: filtros.hasta,
+      limite: filtros.limite ?? 200,
+    });
+    return solicitarApi<RespuestaHistorial>(`/v1/productos/${id}/historial-precios${qs}`);
   },
   obtenerEstablecimiento: (
     id: string,

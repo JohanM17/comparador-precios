@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -14,9 +15,11 @@ from app.modulos.precios.esquemas import (
     CrearReporteRespuesta,
     MisReportesRespuesta,
     RespuestaComparacion,
+    RespuestaHistorial,
 )
 from app.modulos.precios.servicio import ServicioPrecios
 from app.modulos.precios.servicio_comparacion import ServicioComparacion
+from app.modulos.precios.servicio_historial import ServicioHistorial
 from app.puertos.cache import PuertoCache
 
 router = APIRouter(tags=["Precios y Comparaciones"])
@@ -94,3 +97,29 @@ async def comparar_precios_producto(
         lng=lng,
         radio_km=radio_km,
     )
+
+
+@router.get(
+    "/productos/{id}/historial-precios",
+    response_model=RespuestaHistorial,
+    status_code=200,
+    summary="Historial publico de precios de un producto en un establecimiento (Historia A2)",
+)
+async def consultar_historial_precios(
+    id: UUID,
+    establecimiento_id: Annotated[UUID, Query()],
+    presentacion_id: Annotated[UUID | None, Query()] = None,
+    desde: Annotated[datetime | None, Query()] = None,
+    hasta: Annotated[datetime | None, Query()] = None,
+    limite: Annotated[int, Query(ge=1, le=500)] = 200,
+) -> RespuestaHistorial:
+    async with sesion_transaccional() as sesion:
+        servicio = ServicioHistorial(sesion=sesion)
+        return await servicio.obtener_historial(
+            producto_id=id,
+            establecimiento_id=establecimiento_id,
+            presentacion_id=presentacion_id,
+            desde=desde,
+            hasta=hasta,
+            limite=limite,
+        )
