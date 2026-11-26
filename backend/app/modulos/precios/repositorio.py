@@ -185,6 +185,46 @@ async def reclasificar_rafaga_hacia_atras(
     return [(f.presentacion_id, f.establecimiento_id) for f in filas]
 
 
+async def listar_reportes_serie(
+    sesion: AsyncSession,
+    *,
+    producto_id: UUID,
+    establecimiento_id: UUID,
+    desde: datetime,
+    hasta: datetime,
+    presentacion_id: UUID | None = None,
+) -> list[dict[str, Any]]:
+    """Lista los reportes publicos que alimentan la serie historica de precios.
+
+    Devuelve solo columnas aptas para el consumidor final: nunca identidad del
+    reportante, huella de red, foto de prueba ni coordenadas.
+    """
+    filtro_presentacion = ""
+    parametros: dict[str, Any] = {
+        "producto_id": producto_id,
+        "establecimiento_id": establecimiento_id,
+        "desde": desde,
+        "hasta": hasta,
+    }
+    if presentacion_id is not None:
+        filtro_presentacion = "AND presentacion_id = :presentacion_id"
+        parametros["presentacion_id"] = presentacion_id
+
+    sql = text(f"""
+        SELECT id, observado_en, precio_cop, cantidad_base_snapshot, precio_por_base,
+               fuente::text AS origen, estado::text AS estado, es_demo, presentacion_id
+        FROM public.reporte_precio
+        WHERE producto_id = :producto_id
+          AND establecimiento_id = :establecimiento_id
+          AND observado_en BETWEEN :desde AND :hasta
+          AND estado IN ('aceptado', 'dudoso')
+          {filtro_presentacion}
+        ORDER BY observado_en ASC, id ASC;
+    """)  # noqa: S608 -- el fragmento condicional es una constante, no entrada del usuario
+    filas = (await sesion.execute(sql, parametros)).fetchall()
+    return [dict(f._mapping) for f in filas]
+
+
 async def listar_mis_reportes(
     sesion: AsyncSession,
     usuario_id: UUID,
