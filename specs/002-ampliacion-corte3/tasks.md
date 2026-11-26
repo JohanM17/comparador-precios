@@ -34,7 +34,7 @@
   - **Hecho cuando…**: `npm --prefix frontend run typecheck`, `lint` y `build` pasan; la gráfica se carga de forma dinámica y no rompe el build SSR.
 
 - [x] **T-102** [P] | **Crear la migración `0005_historial_precios.sql` con el índice de la serie**
-  - **Pendiente de BD**: aplicar `0005` en Supabase y correr la prueba de integración cuando exista `.env`.
+  - **Verificado en BD**: `0005` aplicada en Supabase; el índice `idx_reporte_historial_serie` existe y la prueba de integración pasa (13/13 en `test_historial_precios.py`).
   - **Depende de**: migración `0004_modulo_comercial.sql` disponible (o coordinación explícita)
   - **Resp.**: **D**
   - **Archivos**: `supabase/migrations/0005_historial_precios.sql`, `backend/tests/integracion/test_historial_precios.py` (prueba de índice)
@@ -99,14 +99,14 @@
   - **Hecho cuando…**: el consumidor elige establecimiento/presentación y ve la serie; el aviso de datos demo aparece cuando corresponde; no se altera el orden de comparación ni el bloque de promociones.
 
 - [x] **T-118** [US-A2] | **Generar datos demo de 90 días y probar idempotencia**
-  - **Pendiente de BD**: ejecutar el escritor contra Supabase y validar la idempotencia real; el generador y las guardas están verificados.
+  - **Verificado en BD**: 54 puntos demo en 9 combinaciones; la segunda ejecución insertó 0 puntos y no modificó `precio_vigente`.
   - **Depende de**: T-112
   - **Resp.**: **D**
   - **Archivos**: `scripts/semilla.py` o `scripts/semilla_historial.py`, `backend/tests/integracion/test_historial_precios.py`, `supabase/seed/` si aplica
   - **Hecho cuando…**: existen series demo con `es_demo = true` en al menos 3 establecimientos; ejecutar dos veces no duplica; el aviso de demostración se activa.
 
 - [x] **T-119** [US-A2] | **Certificar EC-08 con integración, E2E y axe**
-  - **Pendiente de BD**: ejecutar la prueba de integración EC-08 contra PostgreSQL; E2E (19/19) y axe ya están certificados.
+  - **Verificado en BD**: `test_historial_precios.py` 13/13 contra PostgreSQL; E2E (19/19) y axe ya estaban certificados. Semilla de historial: 5 pasan, 1 skip opt-in.
   - **Depende de**: T-114, T-117, T-118
   - **Resp.**: **C + D**
   - **Archivos**: `backend/tests/integracion/test_historial_precios.py`, `frontend/tests/e2e/historial_precios.spec.ts`, `docs/calidad/trazabilidad.csv`
