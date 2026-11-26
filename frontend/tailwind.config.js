@@ -14,8 +14,10 @@ const PASOS = ["50", "100", "200", "300", "400", "500", "600", "700", "800", "90
  *    Usarlo de adorno le quita el significado.
  * 3. El ladrillo (cereza-600) solo advierte: datos en disputa, productos sin precio,
  *    errores. Nunca decora.
- * 4. slate-500 es el tono mas claro admitido para texto sobre papel (4.6:1).
- *    Cualquier cosa mas clara incumple WCAG 2.2 AA y la prueba de axe lo detecta.
+ * 4. slate-500 es el tono mas claro admitido para texto, y solo sobre el papel
+ *    (4.6:1): sobre slate-100 cae a 4.23:1 e incumple WCAG 2.2 AA. Es la razon
+ *    de fondo para no rellenar superficies, ademas del gusto. La prueba de axe
+ *    lo detecta.
  */
 
 /** Neutros de papel y tinta. */

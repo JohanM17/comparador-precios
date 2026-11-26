@@ -38,8 +38,9 @@ function formatearVigencia(promo: ItemPromocion): string {
  * Retorna null si el producto no tiene promociones activas.
  *
  * Es el unico bloque de la pantalla con marco cerrado: la ley exige que el
- * contenido comercial se distinga del editorial, y ese marco es lo que lo
- * distingue. El beneficio va en azul sobrio, el color reservado al dato que
+ * contenido comercial se distinga del editorial, y el marco, el titulo y el
+ * sello legal son lo que lo distinguen. No lleva relleno: sobre una superficie
+ * tenida, slate-500 se queda en 4.23:1 y axe lo marca. El beneficio va en azul sobrio, el color reservado al dato que
  * publica un comercio; en esmeralda leeria como ahorro verificado y sesgaria
  * la comparacion, que es justo lo que EC-06 prohibe.
  */
@@ -53,7 +54,7 @@ export default function BloquePromociones({
   return (
     <section
       aria-labelledby="titulo-bloque-promociones"
-      className="mt-12 border border-slate-300 bg-slate-100 px-5 py-4 sm:px-6"
+      className="mt-12 border border-slate-300 px-5 py-4 sm:px-6"
     >
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-300 pb-3">
         <div className="flex items-center gap-2">
