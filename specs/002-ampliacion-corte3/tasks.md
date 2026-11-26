@@ -21,25 +21,26 @@
 
 ## Fase 0: Fundaciones (T-100 a T-103)
 
-- [ ] **T-100** [P] | **Configurar dependencias y variables de OpenTelemetry**
+- [x] **T-100** [P] | **Configurar dependencias y variables de OpenTelemetry**
   - **Depende de**: —
   - **Resp.**: **B + D**
   - **Archivos**: `backend/pyproject.toml`, `.env.example`, `docs/despliegue.md`, `backend/app/config.py`
   - **Hecho cuando…**: `uv --directory backend sync --dev` instala el SDK/exportadores; `OTEL_SDK_DISABLED=true` deja la app operativa; las variables quedan documentadas sin secretos; `ruff`, `mypy --strict` y pruebas base pasan.
 
-- [ ] **T-101** [P] | **Agregar la librería de gráficas y el andamiaje de pruebas del frontend**
+- [x] **T-101** [P] | **Agregar la librería de gráficas y el andamiaje de pruebas del frontend**
   - **Depende de**: —
   - **Resp.**: **C**
   - **Archivos**: `frontend/package.json`, `frontend/package-lock.json`, `frontend/tests/e2e/historial_precios.spec.ts` (esqueleto)
   - **Hecho cuando…**: `npm --prefix frontend run typecheck`, `lint` y `build` pasan; la gráfica se carga de forma dinámica y no rompe el build SSR.
 
-- [ ] **T-102** [P] | **Crear la migración `0005_historial_precios.sql` con el índice de la serie**
+- [x] **T-102** [P] | **Crear la migración `0005_historial_precios.sql` con el índice de la serie**
+  - **Pendiente de BD**: aplicar `0005` en Supabase y correr la prueba de integración cuando exista `.env`.
   - **Depende de**: migración `0004_modulo_comercial.sql` disponible (o coordinación explícita)
   - **Resp.**: **D**
   - **Archivos**: `supabase/migrations/0005_historial_precios.sql`, `backend/tests/integracion/test_historial_precios.py` (prueba de índice)
   - **Hecho cuando…**: la migración aplica dos veces sin error; el índice `idx_reporte_historial_serie` existe; no se alteran tablas, columnas ni datos; no se edita una migración aplicada.
 
-- [ ] **T-103** [P] | **Crear el esqueleto de `compartido/telemetria.py` con configuración, sanitización y degradación**
+- [x] **T-103** [P] | **Crear el esqueleto de `compartido/telemetria.py` con configuración, sanitización y degradación**
   - **Depende de**: T-100
   - **Resp.**: **B**
   - **Archivos**: `backend/app/compartido/telemetria.py`, `backend/tests/unitarias/test_telemetria.py`
@@ -49,61 +50,63 @@
 
 ## Fase 1: US-A2 — Historial y tendencia de precios (T-110 a T-119)
 
-- [ ] **T-110** [US-A2] | **Escribir primero las pruebas TDD de `serie_precios.py` (rojo)**
+- [x] **T-110** [US-A2] | **Escribir primero las pruebas TDD de `serie_precios.py` (rojo)**
   - **Depende de**: T-102
   - **Resp.**: **A**
   - **Archivos**: `backend/tests/unitarias/test_serie_precios.py`
   - **Hecho cuando…**: existen pruebas que fallan para ventana de 90 días, límites, orden, empate, origen, `aceptado`/`dudoso`/`rechazado`, `es_demo`, truncado, serie vacía y unidad `g/ml/unidad`; ninguna prueba de implementación existe todavía.
 
-- [ ] **T-111** [US-A2] | **Implementar `backend/app/dominio/serie_precios.py` (verde + refactor)**
+- [x] **T-111** [US-A2] | **Implementar `backend/app/dominio/serie_precios.py` (verde + refactor)**
   - **Depende de**: T-110
   - **Resp.**: **A**
   - **Archivos**: `backend/app/dominio/serie_precios.py`
   - **Hecho cuando…**: todas las pruebas de T-110 pasan; cobertura ≥ 95 %; `mypy --strict` limpio; el módulo no importa I/O, FastAPI, SQLAlchemy, Redis ni reloj del sistema; no copia campos prohibidos.
 
-- [ ] **T-112** [US-A2] | **Implementar la consulta de la serie en el repositorio**
+- [x] **T-112** [US-A2] | **Implementar la consulta de la serie en el repositorio**
   - **Depende de**: T-102, T-111
   - **Resp.**: **A**
   - **Archivos**: `backend/app/modulos/precios/repositorio.py`, `backend/tests/integracion/test_historial_precios.py`
   - **Hecho cuando…**: la consulta filtra por producto, establecimiento, presentación opcional y ventana; ordena por `observado_en`; excluye `rechazado`; no selecciona columnas prohibidas; usa el índice; la prueba de integración pasa.
 
-- [ ] **T-113** [US-A2] | **Implementar el servicio y los esquemas DTO del historial**
+- [x] **T-113** [US-A2] | **Implementar el servicio y los esquemas DTO del historial**
   - **Depende de**: T-112
   - **Resp.**: **A**
   - **Archivos**: `backend/app/modulos/precios/servicio_historial.py`, `backend/app/modulos/precios/esquemas.py`, `backend/tests/integracion/test_historial_precios.py`
   - **Hecho cuando…**: el servicio valida parámetros, arma la serie con el dominio puro, aplica límite/truncado y devuelve DTOs sin PII; pruebas de servicio y contrato de esquema pasan.
 
-- [ ] **T-114** [US-A2] | **Exponer `GET /v1/productos/{id}/historial-precios` y actualizar OpenAPI**
+- [x] **T-114** [US-A2] | **Exponer `GET /v1/productos/{id}/historial-precios` y actualizar OpenAPI**
   - **Depende de**: T-113
   - **Resp.**: **A**
   - **Archivos**: `backend/app/modulos/precios/api.py`, `docs/api/openapi.json`, `backend/tests/integracion/test_historial_precios.py`
   - **Hecho cuando…**: el endpoint responde `200`, `404`, `422` y `503` según el contrato; la respuesta no tiene campos prohibidos; `scripts/exportar_openapi.py` regenera el contrato y `git diff` queda limpio.
 
-- [ ] **T-115** [US-A2] | **Agregar la llamada tipada al historial en el frontend**
+- [x] **T-115** [US-A2] | **Agregar la llamada tipada al historial en el frontend**
   - **Depende de**: T-114
   - **Resp.**: **C**
   - **Archivos**: `frontend/src/lib/api/clienteApi.ts`, `frontend/src/lib/api/esquema.d.ts`
   - **Hecho cuando…**: `npm run gen:api` regenera los tipos; la llamada maneja `problem+json`, estados vacío/error y no calcula precios en el cliente; typecheck/lint pasan.
 
-- [ ] **T-116** [US-A2] | **Crear `GraficaHistorialPrecios` accesible**
+- [x] **T-116** [US-A2] | **Crear `GraficaHistorialPrecios` accesible**
   - **Depende de**: T-101, T-115
   - **Resp.**: **C**
   - **Archivos**: `frontend/src/components/GraficaHistorialPrecios.tsx`, pruebas de componente/E2E
   - **Hecho cuando…**: la gráfica muestra puntos por fecha, origen y estado; leyenda con patrones/íconos además de color; tabla HTML alternativa; estados de carga/vacío/error; axe sin violaciones críticas o serias.
 
-- [ ] **T-117** [US-A2] | **Integrar la gráfica en la ficha de producto**
+- [x] **T-117** [US-A2] | **Integrar la gráfica en la ficha de producto**
   - **Depende de**: T-116
   - **Resp.**: **C**
   - **Archivos**: `frontend/src/app/producto/[id]/page.tsx`
   - **Hecho cuando…**: el consumidor elige establecimiento/presentación y ve la serie; el aviso de datos demo aparece cuando corresponde; no se altera el orden de comparación ni el bloque de promociones.
 
-- [ ] **T-118** [US-A2] | **Generar datos demo de 90 días y probar idempotencia**
+- [x] **T-118** [US-A2] | **Generar datos demo de 90 días y probar idempotencia**
+  - **Pendiente de BD**: ejecutar el escritor contra Supabase y validar la idempotencia real; el generador y las guardas están verificados.
   - **Depende de**: T-112
   - **Resp.**: **D**
   - **Archivos**: `scripts/semilla.py` o `scripts/semilla_historial.py`, `backend/tests/integracion/test_historial_precios.py`, `supabase/seed/` si aplica
   - **Hecho cuando…**: existen series demo con `es_demo = true` en al menos 3 establecimientos; ejecutar dos veces no duplica; el aviso de demostración se activa.
 
-- [ ] **T-119** [US-A2] | **Certificar EC-08 con integración, E2E y axe**
+- [x] **T-119** [US-A2] | **Certificar EC-08 con integración, E2E y axe**
+  - **Pendiente de BD**: ejecutar la prueba de integración EC-08 contra PostgreSQL; E2E (19/19) y axe ya están certificados.
   - **Depende de**: T-114, T-117, T-118
   - **Resp.**: **C + D**
   - **Archivos**: `backend/tests/integracion/test_historial_precios.py`, `frontend/tests/e2e/historial_precios.spec.ts`, `docs/calidad/trazabilidad.csv`
