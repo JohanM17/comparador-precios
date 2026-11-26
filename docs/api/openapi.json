@@ -494,6 +494,70 @@
         "title": "DatosComparacion",
         "type": "object"
       },
+      "DatosHistorial": {
+        "additionalProperties": false,
+        "description": "Cuerpo de datos del historial de precios de un producto y establecimiento.",
+        "properties": {
+          "datos_de_demostracion": {
+            "title": "Datos De Demostracion",
+            "type": "boolean"
+          },
+          "desde": {
+            "format": "date-time",
+            "title": "Desde",
+            "type": "string"
+          },
+          "establecimiento": {
+            "$ref": "#/components/schemas/EstablecimientoHistorial"
+          },
+          "hasta": {
+            "format": "date-time",
+            "title": "Hasta",
+            "type": "string"
+          },
+          "presentacion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PresentacionHistorial"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "producto": {
+            "$ref": "#/components/schemas/ProductoHistorial"
+          },
+          "puntos": {
+            "items": {
+              "$ref": "#/components/schemas/PuntoHistorial"
+            },
+            "title": "Puntos",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "truncado": {
+            "title": "Truncado",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "producto",
+          "establecimiento",
+          "presentacion",
+          "desde",
+          "hasta",
+          "puntos",
+          "total",
+          "truncado",
+          "datos_de_demostracion"
+        ],
+        "title": "DatosHistorial",
+        "type": "object"
+      },
       "DatosReporteRespuesta": {
         "additionalProperties": false,
         "description": "Detalle visible del reporte registrado.",
@@ -1014,6 +1078,32 @@
           "activo"
         ],
         "title": "EstablecimientoDetalleRespuesta",
+        "type": "object"
+      },
+      "EstablecimientoHistorial": {
+        "additionalProperties": false,
+        "description": "Encabezado publico del establecimiento en la serie historica.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "municipio": {
+            "title": "Municipio",
+            "type": "string"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "municipio"
+        ],
+        "title": "EstablecimientoHistorial",
         "type": "object"
       },
       "EstablecimientoResumen": {
@@ -1903,6 +1993,27 @@
         "title": "PresentacionCrearEntrada",
         "type": "object"
       },
+      "PresentacionHistorial": {
+        "additionalProperties": false,
+        "description": "Presentacion solicitada para acotar la serie historica.",
+        "properties": {
+          "etiqueta": {
+            "title": "Etiqueta",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "etiqueta"
+        ],
+        "title": "PresentacionHistorial",
+        "type": "object"
+      },
       "PresentacionResumen": {
         "additionalProperties": false,
         "description": "Detalle resumido de una presentacion comercial.",
@@ -2185,6 +2296,37 @@
         "title": "ProductoDetalleRespuesta",
         "type": "object"
       },
+      "ProductoHistorial": {
+        "additionalProperties": false,
+        "description": "Encabezado publico del producto en la serie historica.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "unidad_base": {
+            "title": "Unidad Base",
+            "type": "string"
+          },
+          "unidad_visualizacion": {
+            "title": "Unidad Visualizacion",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "unidad_base",
+          "unidad_visualizacion"
+        ],
+        "title": "ProductoHistorial",
+        "type": "object"
+      },
       "ProductoResumen": {
         "additionalProperties": false,
         "description": "Resumen de un producto para listados y busqueda.",
@@ -2253,6 +2395,70 @@
           "unidad_visualizacion"
         ],
         "title": "ProductoResumen",
+        "type": "object"
+      },
+      "PuntoHistorial": {
+        "additionalProperties": false,
+        "description": "Punto publico de la serie historica, sin datos personales.",
+        "properties": {
+          "cantidad_base": {
+            "title": "Cantidad Base",
+            "type": "number"
+          },
+          "es_demo": {
+            "title": "Es Demo",
+            "type": "boolean"
+          },
+          "estado": {
+            "title": "Estado",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "observado_en": {
+            "format": "date-time",
+            "title": "Observado En",
+            "type": "string"
+          },
+          "origen": {
+            "title": "Origen",
+            "type": "string"
+          },
+          "precio_cop": {
+            "title": "Precio Cop",
+            "type": "integer"
+          },
+          "precio_por_unidad": {
+            "$ref": "#/components/schemas/PrecioUnidad"
+          },
+          "presentacion_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Presentacion Id"
+          }
+        },
+        "required": [
+          "id",
+          "observado_en",
+          "precio_cop",
+          "precio_por_unidad",
+          "origen",
+          "estado",
+          "es_demo",
+          "presentacion_id",
+          "cantidad_base"
+        ],
+        "title": "PuntoHistorial",
         "type": "object"
       },
       "RechazarSugerenciaEntrada": {
@@ -2346,6 +2552,20 @@
           "datos"
         ],
         "title": "RespuestaComparacion",
+        "type": "object"
+      },
+      "RespuestaHistorial": {
+        "additionalProperties": false,
+        "description": "Respuesta completa de GET /v1/productos/{id}/historial-precios.",
+        "properties": {
+          "datos": {
+            "$ref": "#/components/schemas/DatosHistorial"
+          }
+        },
+        "required": [
+          "datos"
+        ],
+        "title": "RespuestaHistorial",
         "type": "object"
       },
       "RespuestaListo": {
@@ -5278,6 +5498,122 @@
           }
         },
         "summary": "Comparador publico neutral de precios en dos bloques (Flujo F1)",
+        "tags": [
+          "Precios y Comparaciones"
+        ]
+      }
+    },
+    "/v1/productos/{id}/historial-precios": {
+      "get": {
+        "operationId": "consultar_historial_precios_v1_productos__id__historial_precios_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "establecimiento_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Establecimiento Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "presentacion_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Presentacion Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "desde",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Desde"
+            }
+          },
+          {
+            "in": "query",
+            "name": "hasta",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Hasta"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limite",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Limite",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespuestaHistorial"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Historial publico de precios de un producto en un establecimiento (Historia A2)",
         "tags": [
           "Precios y Comparaciones"
         ]

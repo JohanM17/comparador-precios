@@ -9,12 +9,15 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from uuid import uuid4
 
 import pytest
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 
 from app.bd import sesion_transaccional
 from app.config import obtener_configuracion
+from app.main import app
 from app.modulos.precios.repositorio import listar_reportes_serie
 from app.modulos.precios.servicio_historial import ServicioHistorial
 
@@ -249,3 +252,193 @@ async def test_servicio_historial_filtra_por_presentacion_activa() -> None:
     assert datos.puntos, "La presentacion elegida debe tener puntos visibles."
     assert all(punto.presentacion_id == par.presentacion_id for punto in datos.puntos)
     assert datos.total == len(datos.puntos)
+
+
+def _url_historial(producto_id: Any) -> str:
+    """Construye la ruta publica del historial para un producto."""
+    return f"/v1/productos/{producto_id}/historial-precios"
+
+
+def _cliente_http() -> AsyncClient:
+    """Crea un cliente ASGI en proceso, sin levantar un servidor real."""
+    return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+
+
+def _es_utc(fecha_iso: str) -> bool:
+    """Indica si una fecha ISO 8601 serializada esta expresada en UTC."""
+    fecha = datetime.fromisoformat(fecha_iso.replace("Z", "+00:00"))
+    return fecha.utcoffset() == timedelta(0)
+
+
+def _verificar_problema(respuesta: Any, codigo: str) -> None:
+    """Valida el contrato RFC 9457 de una respuesta de error."""
+    assert respuesta.headers["content-type"].startswith("application/problem+json")
+    problema = respuesta.json()
+    assert problema["codigo"] == codigo
+    assert problema["status"] == respuesta.status_code
+
+
+@pytest.mark.asyncio
+async def test_endpoint_historial_200_publico_en_utc_sin_pii() -> None:
+    """El endpoint publico devuelve la serie con precios unitarios enteros y fechas UTC."""
+    hasta = datetime.now(UTC)
+    desde = hasta - timedelta(days=90)
+
+    async with sesion_transaccional() as sesion:
+        par = await _buscar_par_con_datos(sesion, desde, hasta)
+
+    async with _cliente_http() as cliente:
+        respuesta = await cliente.get(
+            _url_historial(par.producto_id),
+            params={
+                "establecimiento_id": str(par.establecimiento_id),
+                "desde": desde.isoformat(),
+                "hasta": hasta.isoformat(),
+            },
+        )
+
+    assert respuesta.status_code == 200
+    datos = respuesta.json()["datos"]
+    assert datos["producto"]["id"] == str(par.producto_id)
+    assert datos["establecimiento"]["id"] == str(par.establecimiento_id)
+    assert datos["puntos"], "La serie debe tener al menos un punto para un par con datos."
+    assert _es_utc(datos["desde"])
+    assert _es_utc(datos["hasta"])
+
+    for punto in datos["puntos"]:
+        assert isinstance(punto["precio_por_unidad"]["valor_cop"], int)
+        assert punto["precio_por_unidad"]["por"] in {"kg", "l", "unidad"}
+        assert punto["estado"] in {"aceptado", "dudoso"}
+        assert punto["origen"] in {"usuario", "comercio", "semilla"}
+
+    claves = _claves_serializadas(datos)
+    assert not (CLAVES_PROHIBIDAS & claves), "La respuesta no debe exponer datos personales."
+
+
+@pytest.mark.asyncio
+async def test_endpoint_historial_404_producto_inexistente() -> None:
+    """Un producto inexistente responde 404 NO_ENCONTRADO en formato problem+json."""
+    async with _cliente_http() as cliente:
+        respuesta = await cliente.get(
+            _url_historial(uuid4()),
+            params={"establecimiento_id": str(uuid4())},
+        )
+
+    assert respuesta.status_code == 404
+    _verificar_problema(respuesta, "NO_ENCONTRADO")
+
+
+@pytest.mark.asyncio
+async def test_endpoint_historial_404_establecimiento_inexistente() -> None:
+    """Un establecimiento inexistente responde 404 NO_ENCONTRADO."""
+    hasta = datetime.now(UTC)
+    desde = hasta - timedelta(days=90)
+
+    async with sesion_transaccional() as sesion:
+        par = await _buscar_par_con_datos(sesion, desde, hasta)
+
+    async with _cliente_http() as cliente:
+        respuesta = await cliente.get(
+            _url_historial(par.producto_id),
+            params={
+                "establecimiento_id": str(uuid4()),
+                "desde": desde.isoformat(),
+                "hasta": hasta.isoformat(),
+            },
+        )
+
+    assert respuesta.status_code == 404
+    _verificar_problema(respuesta, "NO_ENCONTRADO")
+
+
+@pytest.mark.asyncio
+async def test_endpoint_historial_404_presentacion_inexistente() -> None:
+    """Una presentacion inexistente responde 404 NO_ENCONTRADO."""
+    hasta = datetime.now(UTC)
+    desde = hasta - timedelta(days=90)
+
+    async with sesion_transaccional() as sesion:
+        par = await _buscar_par_con_datos(sesion, desde, hasta)
+
+    async with _cliente_http() as cliente:
+        respuesta = await cliente.get(
+            _url_historial(par.producto_id),
+            params={
+                "establecimiento_id": str(par.establecimiento_id),
+                "presentacion_id": str(uuid4()),
+                "desde": desde.isoformat(),
+                "hasta": hasta.isoformat(),
+            },
+        )
+
+    assert respuesta.status_code == 404
+    _verificar_problema(respuesta, "NO_ENCONTRADO")
+
+
+@pytest.mark.asyncio
+async def test_endpoint_historial_422_ventana_mayor_a_90_dias() -> None:
+    """Una ventana mayor a 90 dias responde 422 VALIDACION."""
+    hasta = datetime.now(UTC)
+    desde = hasta - timedelta(days=91)
+
+    async with _cliente_http() as cliente:
+        respuesta = await cliente.get(
+            _url_historial(uuid4()),
+            params={
+                "establecimiento_id": str(uuid4()),
+                "desde": desde.isoformat(),
+                "hasta": hasta.isoformat(),
+            },
+        )
+
+    assert respuesta.status_code == 422
+    _verificar_problema(respuesta, "VALIDACION")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("limite", [0, 501])
+async def test_endpoint_historial_422_limite_fuera_de_rango(limite: int) -> None:
+    """Un limite fuera de [1, 500] responde 422 VALIDACION validado por FastAPI."""
+    async with _cliente_http() as cliente:
+        respuesta = await cliente.get(
+            _url_historial(uuid4()),
+            params={
+                "establecimiento_id": str(uuid4()),
+                "limite": limite,
+            },
+        )
+
+    assert respuesta.status_code == 422
+    _verificar_problema(respuesta, "VALIDACION")
+
+
+@pytest.mark.asyncio
+async def test_endpoint_historial_200_filtra_por_presentacion() -> None:
+    """Con presentacion_id, la respuesta la identifica y todos los puntos corresponden."""
+    hasta = datetime.now(UTC)
+    desde = hasta - timedelta(days=90)
+
+    async with sesion_transaccional() as sesion:
+        par = await _buscar_par_con_datos(sesion, desde, hasta)
+
+    if par.presentacion_id is None:
+        pytest.skip("El par encontrado no tiene presentacion activa; no hay filtro que probar.")
+
+    async with _cliente_http() as cliente:
+        respuesta = await cliente.get(
+            _url_historial(par.producto_id),
+            params={
+                "establecimiento_id": str(par.establecimiento_id),
+                "presentacion_id": str(par.presentacion_id),
+                "desde": desde.isoformat(),
+                "hasta": hasta.isoformat(),
+            },
+        )
+
+    assert respuesta.status_code == 200
+    datos = respuesta.json()["datos"]
+    assert datos["presentacion"] is not None
+    assert datos["presentacion"]["id"] == str(par.presentacion_id)
+    assert datos["puntos"], "La presentacion elegida debe tener puntos visibles."
+    assert all(punto["presentacion_id"] == str(par.presentacion_id) for punto in datos["puntos"])
+    assert datos["total"] == len(datos["puntos"])

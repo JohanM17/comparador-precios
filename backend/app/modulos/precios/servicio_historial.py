@@ -117,6 +117,8 @@ class ServicioHistorial:
             desde if desde is not None else hasta_efectivo - timedelta(days=DIAS_MAXIMOS_HISTORIAL)
         )
         validar_parametros_historial(desde_efectivo, hasta_efectivo, limite)
+        desde_efectivo = desde_efectivo.astimezone(UTC)
+        hasta_efectivo = hasta_efectivo.astimezone(UTC)
 
         producto = await obtener_producto_historial(self.sesion, producto_id)
         if producto is None:

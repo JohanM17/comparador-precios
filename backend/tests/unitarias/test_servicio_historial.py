@@ -241,6 +241,39 @@ async def test_servicio_usa_ventana_de_90_dias_por_defecto(
 
 
 @pytest.mark.asyncio
+async def test_servicio_normaliza_la_ventana_a_utc(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Una ventana con offset -05:00 se consulta y se devuelve normalizada a UTC."""
+    llamadas: dict[str, Any] = {}
+    zona_colombia = timezone(timedelta(hours=-5))
+    hasta_local = datetime(2026, 11, 1, 7, 0, 0, tzinfo=zona_colombia)
+    desde_local = hasta_local - VENTANA_MAXIMA
+    _montar_repositorio(
+        monkeypatch,
+        producto={"id": PRODUCTO_ID, "nombre": "Arroz", "unidad_base": "g"},
+        filas=[_fila_reporte(UUID(int=303), DESDE)],
+        llamadas=llamadas,
+    )
+    servicio = ServicioHistorial(object(), ahora=HASTA)  # type: ignore[arg-type]
+
+    respuesta = await servicio.obtener_historial(
+        producto_id=PRODUCTO_ID,
+        establecimiento_id=ESTABLECIMIENTO_ID,
+        desde=desde_local,
+        hasta=hasta_local,
+    )
+
+    datos = respuesta.datos
+    assert datos.hasta == HASTA
+    assert datos.desde == DESDE
+    assert datos.hasta.utcoffset() == timedelta(0)
+    assert datos.desde.utcoffset() == timedelta(0)
+    assert llamadas["hasta"] == HASTA
+    assert llamadas["desde"] == DESDE
+    assert llamadas["hasta"].utcoffset() == timedelta(0)
+    assert llamadas["desde"].utcoffset() == timedelta(0)
+
+
+@pytest.mark.asyncio
 async def test_servicio_incluye_la_presentacion_solicitada(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
