@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+import sys
 import time
 import traceback
 from uuid import uuid4
@@ -181,20 +182,32 @@ def _agregar_filtro_si_falta(
 def configurar_logging() -> None:
     """Inicializa el logging con privacidad y correlacion de trazas.
 
-    Instala un `StreamHandler` en la raiz solo si no hay ninguno, de modo que
-    los INFO de `app.*` se emitan incluso bajo Uvicorn (que configura sus
-    propios loggers con `propagate=False` y no toca la raiz). Es idempotente:
-    llamarla varias veces no duplica handlers ni filtros.
+    Instala un `StreamHandler(sys.stdout)` en el logger `app` solo si ni `app`
+    ni la raiz tienen handlers, de modo que los INFO de `app.*` se emitan bajo
+    Uvicorn (que configura sus propios loggers con `propagate=False` y no toca
+    la raiz) sin duplicar la salida en pytest o plataformas que ya configuran
+    la raiz. El handler cuelga de `app` y no de la raiz: los logs de terceros
+    (`httpx`, etc.) no pasan por el filtro de privacidad ni por esta consola.
+    Es idempotente: llamarla varias veces no duplica handlers ni filtros.
     """
     filtro_privacidad = FiltroPrivacidadLey1581()
     filtro_correlacion = FiltroCorrelacionTrazas()
     logger_raiz = logging.getLogger()
     logger_raiz.setLevel(logging.INFO)
 
-    if not logger_raiz.handlers:
-        logger_raiz.addHandler(logging.StreamHandler())
+    logger_app = logging.getLogger("app")
+    logger_app.setLevel(logging.INFO)
+
+    if not logger_app.handlers and not logger_raiz.handlers:
+        logger_app.addHandler(logging.StreamHandler(sys.stdout))
 
     for handler in logger_raiz.handlers:
+        _agregar_filtro_si_falta(handler, filtro_privacidad)
+        _agregar_filtro_si_falta(handler, filtro_correlacion)
+        if handler.formatter is None:
+            handler.setFormatter(logging.Formatter(FORMATO_LOG_CORRELACION))
+
+    for handler in logger_app.handlers:
         _agregar_filtro_si_falta(handler, filtro_privacidad)
         _agregar_filtro_si_falta(handler, filtro_correlacion)
         if handler.formatter is None:
@@ -206,8 +219,6 @@ def configurar_logging() -> None:
     # emite el access log ya saneado, asi que el nativo se desactiva.
     logging.getLogger("uvicorn.access").disabled = True
 
-    logger_app = logging.getLogger("app")
-    logger_app.setLevel(logging.INFO)
     _agregar_filtro_si_falta(logger_app, filtro_privacidad)
     _agregar_filtro_si_falta(logger_app, filtro_correlacion)
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import logging
 import re
+import sys
 from collections.abc import Iterator, Mapping
 from importlib import metadata
 from typing import Any
@@ -49,25 +50,35 @@ def _configuracion(**cambios: Any) -> Configuracion:
 
 @pytest.fixture
 def estado_logging() -> Iterator[None]:
-    """Restaura niveles, `disabled` y filtros de los loggers de la configuracion.
+    """Deja `app` sin handlers y restaura niveles, `disabled` y filtros.
 
     Los handlers de la raiz se gestionan dentro de cada prueba: pytest instala
-    y retira los suyos en cada fase, de modo que la fixture solo restaura el
-    estado de los loggers y no debe readjuntar handlers ajenos.
+    y retira los suyos en cada fase. Los de `app` son propios de la aplicacion,
+    asi que la fixture los retira al empezar y restaura los previos al terminar.
     """
+    logger_app = logging.getLogger("app")
     loggers = (
         logging.getLogger(),
-        logging.getLogger("app"),
+        logger_app,
         logging.getLogger("app.acceso"),
         logging.getLogger("uvicorn.access"),
     )
     estado_loggers = [
         (logger, logger.level, logger.disabled, list(logger.filters)) for logger in loggers
     ]
+    handlers_app = list(logger_app.handlers)
+    for handler in handlers_app:
+        logger_app.removeHandler(handler)
 
     try:
         yield
     finally:
+        for handler in list(logger_app.handlers):
+            logger_app.removeHandler(handler)
+            if handler not in handlers_app:
+                handler.close()
+        for handler in handlers_app:
+            logger_app.addHandler(handler)
         for logger, nivel, deshabilitado, filtros in estado_loggers:
             logger.setLevel(nivel)
             logger.disabled = deshabilitado
@@ -1062,50 +1073,74 @@ def test_filtro_correlacion_publica_alias_otel() -> None:
         proveedor.shutdown()
 
 
-def test_configurar_logging_instala_handler_raiz_idempotente_y_emite_info(
+def _vaciar_handlers_raiz() -> None:
+    """Retira los handlers de la raiz para simular un proceso sin logging.
+
+    No se readjuntan: son capturadores que pytest instala y retira en cada fase.
+    """
+    logger_raiz = logging.getLogger()
+    for handler in list(logger_raiz.handlers):
+        logger_raiz.removeHandler(handler)
+
+
+def test_configurar_logging_instala_handler_en_app_idempotente_y_emite_info(
     estado_logging: None,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Sin handlers previos instala uno en la raiz y los INFO de app se ven."""
+    """Sin handlers previos instala la consola en `app` y el INFO sale por stdout."""
     logger_raiz = logging.getLogger()
-    handlers_previos = list(logger_raiz.handlers)
-    for handler in handlers_previos:
-        logger_raiz.removeHandler(handler)
+    logger_app = logging.getLogger("app")
+    _vaciar_handlers_raiz()
 
+    configurar_logging()
+    handlers_instalados = list(logger_app.handlers)
+    assert len(handlers_instalados) == 1
+    handler = handlers_instalados[0]
+    assert isinstance(handler, logging.StreamHandler)
+    assert handler.stream is sys.stdout
+    assert handler.formatter is not None
+    assert handler.formatter._fmt == FORMATO_LOG_CORRELACION
+    tipos = {type(filtro) for filtro in handler.filters}
+    assert FiltroPrivacidadLey1581 in tipos
+    assert FiltroCorrelacionTrazas in tipos
+    assert logger_raiz.handlers == []
+
+    configurar_logging()
+    assert logger_app.handlers == handlers_instalados
+
+    proveedor = TracerProvider(sampler=telemetria.ALWAYS_ON)
+    tracer = proveedor.get_tracer("pruebas.logging")
     try:
-        configurar_logging()
-        handlers_instalados = list(logger_raiz.handlers)
-        assert len(handlers_instalados) == 1
-        handler = handlers_instalados[0]
-        assert isinstance(handler, logging.StreamHandler)
-        assert handler.formatter is not None
-        assert handler.formatter._fmt == FORMATO_LOG_CORRELACION
-        tipos = {type(filtro) for filtro in handler.filters}
-        assert FiltroPrivacidadLey1581 in tipos
-        assert FiltroCorrelacionTrazas in tipos
-
-        configurar_logging()
-        assert logger_raiz.handlers == handlers_instalados
-
-        proveedor = TracerProvider(sampler=telemetria.ALWAYS_ON)
-        tracer = proveedor.get_tracer("pruebas.logging")
-        try:
-            with tracer.start_as_current_span("prueba"):
-                logging.getLogger("app").info("mensaje de prueba")
-        finally:
-            proveedor.shutdown()
+        with tracer.start_as_current_span("prueba"):
+            logger_app.info("mensaje de prueba")
     finally:
-        for handler_actual in list(logger_raiz.handlers):
-            logger_raiz.removeHandler(handler_actual)
-            if handler_actual not in handlers_previos:
-                handler_actual.close()
+        proveedor.shutdown()
 
     salida = capsys.readouterr()
     assert re.search(
         r"INFO app \[trace_id=[0-9a-f]{32} span_id=[0-9a-f]{16}\] mensaje de prueba",
-        salida.err,
+        salida.out,
     )
-    assert salida.out == ""
+    assert salida.err == ""
+
+
+def test_configurar_logging_no_instala_consola_si_la_raiz_ya_tiene_handler(
+    estado_logging: None,
+) -> None:
+    """Con la raiz ya configurada no se duplica la salida en `app`."""
+    logger_raiz = logging.getLogger()
+    logger_app = logging.getLogger("app")
+    handler_raiz = logging.NullHandler()
+    logger_raiz.addHandler(handler_raiz)
+
+    try:
+        configurar_logging()
+        assert logger_app.handlers == []
+        tipos = {type(filtro) for filtro in handler_raiz.filters}
+        assert FiltroPrivacidadLey1581 in tipos
+        assert FiltroCorrelacionTrazas in tipos
+    finally:
+        logger_raiz.removeHandler(handler_raiz)
 
 
 def test_configurar_logging_desactiva_el_access_log_de_uvicorn(estado_logging: None) -> None:
@@ -1237,13 +1272,58 @@ def test_adjuntar_handler_logs_exporta_cuerpo_redactado_con_contexto() -> None:
     assert "[REDACTADO_COORD]" in cuerpo
     assert "[REDACTADO_IP]" in cuerpo
     assert "[REDACTADO_HUELLA]" in cuerpo
+    texto_atributos = str(dict(registro.attributes or {}))
+    assert "persona@example.com" not in texto_atributos
+    assert "4.53" not in texto_atributos
+    assert "190.1.2.3" not in texto_atributos
+    assert "a" * 64 not in texto_atributos
     assert registro.trace_id == contexto.trace_id
     assert registro.span_id == contexto.span_id
 
 
-def test_adjuntar_handler_logs_es_idempotente() -> None:
-    """Dos adjuntos dejan un solo handler del SDK en la raiz."""
-    logger_raiz = logging.getLogger()
+def test_adjuntar_handler_logs_exporta_excepcion_redactada() -> None:
+    """El cuerpo OTLP incluye el traceback redactado y sin atributos crudos."""
+    exportador = InMemoryLogRecordExporter()
+    proveedor_logs = LoggerProvider()
+    proveedor_logs.add_log_record_processor(SimpleLogRecordProcessor(exportador))
+    logger = logging.getLogger("app.pruebas.otlp.excepcion")
+    logger.setLevel(logging.INFO)
+
+    try:
+        telemetria._adjuntar_handler_logs(proveedor_logs)
+        try:
+            raise ValueError("fallo con persona@example.com lat=4.53 ip=190.1.2.3")
+        except ValueError:
+            logger.exception("reporte de persona@example.com con lat=4.53")
+        registros = exportador.get_finished_logs()
+    finally:
+        telemetria._quitar_handler_logs()
+        logger.setLevel(logging.NOTSET)
+        proveedor_logs.shutdown()
+
+    assert len(registros) == 1
+    registro = registros[0].log_record
+    cuerpo = str(registro.body)
+    assert "reporte de [REDACTADO_EMAIL] con lat=[REDACTADO_COORD]" in cuerpo
+    assert "Traceback (most recent call last)" in cuerpo
+    assert "ValueError" in cuerpo
+    assert "persona@example.com" not in cuerpo
+    assert "lat=4.53" not in cuerpo
+    assert "190.1.2.3" not in cuerpo
+    assert "[REDACTADO_EMAIL]" in cuerpo
+    assert "[REDACTADO_COORD]" in cuerpo
+    assert "[REDACTADO_IP]" in cuerpo
+    atributos = registro.attributes or {}
+    texto_atributos = str(dict(atributos))
+    assert "persona@example.com" not in texto_atributos
+    assert "4.53" not in texto_atributos
+    assert "190.1.2.3" not in texto_atributos
+    assert "exception.stacktrace" not in atributos
+
+
+def test_adjuntar_handler_logs_es_idempotente(estado_logging: None) -> None:
+    """Dos adjuntos dejan un solo handler del SDK en `app`."""
+    logger_app = logging.getLogger("app")
     proveedor = LoggerProvider()
 
     try:
@@ -1252,7 +1332,7 @@ def test_adjuntar_handler_logs_es_idempotente() -> None:
         telemetria._adjuntar_handler_logs(proveedor)
         segundo = telemetria._handler_logs
         adjuntos = [
-            handler for handler in logger_raiz.handlers if isinstance(handler, LoggingHandler)
+            handler for handler in logger_app.handlers if isinstance(handler, LoggingHandler)
         ]
         assert adjuntos == [segundo]
     finally:
@@ -1264,36 +1344,115 @@ def test_adjuntar_handler_logs_es_idempotente() -> None:
     assert primero is not segundo
 
 
-def test_quitar_handler_logs_retira_y_es_idempotente() -> None:
-    """El handler se retira de la raiz y quitarlo de nuevo no lanza."""
-    logger_raiz = logging.getLogger()
+def test_quitar_handler_logs_retira_y_es_idempotente(estado_logging: None) -> None:
+    """El handler se retira de `app` y quitarlo de nuevo no lanza."""
+    logger_app = logging.getLogger("app")
     proveedor = LoggerProvider()
     telemetria._adjuntar_handler_logs(proveedor)
     handler = telemetria._handler_logs
     assert handler is not None
-    assert handler in logger_raiz.handlers
+    assert handler in logger_app.handlers
 
     try:
         telemetria._quitar_handler_logs()
         assert telemetria._handler_logs is None
-        assert handler not in logger_raiz.handlers
+        assert handler not in logger_app.handlers
         telemetria._quitar_handler_logs()
         assert telemetria._handler_logs is None
     finally:
         proveedor.shutdown()
 
 
-def test_apagar_telemetria_retira_el_handler_de_logs() -> None:
-    """El apagado deja de exportar logs antes de cerrar los providers."""
-    logger_raiz = logging.getLogger()
-    proveedor = LoggerProvider()
-    telemetria._adjuntar_handler_logs(proveedor)
+class _ProviderEspia:
+    """Provider que registra si el handler sigue en `app` al cerrarse."""
+
+    def __init__(self) -> None:
+        self.handler_presente: list[bool] = []
+
+    def _estado(self) -> bool:
+        handler = telemetria._handler_logs
+        return handler is not None and handler in logging.getLogger("app").handlers
+
+    def force_flush(self) -> None:
+        """Registra el estado del handler durante el vaciado."""
+        self.handler_presente.append(self._estado())
+
+    def shutdown(self) -> None:
+        """Registra el estado del handler durante el apagado."""
+        self.handler_presente.append(self._estado())
+
+
+def test_apagar_telemetria_retira_el_handler_antes_de_cerrar_provider(
+    estado_logging: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """El handler ya no esta en `app` cuando el provider se vacia y se apaga."""
+    proveedor_logs = LoggerProvider()
+    telemetria._adjuntar_handler_logs(proveedor_logs)
     handler = telemetria._handler_logs
-    assert handler is not None
+    espia = _ProviderEspia()
+    monkeypatch.setattr(telemetria, "_logger_provider", espia)
 
     try:
         telemetria.apagar_telemetria()
-        assert handler not in logger_raiz.handlers
-        assert telemetria._handler_logs is None
+    finally:
+        proveedor_logs.shutdown()
+
+    assert handler is not None
+    assert handler not in logging.getLogger("app").handlers
+    assert espia.handler_presente == [False, False]
+
+
+def test_adjuntar_handler_logs_sin_sdk_advierte_y_no_lanza(
+    estado_logging: None,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Si el SDK no expone LoggingHandler se advierte de forma generica."""
+    proveedor = LoggerProvider()
+    monkeypatch.setattr(telemetria, "_FABRICA_HANDLER_LOGS", None)
+
+    try:
+        with caplog.at_level(logging.WARNING, logger="app.telemetria"):
+            telemetria._adjuntar_handler_logs(proveedor)
     finally:
         proveedor.shutdown()
+
+    assert telemetria._handler_logs is None
+    assert logging.getLogger("app").handlers == []
+    assert "No fue posible habilitar la exportacion de logs" in caplog.text
+
+
+def test_logs_de_terceros_no_pasan_por_handlers_de_app(
+    estado_logging: None,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Un INFO de httpx con UUID y archivo no se emite ni se exporta."""
+    _vaciar_handlers_raiz()
+    exportador = InMemoryLogRecordExporter()
+    proveedor_logs = LoggerProvider()
+    proveedor_logs.add_log_record_processor(SimpleLogRecordProcessor(exportador))
+    logger_httpx = logging.getLogger("httpx")
+    nivel_previo = logger_httpx.level
+    logger_httpx.setLevel(logging.INFO)
+
+    try:
+        configurar_logging()
+        telemetria._adjuntar_handler_logs(proveedor_logs)
+        logger_httpx.info(
+            'HTTP Request: GET https://storage.example/%s/%s "HTTP/1.1 200 OK"',
+            "550e8400-e29b-41d4-a716-446655440000",
+            "foto_cedula_juan.jpg",
+        )
+        salida = capsys.readouterr()
+        registros = exportador.get_finished_logs()
+    finally:
+        logger_httpx.setLevel(nivel_previo)
+        telemetria._quitar_handler_logs()
+        proveedor_logs.shutdown()
+
+    assert registros == ()
+    assert salida.out == ""
+    assert salida.err == ""
+    assert "550e8400-e29b-41d4-a716-446655440000" not in salida.out
+    assert "foto_cedula_juan.jpg" not in salida.out

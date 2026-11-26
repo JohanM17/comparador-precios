@@ -251,7 +251,7 @@ def logging_cableado(caplog: pytest.LogCaptureFixture) -> Iterator[None]:
     logger_acceso = logging.getLogger("app.acceso")
     logger_uvicorn = logging.getLogger("uvicorn.access")
     loggers = (logger_raiz, logger_app, logger_acceso, logger_uvicorn)
-    handlers = list(logger_raiz.handlers)
+    handlers = [*logger_raiz.handlers, *logger_app.handlers]
     estado_loggers = [
         (logger, logger.level, logger.disabled, list(logger.filters)) for logger in loggers
     ]
@@ -266,13 +266,18 @@ def logging_cableado(caplog: pytest.LogCaptureFixture) -> Iterator[None]:
         handler.filters[:] = [filtro for filtro in handler.filters if not isinstance(filtro, tipos)]
 
     configurar_logging()
-    handlers_nuevos = [handler for handler in logger_raiz.handlers if handler not in handlers]
+    handlers_nuevos = [
+        handler
+        for handler in [*logger_raiz.handlers, *logger_app.handlers]
+        if handler not in handlers
+    ]
     caplog.set_level(logging.INFO)
     try:
         yield
     finally:
         for handler in handlers_nuevos:
             logger_raiz.removeHandler(handler)
+            logger_app.removeHandler(handler)
             handler.close()
         for logger, nivel, deshabilitado, filtros in estado_loggers:
             logger.setLevel(nivel)
@@ -286,34 +291,44 @@ def logging_cableado(caplog: pytest.LogCaptureFixture) -> Iterator[None]:
 
 @pytest.fixture
 def logging_limpio() -> Iterator[None]:
-    """Deja la raiz sin handlers y restaura niveles, filtros y `disabled`.
+    """Deja la raiz y `app` sin handlers y restaura niveles, filtros y `disabled`.
 
     Los capturadores de pytest se retiran y la propia herramienta los descarta
     al cerrar la fase. A diferencia de `logging_cableado`, no configura nada:
-    permite que el lifespan real instale el handler raiz y que `capsys` capture
-    su salida.
+    permite que el lifespan real instale el handler de `app` y que `capsys`
+    capture su salida.
     """
     logger_raiz = logging.getLogger()
+    logger_app = logging.getLogger("app")
     loggers = (
         logger_raiz,
-        logging.getLogger("app"),
+        logger_app,
         logging.getLogger("app.acceso"),
         logging.getLogger("uvicorn.access"),
     )
     estado_loggers = [
         (logger, logger.level, logger.disabled, list(logger.filters)) for logger in loggers
     ]
-    handlers_previos = list(logger_raiz.handlers)
-    for handler in handlers_previos:
+    handlers_raiz = list(logger_raiz.handlers)
+    handlers_app = list(logger_app.handlers)
+    for handler in handlers_raiz:
         logger_raiz.removeHandler(handler)
+    for handler in handlers_app:
+        logger_app.removeHandler(handler)
 
     try:
         yield
     finally:
         for handler in list(logger_raiz.handlers):
             logger_raiz.removeHandler(handler)
-            if handler not in handlers_previos:
+            if handler not in handlers_raiz:
                 handler.close()
+        for handler in list(logger_app.handlers):
+            logger_app.removeHandler(handler)
+            if handler not in handlers_app:
+                handler.close()
+        for handler in handlers_app:
+            logger_app.addHandler(handler)
         for logger, nivel, deshabilitado, filtros in estado_loggers:
             logger.setLevel(nivel)
             logger.disabled = deshabilitado
@@ -1004,7 +1019,7 @@ def test_lifespan_emite_logs_de_acceso_saneados_a_la_salida_estandar(
     logging_limpio: None,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """El handler raiz del lifespan emite `app.acceso` con traza y sin PII."""
+    """El handler de `app` emite `app.acceso` con traza, sin PII ni terceros."""
     exportador = InMemorySpanExporter()
     proveedor = _proveedor_de_telemetria(exportador)
     otel_trace.set_tracer_provider(proveedor)
@@ -1016,7 +1031,7 @@ def test_lifespan_emite_logs_de_acceso_saneados_a_la_salida_estandar(
     )
     monkeypatch.setattr(modulo_main, "obtener_configuracion", lambda: configuracion)
     # pytest instala sus capturadores despues de las fixtures; se retiran para
-    # que el lifespan encuentre la raiz vacia e instale su propio handler.
+    # que el lifespan encuentre la raiz y `app` vacios e instale su handler.
     logger_raiz = logging.getLogger()
     for handler in list(logger_raiz.handlers):
         logger_raiz.removeHandler(handler)
@@ -1026,18 +1041,26 @@ def test_lifespan_emite_logs_de_acceso_saneados_a_la_salida_estandar(
         with TestClient(aplicacion) as cliente:
             respuesta = cliente.get("/openapi.json?lat=4.53&lng=-75.68&correo=persona@example.com")
             assert respuesta.status_code == 200
+            logging.getLogger("httpx").info(
+                'HTTP Request: GET https://storage.example/%s/%s "HTTP/1.1 200 OK"',
+                "550e8400-e29b-41d4-a716-446655440000",
+                "foto_cedula_juan.jpg",
+            )
         salida = capsys.readouterr()
     finally:
         proveedor.shutdown()
 
-    texto = salida.err + salida.out
+    texto = salida.out
     assert re.search(
         r"INFO app\.acceso \[trace_id=[0-9a-f]{32} span_id=[0-9a-f]{16}\] "
         r"GET http://testserver/openapi\.json\?lat=\[REDACTADO_COORD\]"
         r"&lng=\[REDACTADO_COORD\]&correo=\[REDACTADO_EMAIL\]",
         texto,
     )
-    assert "uvicorn.access" not in texto
+    assert not re.search(r'INFO:\s+\d{1,3}(?:\.\d{1,3}){3}:\d+ - "', texto)
+    assert "550e8400-e29b-41d4-a716-446655440000" not in texto
+    assert "foto_cedula_juan.jpg" not in texto
+    assert "HTTP Request" not in texto
     for valor in ("lat=4.53", "lng=-75.68", "persona@example.com"):
         assert valor not in texto
 

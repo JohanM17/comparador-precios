@@ -4,8 +4,9 @@ La inicializacion aplica una politica de muestreo errores-primero: todos los
 spans se crean y los errores se exportan siempre; los spans exitosos se exportan
 con probabilidad `OTEL_TRACES_SAMPLER_ARG` (20 % por defecto). Cuando el
 exportador de logs es `otlp`, el logging de Python se conecta al `LoggerProvider`
-mediante un `LoggingHandler`: solo los registros que llegan al logger raiz (los
-de `app.*`) se exportan, porque los loggers de Uvicorn usan `propagate=False`.
+mediante un `LoggingHandler` adjunto al logger `app`: solo se exportan los
+registros de `app` y sus hijos (`app.*`). Los logs de terceros (`httpx`, etc.)
+y los de Uvicorn (`propagate=False`) no pasan por ese handler.
 El apagado es tolerante a fallos para que la observabilidad nunca tumbe la API.
 """
 
@@ -14,7 +15,7 @@ from __future__ import annotations
 import logging
 import math
 import warnings
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from importlib import metadata
 from typing import Any
 
@@ -25,7 +26,7 @@ from opentelemetry.exporter.otlp.proto.http._log_exporter import OTLPLogExporter
 from opentelemetry.exporter.otlp.proto.http.metric_exporter import OTLPMetricExporter
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.metrics import Meter
-from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+from opentelemetry.sdk._logs import LoggerProvider
 from opentelemetry.sdk._logs.export import BatchLogRecordProcessor
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
@@ -47,6 +48,14 @@ from app.compartido.logging_cfg import (
     redactar_texto_sensible,
 )
 from app.config import Configuracion
+
+_FABRICA_HANDLER_LOGS: Callable[..., logging.Handler] | None
+try:
+    from opentelemetry.sdk._logs import LoggingHandler as _LoggingHandlerSDK
+except ImportError:  # pragma: no cover - defensa ante un SDK incompleto
+    _FABRICA_HANDLER_LOGS = None
+else:
+    _FABRICA_HANDLER_LOGS = _LoggingHandlerSDK
 
 _logger = logging.getLogger("app.telemetria")
 
@@ -92,7 +101,7 @@ _telemetria_activa = False
 _tracer_provider: TracerProvider | None = None
 _meter_provider: MeterProvider | None = None
 _logger_provider: LoggerProvider | None = None
-_handler_logs: LoggingHandler | None = None
+_handler_logs: logging.Handler | None = None
 
 _MASCARA_TRACE_ID = (1 << 64) - 1
 _ESCALA_TRACE_ID = float(1 << 64)
@@ -314,39 +323,51 @@ def resolver_sampler_errores_primero() -> Sampler:
 
 
 def _adjuntar_handler_logs(logger_provider: LoggerProvider) -> None:
-    """Conecta el logging de Python con el `LoggerProvider` de OpenTelemetry.
+    """Conecta el logging del logger `app` con el `LoggerProvider` de OTel.
 
     Usa el `LoggingHandler` del SDK como puente sin anadir
     `opentelemetry-instrumentation-logging`: en esta tarea no se incorporan
     dependencias nuevas. Ese handler esta deprecado, por lo que se silencia su
     `DeprecationWarning` y se retirara al migrar a la instrumentacion dedicada.
-    Los filtros de privacidad y correlacion se aplican al handler para sanear
-    el cuerpo y anular `exc_info` antes de exportar. Solo se exportan los
-    registros que llegan al logger raiz (`app.*`); los loggers de Uvicorn con
-    `propagate=False` (`uvicorn.error`) quedan fuera por diseno.
+    Si el SDK no expone `LoggingHandler`, se registra una advertencia generica y
+    la API continua operativa.
+
+    El handler se adjunta al logger `app`, no a la raiz: solo se exportan los
+    registros de `app` y sus hijos (`app.*`). Los logs de terceros (`httpx`,
+    etc.) y los de Uvicorn (`propagate=False`) no pasan por este handler. Los
+    filtros de privacidad y correlacion sanean el cuerpo y anulan `exc_info`
+    antes de exportar. El formateador `%(message)s` hace que el cuerpo OTLP
+    incluya el traceback redactado de `record.exc_text`.
 
     Es idempotente: si ya habia un handler adjunto, se retira antes de crear
     otro para no duplicar la exportacion.
     """
     global _handler_logs
     _quitar_handler_logs()
+    fabrica = _FABRICA_HANDLER_LOGS
+    if fabrica is None:
+        _logger.warning(
+            "No fue posible habilitar la exportacion de logs: LoggingHandler no disponible"
+        )
+        return
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", DeprecationWarning)
-        handler = LoggingHandler(level=logging.INFO, logger_provider=logger_provider)
+        handler = fabrica(level=logging.INFO, logger_provider=logger_provider)
+    handler.setFormatter(logging.Formatter("%(message)s"))
     handler.addFilter(FiltroPrivacidadLey1581())
     handler.addFilter(FiltroCorrelacionTrazas())
-    logging.getLogger().addHandler(handler)
+    logging.getLogger("app").addHandler(handler)
     _handler_logs = handler
 
 
 def _quitar_handler_logs() -> None:
-    """Retira del logger raiz el handler OTLP de logs, si esta adjunto."""
+    """Retira del logger `app` el handler OTLP de logs, si esta adjunto."""
     global _handler_logs
     handler = _handler_logs
     if handler is None:
         return
     _handler_logs = None
-    logging.getLogger().removeHandler(handler)
+    logging.getLogger("app").removeHandler(handler)
     handler.close()
 
 
@@ -363,8 +384,8 @@ def configurar_telemetria(config: Configuracion) -> None:
     retorna sin excepcion. Cualquier fallo de inicializacion se registra como
     advertencia generica y la aplicacion continua operativa.
 
-    Con `OTEL_LOGS_EXPORTER=otlp` el logging de Python se conecta al provider
-    mediante `_adjuntar_handler_logs`; con otro exportador no se adjunta nada.
+    Con `OTEL_LOGS_EXPORTER=otlp` el logger `app` se conecta al provider mediante
+    `_adjuntar_handler_logs`; con otro exportador no se adjunta nada.
     """
     global _logger_provider, _meter_provider, _telemetria_activa, _tracer_provider
     _quitar_handler_logs()
