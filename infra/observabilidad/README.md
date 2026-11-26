@@ -2,8 +2,8 @@
 
 Artefactos como código para operar el comparador con OpenTelemetry y Grafana.
 El backend exporta métricas, trazas y logs por OTLP/HTTP; este directorio
-versiona el tablero y su aprovisionamiento. **No contiene credenciales ni
-endpoints reales.**
+versiona el tablero, las reglas de SLO y alertas, y su aprovisionamiento.
+**No contiene credenciales ni endpoints reales.**
 
 ## Contenido
 
@@ -11,6 +11,7 @@ endpoints reales.**
 |---|---|
 | `grafana/dashboards/observabilidad-comparador.json` | Tablero UID `comparador-observabilidad` con tráfico, latencia, errores, caché, base de datos, reportes, SLO y alertas. |
 | `grafana/provisioning/dashboards.yml` | Provider de Grafana que carga los JSON del directorio `/var/lib/grafana/dashboards`. |
+| `grafana/alertas/slo-comparador.yml` | Reglas Prometheus/Mimir: SLI grabado a 7 días, alerta de SLO y alerta de presupuesto de error. |
 | `README.md` | Este documento: importación, métricas esperadas, SLO y límites de validación. |
 
 ## Cómo cargar el tablero
@@ -45,6 +46,53 @@ cambios se hacen en el JSON versionado, no en la interfaz.
 
 El proyecto no usa Docker en local; este aprovisionamiento aplica al entorno de
 Grafana que se despliegue para B1. No requiere pasos manuales sobre el tablero.
+
+## Cómo cargar las reglas de SLO y alertas
+
+`grafana/alertas/slo-comparador.yml` es un archivo de reglas compatible con
+Prometheus y Mimir. Define la regla de grabación `comparador:sli_comparacion_7d`
+y dos alertas:
+
+| Regla | Tipo | Expresión | `for` | Severidad |
+|---|---|---|---|---|
+| `comparador:sli_comparacion_7d` | Grabación | La misma consulta del panel «SLI de comparación (7 días)» | — | — |
+| `ComparadorSLOComparacionIncumplido` | Alerta | `comparador:sli_comparacion_7d < 0.99` | 5m | `critical` |
+| `ComparadorPresupuestoErrorAlto` | Alerta | `clamp_min(1 - comparador:sli_comparacion_7d, 0) / 0.01 > 0.75` | 10m | `warning` |
+
+**El archivo está versionado, pero no cargado en ningún motor desde este
+repositorio.** La carga real y la validación de las consultas contra el colector
+corresponden a **T-126**.
+
+### Opción A: Mimir o Grafana Cloud
+
+1. Configura `mimirtool` con la URL del tenant de Mimir y las credenciales que
+   entregue tu gestor de secretos. No escribas tokens en el repositorio.
+2. Carga las reglas (los valores entre `<>` son marcadores, no secretos):
+
+   ```bash
+   mimirtool rules load \
+     --address="<URL_DE_MIMIR>" \
+     --id="<TENANT_ID>" \
+     --user="<USUARIO>" \
+     --key="$MIMIR_API_KEY" \
+     infra/observabilidad/grafana/alertas/slo-comparador.yml
+   ```
+
+3. Verifica con `mimirtool rules list`, usando las mismas opciones de conexión,
+   que aparece el grupo `comparador-slo`.
+4. La notificación se configura en Grafana Cloud mediante contact points y
+   notification policies. Esa configuración vive fuera del repositorio y no se
+   versiona aquí: el YAML solo contiene reglas y etiquetas.
+
+### Opción B: Prometheus
+
+1. Copia `slo-comparador.yml` al servidor de Prometheus.
+2. Añade el archivo a `rule_files` en `prometheus.yml`.
+3. Valida la sintaxis con `promtool check rules slo-comparador.yml` y recarga
+   Prometheus.
+
+La etiqueta `service` de las alertas es `comparador-precios-backend`. El enlace
+`runbook_url` apunta a `docs/observabilidad.md`, que crea T-125.
 
 ## Métricas esperadas
 
@@ -94,8 +142,9 @@ Notas sobre las etiquetas:
   caso se ajustan las consultas de latencia (sin división por 1000) y las
   constantes del SLI a 1 s y 2,5 s.
 - `ALERTS` solo existe cuando el motor de Prometheus o Mimir evalúa reglas de
-  alerta. El panel está preparado para `ALERTS{alertname=~"Comparador.*"}` y
-  quedará vacío hasta que **T-122** cargue las reglas.
+  alerta. El panel está preparado para `ALERTS{alertname=~"Comparador.*"}`;
+  las reglas están versionadas en `grafana/alertas/slo-comparador.yml` y
+  quedarán vacías hasta que se carguen en el motor (T-126).
 
 ## Definición del SLI y del SLO
 
@@ -113,6 +162,13 @@ La consulta del panel usa los buckets `le="1000"` y `le="2500"` del histograma e
 milisegundos y excluye `http_status_code!~"5.."` del numerador. El denominador es
 el total de comparaciones. La ventana del SLI es fija de 7 días, independiente
 del rango de 6 horas que muestra el tablero por defecto.
+
+La regla de grabación `comparador:sli_comparacion_7d` reutiliza exactamente esa
+consulta. La alerta `ComparadorSLOComparacionIncumplido` se dispara cuando el SLI
+cae por debajo de 0,99 durante 5 minutos, y
+`ComparadorPresupuestoErrorAlto` avisa cuando el consumo del presupuesto supera
+el 75 % durante 10 minutos. Ambas viven en
+`grafana/alertas/slo-comparador.yml` (T-122).
 
 El histograma HTTP por defecto del SDK de OpenTelemetry no tiene un límite
 exacto en 2000 ms: sus límites son `... 750, 1000, 2500, 5000 ...` (o los
@@ -133,22 +189,40 @@ Advertencias de interpretación:
 - Sin tráfico en la ventana, las consultas devuelven `NaN` y los paneles quedan
   sin datos; no debe interpretarse como SLO incumplido.
 - Los umbrales gráficos (rojo por debajo de 0,99, línea de 2 s) son ayudas
-  visuales; la fuente de verdad es la consulta PromQL y la regla de alerta de
-  T-122.
+  visuales; la fuente de verdad es la consulta PromQL y la regla de grabación de
+  `grafana/alertas/slo-comparador.yml`.
 
 ## Validación
 
-Validación local del JSON, sin conexión a Grafana:
+La validación es local, determinista y no necesita red ni credenciales:
 
 ```bash
-python3 -m json.tool infra/observabilidad/grafana/dashboards/observabilidad-comparador.json > /dev/null
+uv --directory backend run python ../scripts/validar_observabilidad.py
 ```
 
-Si tienes `jq`, puedes comprobar además los campos principales:
+En CI se ejecuta con el entorno virtual de la raíz:
 
 ```bash
-jq -e '.uid == "comparador-observabilidad" and (.panels | length > 0)' \
-  infra/observabilidad/grafana/dashboards/observabilidad-comparador.json
+source .venv/bin/activate
+python scripts/validar_observabilidad.py
+```
+
+El validador comprueba:
+
+- El JSON del tablero: UID `comparador-observabilidad`, al menos 10 paneles de
+  datos, títulos mínimos, variable `datasource`, uso de `http_target` (sin
+  `http_route`), buckets `1000`/`2500`, ventana `7d` y ausencia de secretos.
+- El YAML de reglas: `groups` no vacío, al menos una alerta, regla de grabación
+  `comparador:sli_comparacion_7d` idéntica a la consulta del tablero, y cada
+  alerta con `for`, `labels.severity` y `annotations.summary`/`description`.
+- Ausencia de secretos en ambos archivos y de URLs de Grafana en las reglas.
+
+Sale con código 0 si todo es correcto y 1 si encuentra problemas. Solo requiere
+la biblioteca estándar y PyYAML; si PyYAML no está disponible, muestra un
+mensaje claro. Los artefactos actuales pasan:
+
+```bash
+uv --directory backend run pytest tests/unitarias/test_observabilidad_artefactos.py -q
 ```
 
 La validación real contra Grafana, el colector OTLP y la traducción de nombres a
@@ -160,6 +234,11 @@ real en esta tarea.
 
 - No se commitean tokens, usuarios, contraseñas ni cabeceras de autorización.
 - El datasource se elige con la variable `datasource`; no se fija un UID.
+- Las reglas de `grafana/alertas/slo-comparador.yml` no incluyen URLs de Grafana,
+  webhooks ni credenciales. Los contact points de notificación se configuran en
+  Grafana Cloud y sus secretos viven en el gestor de secretos del despliegue.
+- `scripts/validar_observabilidad.py` falla si detecta patrones de
+  `Authorization`, tokens, contraseñas o claves API en los artefactos.
 - Las credenciales del colector (`OTEL_EXPORTER_OTLP_HEADERS`) viven en variables
   de entorno o en el gestor de secretos del despliegue, nunca en este directorio.
 - Las consultas no incluyen coordenadas, identidad ni datos personales; solo
