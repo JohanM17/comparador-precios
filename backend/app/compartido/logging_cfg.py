@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import re
 import time
+import traceback
 from uuid import uuid4
 
 from opentelemetry import trace
@@ -23,8 +24,11 @@ _PATRON_COORDENADAS_CODIFICADAS = re.compile(
 _PATRON_BEARER = re.compile(r"Bearer\s+[-a-z0-9._~+/]+=*", re.IGNORECASE)
 _PATRON_IPV4 = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 _PATRON_IPV6_LOCAL = re.compile(r"(?<![\w:])(?:\[::1\]|::1)(?![\w:])")
-_PATRON_HUELLA_RED = re.compile(r"\bhuella_red\s*[=:]\s*[^\s,;]+", re.IGNORECASE)
-_PATRON_HUELLA_HEX = re.compile(r"\b[a-f0-9]{64}\b", re.IGNORECASE)
+_PATRON_HUELLA_RED = re.compile(
+    r"""["']?\bhuella_red\b["']?\s*[:=]\s*(?:"[^"]*"|'[^']*'|[^\s&,;'"}\)]+)""",
+    re.IGNORECASE,
+)
+_PATRON_HUELLA_HEX = re.compile(r"(?<![0-9a-f])[0-9a-f]{64}(?![0-9a-f])", re.IGNORECASE)
 
 FORMATO_LOG_CORRELACION = (
     "%(asctime)s %(levelname)s %(name)s [trace_id=%(trace_id)s span_id=%(span_id)s] %(message)s"
@@ -65,8 +69,13 @@ class FiltroPrivacidadLey1581(logging.Filter):
     """Filtro de logging que garantiza la no filtracion de datos personales.
 
     El mensaje se formatea antes de redactarlo para que la redaccion cubra
-    tambien los argumentos y no deje placeholders sin reemplazar. Despues del
-    filtro el registro queda con el texto final y sin argumentos pendientes.
+    tambien los argumentos y no deje placeholders sin reemplazar. Tambien
+    redacta el traceback (`exc_info`/`exc_text`) y el `stack_info`.
+
+    Contrato para handlers y logging estructurado futuro: despues del filtro
+    `record.msg` contiene el mensaje final redactado, `record.args` queda vacio
+    y `record.exc_text`/`record.stack_info` ya estan saneados. Los handlers deben
+    formatear `%(message)s` y no depender de `record.args`.
     """
 
     def filter(self, record: logging.LogRecord) -> bool:
@@ -76,6 +85,21 @@ class FiltroPrivacidadLey1581(logging.Filter):
             mensaje = str(record.msg)
         record.msg = redactar_texto_sensible(mensaje)
         record.args = ()
+
+        if record.exc_info:
+            if record.exc_text:
+                record.exc_text = redactar_texto_sensible(record.exc_text)
+            else:
+                try:
+                    rastro = "".join(traceback.format_exception(*record.exc_info))
+                except Exception:  # La redaccion nunca debe romper el logging
+                    rastro = str(record.exc_info[1])
+                record.exc_text = redactar_texto_sensible(rastro)
+        elif record.exc_text:
+            record.exc_text = redactar_texto_sensible(record.exc_text)
+
+        if isinstance(record.stack_info, str):
+            record.stack_info = redactar_texto_sensible(record.stack_info)
         return True
 
 

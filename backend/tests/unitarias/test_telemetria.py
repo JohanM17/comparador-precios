@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 import logging
 from collections.abc import Mapping
 from importlib import metadata
@@ -24,6 +25,7 @@ from app.modulos.precios.servicio import _normalizar_estado_telemetria
 @pytest.fixture(autouse=True)
 def reiniciar_estado_telemetria(monkeypatch: pytest.MonkeyPatch) -> None:
     """Aisla el estado global del modulo entre pruebas."""
+    monkeypatch.setenv("OTEL_SDK_DISABLED", "false")
     monkeypatch.setattr(telemetria, "_telemetria_activa", False)
     monkeypatch.setattr(telemetria, "_tracer_provider", None)
     monkeypatch.setattr(telemetria, "_meter_provider", None)
@@ -700,6 +702,39 @@ def test_redactar_texto_sensible_redacta_ip_y_huella_red() -> None:
     assert redactado.count("[REDACTADO_HUELLA]") == 3
 
 
+def test_redactar_texto_sensible_huella_entre_comillas_y_query() -> None:
+    """La huella se redacta en JSON/dict y no consume el resto de una query."""
+    huella = "0123456789abcdef" * 4
+    texto = (
+        f'{{"huella_red": "{huella}", "otro": 1}}|'
+        f"{{'huella_red': '{huella}'}}|"
+        "huella_red=abc&correo=persona@example.com|"
+        f"huella_red={huella}&otro=1"
+    )
+
+    redactado = redactar_texto_sensible(texto)
+
+    assert huella not in redactado
+    assert "huella_red" not in redactado
+    assert '"huella_red"' not in redactado
+    assert "'huella_red'" not in redactado
+    assert "&correo=[REDACTADO_EMAIL]" in redactado
+    assert "&otro=1" in redactado
+    assert redactado.count("[REDACTADO_HUELLA]") == 4
+
+
+def test_redactar_texto_sensible_huella_hex_usa_lookarounds_hex() -> None:
+    """Una huella de 64 hex no se confunde con un prefijo de otra cadena hex."""
+    huella = "a" * 64
+    texto = f"_{huella}_ {huella}a {huella}b"
+
+    redactado = redactar_texto_sensible(texto)
+
+    assert redactado.count("[REDACTADO_HUELLA]") == 1
+    assert f"{huella}a" in redactado
+    assert f"{huella}b" in redactado
+
+
 @pytest.mark.parametrize(
     ("estado", "esperado"),
     [
@@ -874,10 +909,57 @@ def test_filtro_privacidad_formatea_antes_de_redactar_sin_romper_placeholders() 
     assert FiltroPrivacidadLey1581().filter(registro) is True
 
     mensaje = registro.getMessage()
+    assert mensaje == "[REDACTADO_HUELLA] ip=[REDACTADO_IP]"
     assert "huella_red" not in mensaje
     assert "190.1.2.3" not in mensaje
-    assert "[REDACTADO_HUELLA]" in mensaje
-    assert "[REDACTADO_IP]" in mensaje
+
+
+def test_filtro_privacidad_no_lanza_con_registro_mal_formado() -> None:
+    """Un registro con formato invalido se conserva sin propagar PII."""
+    registro = _registro_de_prueba()
+    registro.msg = "valor=%d persona@example.com lat=4.53"
+    registro.args = ("no-numero",)
+
+    assert FiltroPrivacidadLey1581().filter(registro) is True
+
+    mensaje = registro.getMessage()
+    assert mensaje == "valor=%d [REDACTADO_EMAIL] lat=[REDACTADO_COORD]"
+
+
+def test_filtro_privacidad_redacta_traceback_y_stack_info() -> None:
+    """`logger.exception` y `stack_info` tampoco exponen PII formateada."""
+    logger = logging.getLogger("app.pruebas.traceback")
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+    salida = io.StringIO()
+    manejador = logging.StreamHandler(salida)
+    manejador.setFormatter(logging.Formatter("%(message)s"))
+    manejador.addFilter(FiltroPrivacidadLey1581())
+    logger.addHandler(manejador)
+
+    try:
+        try:
+            raise ValueError("fallo con persona@example.com lat=4.53 ip=190.1.2.3")
+        except ValueError:
+            logger.exception(
+                "reporte de persona@example.com con lat=4.53",
+                stack_info=True,
+            )
+    finally:
+        logger.removeHandler(manejador)
+        logger.setLevel(logging.NOTSET)
+        logger.propagate = True
+        manejador.close()
+
+    texto = salida.getvalue()
+    assert "Traceback (most recent call last)" in texto
+    assert "Stack (most recent call last)" in texto
+    assert "persona@example.com" not in texto
+    assert "lat=4.53" not in texto
+    assert "190.1.2.3" not in texto
+    assert "[REDACTADO_EMAIL]" in texto
+    assert "[REDACTADO_COORD]" in texto
+    assert "[REDACTADO_IP]" in texto
 
 
 def test_filtro_correlacion_y_privacidad_coexisten() -> None:
