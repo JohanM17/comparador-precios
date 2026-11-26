@@ -59,3 +59,27 @@ h3 {
     animation-duration: 0.01ms !important;
   }
 }
+
+/*
+ * Grafica del historial (A2). Recharts pinta rejilla, ejes y cursor con
+ * atributos de presentacion, y cualquier regla CSS les gana. Colorearlos aqui
+ * en vez de pasar hexadecimales por props deja los tokens como unica fuente y
+ * hace que el modo oscuro funcione sin leer variables desde JavaScript.
+ */
+.grafica-historial .recharts-cartesian-grid line {
+  stroke: rgb(var(--c-slate-200));
+}
+
+.grafica-historial .recharts-cartesian-axis-line,
+.grafica-historial .recharts-cartesian-axis-tick-line {
+  stroke: rgb(var(--c-slate-300));
+}
+
+.grafica-historial .recharts-cartesian-axis-tick-value,
+.grafica-historial .recharts-label {
+  fill: rgb(var(--c-slate-500));
+}
+
+.grafica-historial .recharts-tooltip-cursor {
+  stroke: rgb(var(--c-slate-400));
+}

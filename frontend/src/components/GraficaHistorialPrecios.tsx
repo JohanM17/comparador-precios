@@ -24,14 +24,14 @@ function AvisoFalloGrafica({ onReintentar }: AvisoFalloGraficaProps): React.JSX.
   return (
     <div
       role="alert"
-      className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600"
+      className="border-y border-dashed border-slate-300 px-4 py-8 text-center text-[13.5px] text-slate-600"
     >
       <p>No fue posible cargar la gráfica. La tabla de abajo contiene todos los datos.</p>
       {onReintentar && (
         <button
           type="button"
           onClick={onReintentar}
-          className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-700 focus:ring-offset-2"
+          className="mt-3 inline-flex min-h-10 items-center gap-2 text-[13.5px] text-slate-600 underline decoration-slate-300 underline-offset-4 transition-colors hover:text-slate-900 hover:decoration-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
         >
           <RefreshCw className="h-4 w-4" aria-hidden="true" />
           <span>Reintentar gráfica</span>
@@ -64,9 +64,9 @@ function crearGraficaDinamica(): React.ComponentType<{
       return (
         <div
           role="status"
-          className="flex h-72 w-full items-center justify-center rounded-lg bg-slate-100 sm:h-80"
+          className="flex h-72 w-full items-center justify-center border-y border-slate-200 sm:h-80"
         >
-          <span className="text-sm text-slate-500">Cargando gráfica...</span>
+          <span className="rotulo">Cargando gráfica…</span>
         </div>
       );
     },
@@ -159,21 +159,27 @@ interface MarcadorLeyendaProps {
 }
 
 function MarcadorLeyenda({ estilo }: MarcadorLeyendaProps): React.JSX.Element {
+  /*
+   * El color viaja en `style` y no en el atributo `fill`: los atributos de
+   * presentacion de SVG no resuelven `var()`, y el color es un token.
+   */
+  const pintura: React.CSSProperties = { fill: estilo.color };
+
   return (
     <svg
-      width="14"
-      height="14"
+      width="12"
+      height="12"
       viewBox="0 0 14 14"
       aria-hidden="true"
       focusable="false"
       className="flex-shrink-0"
     >
       {estilo.forma === "cuadrado" ? (
-        <rect x="2" y="2" width="10" height="10" rx="1.5" fill={estilo.color} />
+        <rect x="2" y="2" width="10" height="10" rx="1.5" style={pintura} />
       ) : estilo.forma === "triangulo" ? (
-        <polygon points="7,1.5 12.5,12 1.5,12" fill={estilo.color} />
+        <polygon points="7,1.5 12.5,12 1.5,12" style={pintura} />
       ) : (
-        <circle cx="7" cy="7" r="5" fill={estilo.color} />
+        <circle cx="7" cy="7" r="5" style={pintura} />
       )}
     </svg>
   );
@@ -221,46 +227,46 @@ export default function GraficaHistorialPrecios({
     `de precio por ${unidad}. La tabla siguiente contiene los mismos datos.`;
 
   return (
-    <section
-      aria-labelledby={tituloId}
-      className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
-    >
+    <section aria-labelledby={tituloId}>
       <AvisoDatosDemo visible={datos.datos_de_demostracion} />
 
-      <div className="p-5 sm:p-6">
-        <header>
-          <h2 id={tituloId} className="text-lg font-semibold text-slate-900 sm:text-xl">
+      <div>
+        <header className="border-t border-slate-200 pt-5">
+          <h2
+            id={tituloId}
+            className="text-[15.5px] font-medium tracking-[-0.015em] text-slate-900"
+          >
             Historial de precios: {datos.producto.nombre}
           </h2>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1.5 text-[13.5px] text-slate-600">
             {datos.establecimiento.nombre} · {datos.establecimiento.municipio}
           </p>
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="cifras mt-1 text-[12.5px] text-slate-500">
             Del {rango} · {totalPuntos} {totalPuntos === 1 ? "punto" : "puntos"} · Precio por{" "}
             {unidad}
           </p>
         </header>
 
-        <div className="mt-5">
+        <div className="mt-6">
           <GraficaHistorialDinamica
             puntos={datos.puntos}
             unidad={datos.producto.unidad_visualizacion}
             etiquetaGrafica={etiquetaGrafica}
           />
 
-          <div className="mt-3 space-y-2">
+          <div className="mt-4 space-y-2">
             <ul
               aria-label="Origen de los puntos del historial"
-              className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-700"
+              className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[12.5px] text-slate-700"
             >
               {ORIGENES_HISTORIAL.map((estilo) => (
-                <li key={estilo.origen} className="inline-flex items-center gap-1.5">
+                <li key={estilo.origen} className="inline-flex items-center gap-2">
                   <MarcadorLeyenda estilo={estilo} />
                   <span>{estilo.etiqueta}</span>
                 </li>
               ))}
             </ul>
-            <p className="text-xs text-slate-500">
+            <p className="max-w-[64ch] text-[12.5px] leading-relaxed text-slate-500">
               Los puntos en revisión (dudosos) se dibujan huecos y con borde discontinuo. El color y
               la forma indican el origen; el precio se muestra por {unidad}.
             </p>
@@ -270,7 +276,7 @@ export default function GraficaHistorialPrecios({
         {datos.truncado && (
           <p
             role="note"
-            className="mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+            className="mt-5 flex items-start gap-2 border-l-2 border-oro-400 pl-3 text-[12.5px] leading-relaxed text-oro-700"
           >
             <Info className="mt-0.5 h-4 w-4 flex-shrink-0" aria-hidden="true" />
             <span>
@@ -280,7 +286,7 @@ export default function GraficaHistorialPrecios({
           </p>
         )}
 
-        <div className="mt-5">
+        <div className="mt-7">
           <TablaHistorialPrecios datos={datos} />
         </div>
       </div>

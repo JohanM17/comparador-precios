@@ -316,22 +316,19 @@ export default function ComparadorProducto({
           datos &&
           establecimientoHistorialId &&
           hayEstablecimientosHistorial && (
-            <section
-              aria-labelledby={tituloHistorialId}
-              className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
-            >
-              <h2 id={tituloHistorialId} className="text-lg font-semibold text-slate-900 sm:text-xl">
+            <section aria-labelledby={tituloHistorialId} className="mt-12">
+              <h2 id={tituloHistorialId} className="rotulo mb-1.5">
                 Historial de precios
               </h2>
-              <p className="mt-1 text-sm text-slate-600">
+              <p className="max-w-[58ch] text-[13.5px] leading-relaxed text-slate-500">
                 Consulta cómo ha cambiado el precio en un establecimiento. Esta selección es
                 independiente del orden de la comparación.
               </p>
 
-              <div className="mt-4">
+              <div className="mt-6 sm:max-w-md">
                 <label
                   htmlFor="selector-establecimiento-historial"
-                  className="block text-xs font-semibold text-slate-700"
+                  className="block text-[12.5px] font-medium text-slate-500"
                 >
                   Establecimiento del historial
                 </label>
@@ -339,7 +336,7 @@ export default function ComparadorProducto({
                   id="selector-establecimiento-historial"
                   value={establecimientoHistorialId}
                   onChange={(e) => setEstablecimientoHistorialId(e.target.value)}
-                  className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 text-sm text-slate-900 focus:border-emerald-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700/20 sm:max-w-md"
+                  className="mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-0"
                 >
                   {establecimientosHistorial.map((establecimiento) => (
                     <option key={establecimiento.id} value={establecimiento.id}>
@@ -351,7 +348,7 @@ export default function ComparadorProducto({
                 </select>
               </div>
 
-              <div className="mt-5">
+              <div className="mt-8">
                 <GraficaHistorialPrecios
                   datos={historial}
                   cargando={cargandoHistorial}
