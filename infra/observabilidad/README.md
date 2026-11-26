@@ -1,9 +1,11 @@
 # Observabilidad del comparador de precios
 
 Artefactos como código para operar el comparador con OpenTelemetry y Grafana.
-El backend exporta métricas y trazas por OTLP/HTTP y emite logs de aplicación
-correlacionados con `trace_id`/`span_id`; este directorio versiona el tablero,
-las reglas de SLO y alertas, y su aprovisionamiento.
+El backend exporta métricas y trazas por OTLP/HTTP. Con
+`OTEL_LOGS_EXPORTER=otlp`, los logs de `app.*` también se exportan por OTLP
+mediante el `LoggingHandler` del SDK y se emiten a `stdout` con
+`trace_id`/`span_id`; los terceros INFO se descartan, sus WARNING/ERROR van a
+`stderr` filtrados y los logs de Uvicorn no se exportan.
 **No contiene credenciales ni endpoints reales.**
 
 El procedimiento operativo de respuesta a alertas, diagnóstico, simulacro,
@@ -61,7 +63,7 @@ y dos alertas:
 
 | Regla | Tipo | Expresión | `for` | Severidad |
 |---|---|---|---|---|
-| `comparador:sli_comparacion_7d` | Grabación | La misma consulta del panel «SLI de comparación (7 días)» | — | — |
+| `comparador:sli_comparacion_7d` | Grabación | La misma consulta del panel «SLI de comparacion (7 dias)» | — | — |
 | `ComparadorSLOComparacionIncumplido` | Alerta | `comparador:sli_comparacion_7d < 0.99` | 5m | `critical` |
 | `ComparadorPresupuestoErrorAlto` | Alerta | `clamp_min(1 - comparador:sli_comparacion_7d, 0) / 0.01 > 0.75` | 10m | `warning` |
 
@@ -97,9 +99,10 @@ corresponden a **T-126**.
 3. Valida la sintaxis con `promtool check rules slo-comparador.yml` y recarga
    Prometheus.
 
-La etiqueta `service` de las alertas es `comparador-precios-backend`. El enlace
-`runbook_url` apunta a [`docs/observabilidad.md`](../../docs/observabilidad.md),
-el runbook operativo de T-125.
+La etiqueta `service` de las alertas es `comparador-precios-backend`. El campo
+`runbook_url` contiene la ruta relativa `docs/observabilidad.md` del repositorio
+(no es una URL clicable de Grafana); el runbook operativo está en
+[`docs/observabilidad.md`](../../docs/observabilidad.md).
 
 ## Métricas esperadas
 
@@ -223,9 +226,9 @@ contra un UUID inexistente.
 
 1. Configura el backend de pruebas. Además de `ENTORNO=pruebas` y
    `SIMULAR_LATENCIA_MS=3000`, define `OTEL_EXPORTER_OTLP_ENDPOINT` y
-   `OTEL_EXPORTER_OTLP_HEADERS` para que trazas y métricas lleguen al colector;
-   sin esas variables la API responde, pero no habrá datos que observar en el
-   tablero:
+   `OTEL_EXPORTER_OTLP_HEADERS` para que trazas, métricas y logs de `app.*`
+   lleguen al colector; sin esas variables la API responde, pero no habrá datos
+   que observar en el tablero:
 
    ```bash
    ENTORNO=pruebas SIMULAR_LATENCIA_MS=3000 \

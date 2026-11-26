@@ -34,7 +34,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
 
 #### Variables de observabilidad (OpenTelemetry, B1)
 
-Estas variables configuran la telemetría de la ampliación B1 (trazas y métricas vía OTLP/HTTP, y logs correlacionados por `trace_id`/`span_id`). El SDK se inicializa al arrancar la aplicación (`T-120`); si `OTEL_EXPORTER_OTLP_ENDPOINT` está vacío o `OTEL_SDK_DISABLED=true`, la API sigue operativa sin telemetría.
+Estas variables configuran la telemetría de la ampliación B1: trazas y métricas vía OTLP/HTTP, y logs de `app.*` que salen por `stdout` con `trace_id`/`span_id` y, con `OTEL_LOGS_EXPORTER=otlp`, también por OTLP. Los INFO de terceros se descartan; sus WARNING/ERROR salen por `stderr` redactados, y los logs de Uvicorn no se exportan por OTLP. El SDK se inicializa al arrancar la aplicación (`T-120`); si `OTEL_EXPORTER_OTLP_ENDPOINT` está vacío o `OTEL_SDK_DISABLED=true`, la API sigue operativa sin telemetría.
 
 | Variable | Valor por defecto | Descripción |
 |---|---|---|
@@ -46,7 +46,7 @@ Estas variables configuran la telemetría de la ampliación B1 (trazas y métric
 | `OTEL_TRACES_SAMPLER` | `parentbased_traceidratio` | Estrategia declarada para trazas. La inicialización crea los spans con `ALWAYS_ON` y el procesador errores-primero decide la exportación; la palanca real de éxitos es `OTEL_TRACES_SAMPLER_ARG`. |
 | `OTEL_TRACES_SAMPLER_ARG` | `0.2` | Proporción de trazas exitosas exportadas; los errores se exportan al 100 %. Las métricas no se muestrean. |
 | `OTEL_METRICS_EXPORTER` | `otlp` | Con `otlp` exporta métricas; cualquier otro valor deja el lector de métricas vacío. |
-| `OTEL_LOGS_EXPORTER` | `otlp` | Con `otlp` el SDK configura el exportador OTLP de logs. La recolección efectiva de los logs de aplicación depende del puente de `logging` y de la plataforma. |
+| `OTEL_LOGS_EXPORTER` | `otlp` | Con `otlp` el SDK adjunta un `LoggingHandler` al logger `app` y exporta los logs de `app.*` por OTLP, incluido el traceback redactado; los terceros y Uvicorn no se exportan. Sin `otlp` no se adjunta el handler. Los logs de `app.*` siguen saliendo por `stdout`. |
 | `SIMULAR_LATENCIA_MS` | `0` | Latencia artificial para el simulacro EC-11. **Solo para entornos de prueba**; en producción debe ser `0`. El guard solo reconoce exactamente `ENTORNO=production`. |
 
 > [!IMPORTANT]
@@ -103,7 +103,7 @@ La aplicación queda disponible en `http://127.0.0.1:3000` (o en ambos servicios
 | **Backend API** | **Railway** o **Render Free** | [backend/Dockerfile](../backend/Dockerfile) | Usar **Transaction Pooler (puerto `6543`)** de Supabase en producción |
 | **Frontend PWA** | **Vercel Hobby** | Carpeta `frontend/` | Root Directory = `frontend`, Framework Preset = `Next.js` |
 | **Jobs Programados** | **GitHub Actions** | [jobs.yml](../.github/workflows/jobs.yml) | Ejecución horaria/diaria contra `/internal/jobs/{nombre}` |
-| **Observabilidad B1** | **Grafana Cloud** o colector OTLP | [infra/observabilidad/](../infra/observabilidad/README.md) | Métricas y trazas por OTLP/HTTP; tablero y reglas versionados; cuota y retención por confirmar (`PA-05`) |
+| **Observabilidad B1** | **Grafana Cloud** o colector OTLP | [infra/observabilidad/](../infra/observabilidad/README.md) | Métricas, trazas y logs de `app.*` por OTLP/HTTP; tablero y reglas versionados; cuota y retención por confirmar (`PA-05`) |
 
 ### Paso 1 — Supabase y Upstash
 1. Ejecuta `scripts/migrar.py` y `scripts/semilla.py` apuntando al proyecto productivo de Supabase.
@@ -153,17 +153,21 @@ Para activarlo en GitHub:
    - `OTEL_SERVICE_NAME=comparador-precios-backend`
    - `OTEL_EXPORTER_OTLP_ENDPOINT=<url-base-otlp-del-proveedor>`
    - `OTEL_EXPORTER_OTLP_HEADERS=Authorization=Basic <credencial-base64>` como **secreto del proveedor**
-   - `OTEL_TRACES_SAMPLER=parentbased_traceidratio`
+   - `OTEL_TRACES_SAMPLER=parentbased_traceidratio` (declarativa; no altera el muestreo actual)
    - `OTEL_TRACES_SAMPLER_ARG=0.2`
    - `OTEL_METRICS_EXPORTER=otlp`
    - `OTEL_LOGS_EXPORTER=otlp`
    - `SIMULAR_LATENCIA_MS=0`
+
+   `OTEL_TRACES_SAMPLER` es declarativa: la inicialización crea los spans con `ALWAYS_ON` y el procesador errores-primero decide la exportación. La proporción efectiva de éxitos la fija `OTEL_TRACES_SAMPLER_ARG`.
+
 3. Importa o aprovisiona el tablero siguiendo [`infra/observabilidad/README.md`](../infra/observabilidad/README.md#cómo-cargar-el-tablero) y elige como datasource la fuente Prometheus/Mimir que recibe las métricas del colector.
 4. Carga las reglas de [`slo-comparador.yml`](../infra/observabilidad/grafana/alertas/slo-comparador.yml) con `mimirtool` o `promtool`, según el motor. Configura el contact point y la política de notificación en Grafana Cloud; esa configuración vive fuera del repositorio.
 5. Reinicia el backend y verifica:
    - `GET https://<tu-backend>/v1/salud` responde HTTP `200`.
-   - El log de arranque incluye `Telemetria OpenTelemetry inicializada`.
+   - Tras una petición, `stdout` contiene una línea `INFO app.acceso` con `trace_id`, `span_id` y la URL redactada.
    - Al generar tráfico de comparación aparecen datos en el tablero.
+   - Los INFO de terceros no aparecen; sus WARNING/ERROR salen por `stderr` redactados. Los logs de Uvicorn no se exportan por OTLP.
 
 > [!IMPORTANT]
 > La configuración anterior deja el mecanismo listo, pero **no certifica** que los nombres de métricas, la retención ni el disparo de la alerta estén validados contra el proveedor real. Esa verificación es **T-126** y debe guardar evidencia. El procedimiento completo de operación, diagnóstico y reversión está en [`docs/observabilidad.md`](observabilidad.md).

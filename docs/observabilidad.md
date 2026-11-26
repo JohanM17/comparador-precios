@@ -30,17 +30,21 @@ la observabilidad sin afectar la API.
 ## 1. Arquitectura y fuentes de verdad
 
 El backend instrumenta los flujos de registro de reportes y de comparación de
-precios con OpenTelemetry. Las trazas y las métricas se exportan por OTLP/HTTP;
-los logs de aplicación se emiten por `stdout` con `trace_id` y `span_id` para
-correlacionarlos con las trazas.
+precios con OpenTelemetry. Las trazas y las métricas se exportan por OTLP/HTTP.
+Los logs de `app.*` se emiten por `stdout` con `trace_id`/`span_id` y, con
+`OTEL_LOGS_EXPORTER=otlp`, también se exportan por OTLP. Los terceros INFO se
+descartan; sus WARNING/ERROR salen por `stderr` redactados. Los logs de Uvicorn
+no se exportan por OTLP.
 
 ```text
 Backend FastAPI + OpenTelemetry SDK
-  ├── trazas    → OTLP/HTTP <endpoint>/v1/traces
-  ├── métricas  → OTLP/HTTP <endpoint>/v1/metrics
-  └── logs      → stdout con trace_id/span_id
-                  (el SDK configura además un LoggerProvider OTLP;
-                   la recolección efectiva depende de la plataforma)
+  ├── trazas            → OTLP/HTTP <endpoint>/v1/traces
+  ├── métricas          → OTLP/HTTP <endpoint>/v1/metrics
+  ├── logs app.*        → stdout con trace_id/span_id
+  │                     → OTLP/HTTP <endpoint>/v1/logs (si OTEL_LOGS_EXPORTER=otlp)
+  ├── terceros INFO     → descartados
+  ├── terceros WARN/ERR → stderr con filtro de privacidad
+  └── Uvicorn error     → handler de Uvicorn, filtrado; no OTLP
 
                          │
                          ▼
@@ -48,7 +52,7 @@ Backend FastAPI + OpenTelemetry SDK
                          │
         ┌────────────────┼─────────────────┐
         ▼                ▼                 ▼
-  Mimir/Prometheus     Tempo         Loki o logs de stdout
+  Mimir/Prometheus     Tempo         Loki o logs de stdout/stderr
   (métricas y SLO)   (trazas)        (según la plataforma)
         └────────────────┴─────────────────┘
                          ▼
@@ -89,7 +93,7 @@ ningún endpoint real ni ninguna credencial.
 | `OTEL_TRACES_SAMPLER` | `parentbased_traceidratio` | Estrategia declarada para trazas. La inicialización operativa crea los spans con `ALWAYS_ON` y delega la exportación en el procesador errores-primero; las variantes de `resolver_sampler` solo se ejercitan en pruebas. La palanca real de éxitos es `OTEL_TRACES_SAMPLER_ARG`. |
 | `OTEL_TRACES_SAMPLER_ARG` | `0.2` | Proporción de trazas exitosas que se exportan. Los errores se exportan al 100 %. |
 | `OTEL_METRICS_EXPORTER` | `otlp` | Con `otlp` se exportan métricas; cualquier otro valor deja el lector de métricas vacío. |
-| `OTEL_LOGS_EXPORTER` | `otlp` | Con `otlp` el SDK configura el exportador OTLP de logs. La recolección efectiva de los logs de aplicación depende del puente de `logging` y de la plataforma. |
+| `OTEL_LOGS_EXPORTER` | `otlp` | Con `otlp` el SDK adjunta un `LoggingHandler` al logger `app` y exporta los logs de `app.*` por OTLP; los terceros y Uvicorn no se exportan. Sin `otlp` no se adjunta el handler. Los logs de `app.*` siguen saliendo por `stdout`. |
 | `SIMULAR_LATENCIA_MS` | `0` | Milisegundos de espera artificial para `EC-11`. Solo aplica fuera de producción y con valor mayor que cero. En producción debe permanecer en `0`. |
 
 La guía de despliegue reproduce esta tabla para el entorno productivo y explica
@@ -117,18 +121,20 @@ Sustituye `<GRAFANA_URL>` por la URL del stack. No se versiona una URL privada.
 
 ### Paneles
 
+Los títulos del JSON están escritos sin tildes; se citan literalmente.
+
 | Panel | Qué muestra | Consulta principal |
 |---|---|---|
 | Solicitudes por ruta | Tasa de peticiones por `http_target`. | `sum by (http_target) (rate(http_server_duration_milliseconds_count{...}[$__rate_interval]))` |
-| Latencia de comparación p50/p95/p99 | Percentiles del histograma HTTP para la ruta de comparación; línea roja de referencia en 2 s. | `histogram_quantile(0.95, sum by (le) (rate(http_server_duration_milliseconds_bucket{...}[$__rate_interval]))) / 1000` |
+| Latencia de comparacion p50/p95/p99 | Percentiles del histograma HTTP para la ruta de comparación; línea roja de referencia en 2 s. | `histogram_quantile(0.95, sum by (le) (rate(http_server_duration_milliseconds_bucket{...}[$__rate_interval]))) / 1000` |
 | Tasa de errores 5xx | Proporción de respuestas 5xx sobre el total. | `sum(rate(...{http_status_code=~"5.."}[...])) / sum(rate(...[...]))` |
 | Cache hit ratio | Proporción de comparaciones servidas desde caché. | `precios_comparaciones_total{cache_hit="true"}` dividido por el total. |
 | Latencia de base de datos p95 | p95 de `precios.db_ms`, separado por `cache_hit`. | `histogram_quantile(0.95, sum by (le, cache_hit) (rate(precios_db_ms_bucket{...}[...]))) / 1000` |
 | Reportes por estado | Tasa de reportes por `estado` (`aceptado`, `dudoso`, `otro`). | `sum by (estado) (rate(precios_reportes_total{...}[...]))` |
 | Estado de alertas | Series `ALERTS` de las reglas `Comparador.*`. | `ALERTS{alertname=~"Comparador.*"}` |
-| SLI de comparación (7 días) | Proporción de comparaciones que cumplen latencia ≤ 2 s y no son 5xx. | Consulta del SLI descrita en la [sección 3](#3-slo-y-presupuesto-de-error). |
-| Presupuesto de error consumido (7 días) | Porcentaje del presupuesto del 1 % ya consumido; umbrales en 0,75 y 1. | `clamp_min(1 - SLI, 0) / 0.01`. |
-| Cómo leer el SLO | Texto de ayuda con la definición y las advertencias. | — |
+| SLI de comparacion (7 dias) | Proporción de comparaciones que cumplen latencia ≤ 2 s y no son 5xx. | Consulta del SLI descrita en la [sección 3](#3-slo-y-presupuesto-de-error). |
+| Presupuesto de error consumido (7 dias) | Porcentaje del presupuesto del 1 % ya consumido; umbrales en 0,75 y 1. | `clamp_min(1 - SLI, 0) / 0.01`. |
+| Como leer el SLO | Texto de ayuda con la definición y las advertencias. | — |
 
 El rango por defecto del tablero es de **6 horas**, pero el SLI y el presupuesto
 usan siempre una ventana fija de **7 días**, independiente de ese selector.
@@ -218,15 +224,16 @@ conteo exacto de peticiones de 2 s.**
 
 | Regla | Tipo | Expresión | `for` | Severidad |
 |---|---|---|---|---|
-| `comparador:sli_comparacion_7d` | Grabación | La misma consulta del panel «SLI de comparación (7 días)». | — | — |
+| `comparador:sli_comparacion_7d` | Grabación | La misma consulta del panel «SLI de comparacion (7 dias)». | — | — |
 | `ComparadorSLOComparacionIncumplido` | Alerta | `comparador:sli_comparacion_7d < 0.99` | 5m | `critical` |
 | `ComparadorPresupuestoErrorAlto` | Alerta | `clamp_min(1 - comparador:sli_comparacion_7d, 0) / 0.01 > 0.75` | 10m | `warning` |
 
 La alerta crítica se dispara cuando el SLI cae por debajo de 0,99, es decir,
 cuando el presupuesto de error supera el 100 %. La advertencia se dispara con
 más del 75 % del presupuesto consumido (SLI por debajo de 0,9925). Ambas llevan
-la etiqueta `service: comparador-precios-backend` y el `runbook_url` apunta a
-este documento.
+la etiqueta `service: comparador-precios-backend`. El `runbook_url` del YAML es
+la ruta relativa `docs/observabilidad.md` del repositorio, no una URL clicable
+desde Grafana.
 
 ### Sin datos no es incumplimiento
 
@@ -270,7 +277,7 @@ T-126.
    denominador del SLI tiene tráfico. Si no hay datos, trata el caso como fallo
    de recolección antes de declarar un incumplimiento.
 2. **2–5 min: triage en el tablero.** Mira «Solicitudes por ruta», «Latencia de
-   comparación p50/p95/p99» y «Tasa de errores 5xx». Decide si el problema es
+   comparacion p50/p95/p99» y «Tasa de errores 5xx». Decide si el problema es
    latencia, errores o ambos, y si coincide con un despliegue, un cambio de
    configuración o el simulacro `EC-11`.
 3. **5–10 min: abre una traza lenta o errónea.** En Grafana ve a **Explore →
@@ -297,8 +304,9 @@ Sustituye `<GRAFANA_URL>` por la URL del stack:
 - **Tablero:** `<GRAFANA_URL>/d/comparador-observabilidad`
 - **Trazas:** `<GRAFANA_URL>/explore` → datasource Tempo → búsqueda por
   `trace_id` o por latencia.
-- **Logs:** `<GRAFANA_URL>/explore` → datasource Loki (si está configurado) o
-  la vista de logs de `stdout` del proveedor → búsqueda por `trace_id`.
+- **Logs:** `<GRAFANA_URL>/explore` → datasource Loki (si el colector recibe
+  logs de `app.*` por OTLP) o la vista de `stdout`/`stderr` del proveedor →
+  búsqueda por `trace_id`.
 
 La traza y los logs se correlacionan por el mismo `trace_id`. El log de acceso
 `app.acceso` incluye además `X-Request-ID`, que sirve para seguir una petición
@@ -335,34 +343,58 @@ mismo.
 
 ### Leer los logs
 
+`configurar_logging()` se ejecuta al inicio del lifespan. En la configuración
+estándar (sin un `--log-config` externo) instala dos handlers propios:
+
+- `StreamHandler(sys.stdout)` en el logger `app`, nivel INFO, con
+  `FORMATO_LOG_CORRELACION`; emite los logs de `app.*`, incluido `app.acceso`.
+- `StreamHandler(sys.stderr)` en la raíz, nivel WARNING, con el filtro de
+  privacidad; emite los WARNING/ERROR de terceros (`httpx`, etc.).
+
+Los INFO de terceros se descartan: no se emiten ni se exportan, y su ausencia
+no es un fallo. El access log nativo de Uvicorn (`uvicorn.access`) se desactiva;
+el Dockerfile además usa `--no-access-log`. `app.acceso` registra el access log
+ya saneado en `stdout`: método, URL redactada, estado, duración,
+`X-Request-ID`, `trace_id` y `span_id`. Los handlers de `uvicorn` y
+`uvicorn.error` reciben el filtro de privacidad; los logs de Uvicorn no pasan
+por el handler OTLP de `app` y Uvicorn usa `propagate=False`.
+
 El formato de correlación es:
 
 ```text
 <fecha> <nivel> <logger> [trace_id=<id> span_id=<id>] <mensaje>
 ```
 
-El logger `app.acceso` registra método, URL redactada, código de estado,
-duración, `X-Request-ID`, `trace_id` y `span_id`. El filtro
-`FiltroPrivacidadLey1581` redacta correos (incluidos los percent-encoded),
-coordenadas, tokens de autorización, direcciones IPv4, loopback IPv6 y huellas
-de red; también redacta los tracebacks. La sanitización de spans elimina las
-claves prohibidas y los cuerpos antes de exportar.
+Con `OTEL_LOGS_EXPORTER=otlp`, `configurar_telemetria()` adjunta un
+`LoggingHandler` del SDK al logger `app`; exporta los logs de `app.*` por
+`/v1/logs`, con el cuerpo redactado, el traceback de `logger.exception` y el
+contexto de traza. No exporta terceros ni Uvicorn. El handler se retira en
+`apagar_telemetria()`. El `LoggingHandler` del SDK está marcado como deprecado;
+no añade una dependencia nueva y se retirará al migrar a la instrumentación
+dedicada.
 
-**Qué no aparece en la telemetría:**
+El filtro `FiltroPrivacidadLey1581` redacta correos (incluidos los
+percent-encoded), coordenadas, tokens Bearer, direcciones IPv4, loopback IPv6 y
+huellas de red; también redacta los tracebacks. La sanitización de spans
+elimina las claves prohibidas y los cuerpos antes de exportar.
+
+**Alcance de la garantía:** aplica a los logs de `app.*` y a los handlers que
+la aplicación configura o filtra. Los logs emitidos antes del lifespan
+(importación o arranque temprano) y los que instale un `--log-config` externo
+posterior quedan fuera de la garantía. Si `app` o la raíz ya tienen handlers
+externos, `configurar_logging()` no instala los suyos y la salida depende de esa
+configuración.
+
+**Datos que no forman parte de los logs de `app.*` ni de la telemetría
+exportada:**
 
 - Coordenadas `lat`, `lng`, `latitude` o `longitude`.
-- `reportante_id`, alias, correo electrónico o cualquier identidad.
+- `reportante_id`, alias, correo electrónico o datos de identidad de la
+  persona reportante.
 - Direcciones IP, `huella_red` o la foto de prueba y su ruta
   (`foto_prueba_path`); solo se registra el booleano `precios.tiene_foto`.
 - Cabeceras `Authorization`, cookies, contraseñas, tokens o secretos.
 - Cuerpos de solicitud o respuesta (`*.body`).
-
-Los logs de aplicación se emiten por `stdout`. El SDK configura un
-`LoggerProvider` OTLP cuando `OTEL_LOGS_EXPORTER=otlp`, pero el puente
-automático desde `logging` de la biblioteca estándar no forma parte de las
-dependencias actuales; la recolección efectiva (stdout del proveedor, Loki u
-otra) debe confirmarse en T-126. Mientras tanto, busca los logs en la salida del
-servicio y correlaciona por `trace_id`.
 
 ### Consultar métricas
 
@@ -429,10 +461,14 @@ El validador comprueba el UID y los paneles mínimos del tablero, la variable
 la regla de grabación, las alertas y la ausencia de secretos. Sale con código 0
 si todo está correcto y 1 si encuentra problemas.
 
-Si el backend arranca con telemetría, el log debe incluir
-`Telemetria OpenTelemetry inicializada`. Si `OTEL_EXPORTER_OTLP_ENDPOINT` está
-vacío o `OTEL_SDK_DISABLED=true`, verás el mensaje correspondiente y la API
-seguirá respondiendo.
+Para verificar el arranque usa `GET /v1/salud` (HTTP 200). Después de una
+petición, `stdout` debe contener una línea `INFO app.acceso ...` con `trace_id`,
+`span_id` y la URL redactada. No uses un mensaje INFO de arranque como
+comprobación: los logs previos al lifespan y los de un `--log-config` externo
+quedan fuera de la garantía. Con `OTEL_LOGS_EXPORTER=otlp`, los logs de `app.*`
+también se exportan por OTLP; T-126 confirma la recepción en el colector. Si
+`OTEL_EXPORTER_OTLP_ENDPOINT` está vacío o `OTEL_SDK_DISABLED=true`, la API
+sigue respondiendo sin telemetría.
 
 ---
 
@@ -445,8 +481,9 @@ Resumen operativo:
 
 1. **Prepara el backend de pruebas.** Debe tener `ENTORNO=pruebas`,
    `SIMULAR_LATENCIA_MS=3000`, y `OTEL_EXPORTER_OTLP_ENDPOINT` con
-   `OTEL_EXPORTER_OTLP_HEADERS` configurados. Sin endpoint, la API responde
-   pero no hay datos nuevos en el tablero.
+   `OTEL_EXPORTER_OTLP_HEADERS` configurados para que trazas, métricas y logs
+   de `app.*` lleguen al colector. Sin endpoint, la API responde pero no hay
+   datos nuevos en el tablero.
 2. **Arranca el backend** y ejecuta el escenario desde otra terminal:
 
    ```bash
@@ -534,7 +571,7 @@ retención y costo. Consulta
 | Situación | Efecto | Acción |
 |---|---|---|
 | El colector o el proveedor no responde | La API sigue respondiendo; los lotes fallan y se registran advertencias genéricas. | Verifica `/v1/salud`; corrige endpoint, red o credenciales. No reinicies la API por este motivo salvo que quieras limpiar el estado. |
-| `OTEL_SDK_DISABLED=true` | No se inicializan trazas, métricas ni logs OTLP. La API funciona igual. | Es el interruptor de emergencia. Vuelve a `false` y reinicia para reactivar. |
+| `OTEL_SDK_DISABLED=true` | No se inicializan trazas, métricas ni exportación OTLP; los logs de `app.*` siguen saliendo por `stdout`. La API funciona igual. | Es el interruptor de emergencia. Vuelve a `false` y reinicia para reactivar. |
 | Endpoint o cabeceras retirados | La telemetría queda inactiva si el endpoint está vacío; si el endpoint existe pero la credencial es inválida, el exportador falla sin tumbar la API. | Retira el endpoint o las cabeceras del panel del proveedor, reinicia y verifica `/v1/salud`. Rota la credencial si pudo exponerse. |
 | Latencia simulada activa | Solo en entornos distintos de `production`; añade espera a las rutas de negocio. | Pon `SIMULAR_LATENCIA_MS=0`, reinicia y verifica `/v1/salud`. En producción el guard ya la ignora. |
 | Tablero o reglas incorrectos | El tablero muestra consultas vacías o las alertas no evalúan. | Restaura el commit anterior o desprovisiona el archivo; recarga Grafana/Prometheus. |
