@@ -299,13 +299,14 @@ async def revocar_promocion(
     sesion: AsyncSession,
     promocion_id: UUID,
     comercio_id: UUID,
-) -> bool:
-    """Revoca una promocion del propio comercio. Devuelve si existia y era suya."""
+) -> UUID | None:
+    """Revoca una promocion propia y devuelve su producto, o None si no existia."""
     sql = text("""
         UPDATE public.promocion
         SET activa = false, revocada_en = now()
         WHERE id = :id AND comercio_id = :comercio_id AND activa = true
-        RETURNING id;
+        RETURNING producto_id;
     """)
     fila = (await sesion.execute(sql, {"id": promocion_id, "comercio_id": comercio_id})).first()
-    return fila is not None
+    producto_id: UUID | None = fila.producto_id if fila is not None else None
+    return producto_id

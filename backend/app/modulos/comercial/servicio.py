@@ -304,7 +304,9 @@ class ServicioComercial:
             antes=None,
             despues={"tipo": entrada.tipo, "titulo": entrada.titulo},
         )
-        # La promocion no toca el precio vigente ni el orden: ADR-018 y ADR-022.
+        # La promocion no toca el precio vigente ni el orden (ADR-018 y ADR-022), pero si
+        # cambia el bloque separado que la comparacion devuelve, asi que su cache caduca.
+        await self.cache.invalidar_producto(entrada.producto_id)
         return self._con_vigencia(fila)
 
     @staticmethod
@@ -347,8 +349,10 @@ class ServicioComercial:
     ) -> None:
         """Revoca una promocion propia. La fila queda, marcada como inactiva."""
         await self._establecimiento_propio(establecimiento_id, usuario)
-        if not await repositorio.revocar_promocion(self.sesion, promocion_id, usuario.id):
+        producto_id = await repositorio.revocar_promocion(self.sesion, promocion_id, usuario.id)
+        if producto_id is None:
             raise NoEncontradoError("La promocion no existe o ya fue revocada.")
+        await self.cache.invalidar_producto(producto_id)
         await registrar_auditoria(
             self.sesion,
             actor_id=usuario.id,
