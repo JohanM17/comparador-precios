@@ -225,6 +225,49 @@ async def listar_reportes_serie(
     return [dict(f._mapping) for f in filas]
 
 
+async def obtener_producto_historial(
+    sesion: AsyncSession,
+    producto_id: UUID,
+) -> dict[str, Any] | None:
+    """Devuelve el producto activo que encabeza la serie historica."""
+    sql = text("""
+        SELECT id, nombre, unidad_base
+        FROM public.producto
+        WHERE id = :id AND activo = true;
+    """)
+    fila = (await sesion.execute(sql, {"id": producto_id})).first()
+    return dict(fila._mapping) if fila else None
+
+
+async def obtener_establecimiento_historial(
+    sesion: AsyncSession,
+    establecimiento_id: UUID,
+) -> dict[str, Any] | None:
+    """Devuelve el establecimiento activo que encabeza la serie historica."""
+    sql = text("""
+        SELECT id, nombre, municipio
+        FROM public.establecimiento
+        WHERE id = :id AND activo = true;
+    """)
+    fila = (await sesion.execute(sql, {"id": establecimiento_id})).first()
+    return dict(fila._mapping) if fila else None
+
+
+async def obtener_presentacion_historial(
+    sesion: AsyncSession,
+    presentacion_id: UUID,
+    producto_id: UUID,
+) -> dict[str, Any] | None:
+    """Devuelve la presentacion activa del producto solicitado, si existe."""
+    sql = text("""
+        SELECT id, etiqueta
+        FROM public.presentacion
+        WHERE id = :id AND producto_id = :producto_id AND activa = true;
+    """)
+    fila = (await sesion.execute(sql, {"id": presentacion_id, "producto_id": producto_id})).first()
+    return dict(fila._mapping) if fila else None
+
+
 async def listar_mis_reportes(
     sesion: AsyncSession,
     usuario_id: UUID,
