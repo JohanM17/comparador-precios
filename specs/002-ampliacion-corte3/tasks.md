@@ -116,11 +116,12 @@
 
 ## Fase 2: US-B1 — Observabilidad y SLO (T-120 a T-126)
 
-- [ ] **T-120** [US-B1] | **Instrumentar registro y comparación con OpenTelemetry**
+- [x] **T-120** [US-B1] | **Instrumentar registro y comparación con OpenTelemetry**
   - **Depende de**: T-103
   - **Resp.**: **B**
   - **Archivos**: `backend/app/main.py`, `backend/app/compartido/logging_cfg.py`, `backend/app/modulos/precios/servicio.py`, `backend/app/modulos/precios/servicio_comparacion.py`, `backend/tests/integracion/test_telemetria.py`
   - **Hecho cuando…**: ambos flujos generan spans y métricas; logs con `trace_id`/`span_id`; atributos permitidos; sin PII; `OTEL_SDK_DISABLED=true` no rompe nada.
+  - **Pendiente de colector**: validar la exportación real a OTLP/Grafana en T-126.
 
 - [ ] **T-121** [US-B1] | **Versionar el tablero de Grafana como código**
   - **Depende de**: T-120
