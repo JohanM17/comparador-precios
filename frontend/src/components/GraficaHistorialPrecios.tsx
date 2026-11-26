@@ -1,9 +1,9 @@
 "use client";
 
 import React from "react";
-import dynamic from "next/dynamic";
-import { Info, LineChart } from "lucide-react";
-import type { DatosHistorial } from "@/lib/api/clienteApi";
+import dynamic, { type DynamicOptionsLoadingProps } from "next/dynamic";
+import { Info, LineChart, RefreshCw } from "lucide-react";
+import type { DatosHistorial, PuntoHistorial } from "@/lib/api/clienteApi";
 import {
   ORIGENES_HISTORIAL,
   etiquetaUnidad,
@@ -16,20 +16,62 @@ import EstadoError from "@/components/EstadoError";
 import EstadoVacio from "@/components/EstadoVacio";
 import TablaHistorialPrecios from "@/components/TablaHistorialPrecios";
 
-const GraficaHistorialRecharts = dynamic(
-  () => import("@/components/GraficaHistorialRecharts"),
-  {
+interface AvisoFalloGraficaProps {
+  readonly onReintentar?: () => void;
+}
+
+function AvisoFalloGrafica({ onReintentar }: AvisoFalloGraficaProps): React.JSX.Element {
+  return (
+    <div
+      role="alert"
+      className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600"
+    >
+      <p>No fue posible cargar la gráfica. La tabla de abajo contiene todos los datos.</p>
+      {onReintentar && (
+        <button
+          type="button"
+          onClick={onReintentar}
+          className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-700 focus:ring-offset-2"
+        >
+          <RefreshCw className="h-4 w-4" aria-hidden="true" />
+          <span>Reintentar gráfica</span>
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Crea una instancia nueva de `next/dynamic` por intento. En App Router,
+ * `next/dynamic` usa React.lazy y el fallo del chunk llega al error boundary;
+ * para reintentar hay que descartar la instancia rechazada y crear otra.
+ */
+function crearGraficaDinamica(): React.ComponentType<{
+  readonly puntos: readonly PuntoHistorial[];
+  readonly unidad: string;
+}> {
+  return dynamic(() => import("@/components/GraficaHistorialRecharts"), {
     ssr: false,
-    loading: () => (
-      <div
-        role="status"
-        className="flex h-72 w-full items-center justify-center rounded-lg bg-slate-100 sm:h-80"
-      >
-        <span className="text-sm text-slate-500">Cargando gráfica...</span>
-      </div>
-    ),
-  },
-);
+    loading: ({ error, retry }: DynamicOptionsLoadingProps) => {
+      // Pages Router entrega error/retry aqui; App Router lo propaga al boundary.
+      if (error) {
+        return (
+          <div className="flex h-72 w-full items-center justify-center sm:h-80">
+            <AvisoFalloGrafica onReintentar={retry} />
+          </div>
+        );
+      }
+      return (
+        <div
+          role="status"
+          className="flex h-72 w-full items-center justify-center rounded-lg bg-slate-100 sm:h-80"
+        >
+          <span className="text-sm text-slate-500">Cargando gráfica...</span>
+        </div>
+      );
+    },
+  });
+}
 
 export interface GraficaHistorialPreciosProps {
   readonly datos: DatosHistorial | null;
@@ -40,7 +82,7 @@ export interface GraficaHistorialPreciosProps {
 
 interface LimiteErrorGraficaProps {
   readonly children: React.ReactNode;
-  readonly mensaje: string;
+  readonly onReintentar?: () => void;
 }
 
 interface EstadoLimiteGrafica {
@@ -48,8 +90,9 @@ interface EstadoLimiteGrafica {
 }
 
 /**
- * Aisla fallos de carga o dibujo de la grafica para que la tabla accesible
- * siga disponible aunque recharts no llegue a renderizar.
+ * Aisla fallos de carga o dibujo de la grafica para que la tabla accesible siga
+ * disponible. El boton de reintento remonta la instancia dinamica y vuelve a
+ * solicitar el chunk.
  */
 class LimiteErrorGrafica extends React.Component<LimiteErrorGraficaProps, EstadoLimiteGrafica> {
   public state: EstadoLimiteGrafica = { fallo: false };
@@ -60,17 +103,55 @@ class LimiteErrorGrafica extends React.Component<LimiteErrorGraficaProps, Estado
 
   public render(): React.ReactNode {
     if (this.state.fallo) {
-      return (
-        <p
-          role="status"
-          className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600"
-        >
-          {this.props.mensaje}
-        </p>
-      );
+      return <AvisoFalloGrafica onReintentar={this.props.onReintentar} />;
     }
     return this.props.children;
   }
+}
+
+interface GraficaHistorialDinamicaProps {
+  readonly puntos: readonly PuntoHistorial[];
+  readonly unidad: string;
+  readonly etiquetaGrafica: string;
+}
+
+type ComponenteGraficaHistorial = React.ComponentType<{
+  readonly puntos: readonly PuntoHistorial[];
+  readonly unidad: string;
+}>;
+
+interface EstadoCargaGrafica {
+  readonly intento: number;
+  readonly Componente: ComponenteGraficaHistorial;
+}
+
+function GraficaHistorialDinamica({
+  puntos,
+  unidad,
+  etiquetaGrafica,
+}: GraficaHistorialDinamicaProps): React.JSX.Element {
+  const [carga, setCarga] = React.useState<EstadoCargaGrafica>(() => ({
+    intento: 0,
+    Componente: crearGraficaDinamica(),
+  }));
+
+  const reintentar = React.useCallback((): void => {
+    const ComponenteNueva = crearGraficaDinamica();
+    setCarga((actual) => ({
+      intento: actual.intento + 1,
+      Componente: ComponenteNueva,
+    }));
+  }, []);
+
+  const { Componente, intento } = carga;
+
+  return (
+    <LimiteErrorGrafica key={intento} onReintentar={reintentar}>
+      <div role="img" aria-label={etiquetaGrafica} className="w-full">
+        <Componente puntos={puntos} unidad={unidad} />
+      </div>
+    </LimiteErrorGrafica>
+  );
 }
 
 interface MarcadorLeyendaProps {
@@ -161,14 +242,11 @@ export default function GraficaHistorialPrecios({
         </header>
 
         <div className="mt-5">
-          <LimiteErrorGrafica mensaje="No fue posible cargar la gráfica. La tabla de abajo contiene todos los datos.">
-            <div role="img" aria-label={etiquetaGrafica} className="w-full">
-              <GraficaHistorialRecharts
-                puntos={datos.puntos}
-                unidad={datos.producto.unidad_visualizacion}
-              />
-            </div>
-          </LimiteErrorGrafica>
+          <GraficaHistorialDinamica
+            puntos={datos.puntos}
+            unidad={datos.producto.unidad_visualizacion}
+            etiquetaGrafica={etiquetaGrafica}
+          />
 
           <div className="mt-3 space-y-2">
             <ul
