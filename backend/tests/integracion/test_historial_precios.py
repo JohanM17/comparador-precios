@@ -460,7 +460,12 @@ async def test_endpoint_historial_200_filtra_por_presentacion() -> None:
 async def _buscar_par_activo_sin_reportes_recientes(
     sesion: Any, desde: datetime, hasta: datetime
 ) -> Any:
-    """Elige un par producto-establecimiento activo sin reportes en la ventana."""
+    """Elige un par producto-establecimiento activo sin reportes en la ventana.
+
+    El aislamiento es por producto y establecimiento, no solo por presentacion:
+    la consulta real de la serie no filtra presentacion, por lo que una
+    presentacion hermana con reportes contaminaria el escenario.
+    """
     return (
         await sesion.execute(
             text("""
@@ -475,7 +480,8 @@ async def _buscar_par_activo_sin_reportes_recientes(
                   AND NOT EXISTS (
                       SELECT 1
                       FROM public.reporte_precio rp
-                      WHERE rp.presentacion_id = pr.id
+                      JOIN public.presentacion hermana ON hermana.id = rp.presentacion_id
+                      WHERE hermana.producto_id = pr.producto_id
                         AND rp.establecimiento_id = e.id
                         AND rp.observado_en BETWEEN :desde AND :hasta
                   )
@@ -565,6 +571,7 @@ async def test_ec08_cambio_oficial_visible_dudoso_marcado_rechazado_excluido() -
             ids_visibles = {punto.id for punto in puntos}
 
             assert len(puntos) == 3, "Solo los estados aceptado y dudoso son visibles."
+            assert datos.total == 3
             assert ids_visibles == {
                 ids["usuario_aceptado"],
                 ids["usuario_dudoso"],
@@ -574,6 +581,14 @@ async def test_ec08_cambio_oficial_visible_dudoso_marcado_rechazado_excluido() -
 
             fechas = [punto.observado_en for punto in puntos]
             assert fechas == sorted(fechas), "La serie debe venir en orden ascendente."
+
+            dudoso = next(punto for punto in puntos if punto.id == ids["usuario_dudoso"])
+            assert dudoso.estado == "dudoso", "El punto dudoso debe conservar su marca."
+            assert dudoso.origen == "usuario"
+
+            aceptado = next(punto for punto in puntos if punto.id == ids["usuario_aceptado"])
+            assert aceptado.estado == "aceptado"
+            assert aceptado.origen == "usuario"
 
             oficial = next(punto for punto in puntos if punto.origen == "comercio")
             assert oficial.id == ids["comercio_aceptado"]
