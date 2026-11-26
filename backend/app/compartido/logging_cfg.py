@@ -206,9 +206,9 @@ def configurar_logging() -> None:
     (pytest o plataformas), no se instala nada y `app` sigue propagando. Es
     idempotente: llamarla varias veces no duplica handlers ni filtros.
 
-    Los handlers de `uvicorn.error` reciben solo el filtro de privacidad porque
-    pueden incluir tracebacks con PII; no se exportan por OTLP al usar
-    `propagate=False`.
+    Los handlers de `uvicorn` y `uvicorn.error` reciben solo el filtro de
+    privacidad porque pueden incluir tracebacks con PII; no se exportan por OTLP
+    al usar `propagate=False`.
     """
     filtro_privacidad = FiltroPrivacidadLey1581()
     filtro_correlacion = FiltroCorrelacionTrazas()
@@ -245,9 +245,12 @@ def configurar_logging() -> None:
             handler.setFormatter(logging.Formatter(FORMATO_LOG_CORRELACION))
 
     # Uvicorn formatea con su propio formatter y puede incluir tracebacks con
-    # PII; se le añade el filtro de privacidad. No se exporta por OTLP.
-    for handler in logging.getLogger("uvicorn.error").handlers:
-        _agregar_filtro_si_falta(handler, filtro_privacidad)
+    # PII. En la configuracion estandar el handler vive en `uvicorn` y
+    # `uvicorn.error` propaga alli, por eso se filtran ambos loggers. No se
+    # exportan por OTLP.
+    for nombre_logger in ("uvicorn", "uvicorn.error"):
+        for handler in logging.getLogger(nombre_logger).handlers:
+            _agregar_filtro_si_falta(handler, filtro_privacidad)
 
     # El access log nativo consume `record.args` al formatear, por lo que no se
     # le puede aplicar el filtro de privacidad; ademas registra la IP del

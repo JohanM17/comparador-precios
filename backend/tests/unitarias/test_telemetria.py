@@ -51,18 +51,23 @@ def _configuracion(**cambios: Any) -> Configuracion:
 
 @pytest.fixture
 def estado_logging() -> Iterator[None]:
-    """Deja `app` sin handlers y restaura niveles, `disabled` y filtros.
+    """Deja `app` y los loggers de Uvicorn sin handlers y restaura su estado.
 
     Los handlers de la raiz se gestionan dentro de cada prueba: pytest instala
-    y retira los suyos en cada fase. Los de `app` son propios de la aplicacion,
-    asi que la fixture los retira al empezar y restaura los previos al terminar.
+    y retira los suyos en cada fase. Los de `app` y de Uvicorn son propios de la
+    aplicacion, asi que la fixture los retira al empezar y restaura los previos
+    al terminar, junto con niveles, `disabled`, `propagate` y filtros.
     """
     logger_raiz = logging.getLogger()
     logger_app = logging.getLogger("app")
+    logger_uvicorn = logging.getLogger("uvicorn")
+    logger_uvicorn_error = logging.getLogger("uvicorn.error")
     loggers = (
         logger_raiz,
         logger_app,
         logging.getLogger("app.acceso"),
+        logger_uvicorn,
+        logger_uvicorn_error,
         logging.getLogger("uvicorn.access"),
     )
     estado_loggers = [
@@ -72,6 +77,12 @@ def estado_logging() -> Iterator[None]:
     handlers_app = list(logger_app.handlers)
     for handler in handlers_app:
         logger_app.removeHandler(handler)
+    handlers_uvicorn = list(logger_uvicorn.handlers)
+    for handler in handlers_uvicorn:
+        logger_uvicorn.removeHandler(handler)
+    handlers_uvicorn_error = list(logger_uvicorn_error.handlers)
+    for handler in handlers_uvicorn_error:
+        logger_uvicorn_error.removeHandler(handler)
     handlers_advertencias = [
         handler
         for handler in logger_raiz.handlers
@@ -97,6 +108,16 @@ def estado_logging() -> Iterator[None]:
             logger_raiz.addHandler(handler)
         for handler in handlers_app:
             logger_app.addHandler(handler)
+        for logger, handlers_previos in (
+            (logger_uvicorn, handlers_uvicorn),
+            (logger_uvicorn_error, handlers_uvicorn_error),
+        ):
+            for handler in list(logger.handlers):
+                logger.removeHandler(handler)
+                if handler not in handlers_previos:
+                    handler.close()
+            for handler in handlers_previos:
+                logger.addHandler(handler)
         for logger, nivel, deshabilitado, propagar, filtros in estado_loggers:
             logger.setLevel(nivel)
             logger.disabled = deshabilitado
@@ -1554,6 +1575,36 @@ def test_configurar_logging_filtra_handlers_de_uvicorn_error(
         tipos = {type(filtro) for filtro in handler.filters}
         assert FiltroPrivacidadLey1581 in tipos
         logger_uvicorn.error("fallo con persona@example.com lat=4.53 ip=190.1.2.3")
+        texto = salida.getvalue()
+    finally:
+        logger_uvicorn.removeHandler(handler)
+        handler.close()
+
+    assert "persona@example.com" not in texto
+    assert "lat=4.53" not in texto
+    assert "190.1.2.3" not in texto
+    assert "[REDACTADO_EMAIL]" in texto
+    assert "[REDACTADO_COORD]" in texto
+    assert "[REDACTADO_IP]" in texto
+
+
+def test_configurar_logging_filtra_el_handler_real_de_uvicorn(
+    estado_logging: None,
+) -> None:
+    """Con el handler en `uvicorn`, un ERROR de uvicorn.error sale redactado."""
+    logger_uvicorn = logging.getLogger("uvicorn")
+    logger_uvicorn_error = logging.getLogger("uvicorn.error")
+    salida = io.StringIO()
+    handler = logging.StreamHandler(salida)
+    handler.setFormatter(logging.Formatter("%(message)s"))
+    logger_uvicorn.addHandler(handler)
+    logger_uvicorn.propagate = False
+
+    try:
+        configurar_logging()
+        tipos = {type(filtro) for filtro in handler.filters}
+        assert FiltroPrivacidadLey1581 in tipos
+        logger_uvicorn_error.error("fallo con persona@example.com lat=4.53 ip=190.1.2.3")
         texto = salida.getvalue()
     finally:
         logger_uvicorn.removeHandler(handler)
