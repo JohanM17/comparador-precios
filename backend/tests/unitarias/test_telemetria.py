@@ -1,4 +1,4 @@
-"""Pruebas unitarias de la configuracion base de telemetria (Tarea T-103)."""
+"""Pruebas unitarias de la configuracion de telemetria (Tareas T-103 y T-120)."""
 
 from __future__ import annotations
 
@@ -8,8 +8,11 @@ from importlib import metadata
 from typing import Any
 
 import pytest
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.trace import StatusCode
 
 from app.compartido import telemetria
+from app.compartido.logging_cfg import FiltroCorrelacionTrazas, FiltroPrivacidadLey1581
 from app.config import Configuracion
 
 
@@ -17,6 +20,9 @@ from app.config import Configuracion
 def reiniciar_estado_telemetria(monkeypatch: pytest.MonkeyPatch) -> None:
     """Aisla el estado global del modulo entre pruebas."""
     monkeypatch.setattr(telemetria, "_telemetria_activa", False)
+    monkeypatch.setattr(telemetria, "_tracer_provider", None)
+    monkeypatch.setattr(telemetria, "_meter_provider", None)
+    monkeypatch.setattr(telemetria, "_logger_provider", None)
 
 
 def _configuracion(**cambios: Any) -> Configuracion:
@@ -328,6 +334,10 @@ def test_configurar_telemetria_inicializa_trazas_metricas_y_logs(
     )
     assert proveedor_trazas.sampler is telemetria.ALWAYS_ON
     assert len(proveedor_trazas.procesadores) == 1
+    procesador_trazas = proveedor_trazas.procesadores[0]
+    assert isinstance(procesador_trazas, telemetria.ProcesadorErroresPrimero)
+    assert procesador_trazas.ratio_exitos == pytest.approx(0.2)
+    assert isinstance(procesador_trazas._procesador, _ProcesadorFalso)
 
     rutas_senal = {
         "trazas": "/v1/traces",
@@ -423,3 +433,271 @@ def test_resolver_sampler_desconocido_advierte_y_usa_parentbased(
     assert isinstance(sampler._root, telemetria.TraceIdRatioBased)
     assert sampler._root.rate == pytest.approx(0.5)
     assert "OTEL_TRACES_SAMPLER desconocido" in caplog.text
+
+
+class _ProcesadorDestino:
+    """Procesador de destino que conserva los spans que recibe."""
+
+    def __init__(self) -> None:
+        self.spans: list[Any] = []
+        self.vaciado = False
+        self.apagado = False
+
+    def on_start(self, span: Any, parent_context: Any = None) -> None:
+        """Registra el inicio sin hacer nada."""
+
+    def on_end(self, span: Any) -> None:
+        """Conserva el span terminado."""
+        self.spans.append(span)
+
+    def shutdown(self) -> None:
+        """Marca el procesador como apagado."""
+        self.apagado = True
+
+    def force_flush(self, timeout_millis: int = 30000) -> bool:
+        """Marca el procesador como vaciado."""
+        self.vaciado = True
+        return True
+
+
+def _emitir_span(
+    proveedor: TracerProvider,
+    nombre: str,
+    *,
+    error: bool = False,
+    excepcion: bool = False,
+) -> None:
+    """Emite un span de prueba con el estado o la excepcion indicados."""
+    tracer = proveedor.get_tracer("pruebas.telemetria")
+    span = tracer.start_span(nombre)
+    if error:
+        span.set_status(StatusCode.ERROR, "fallo simulado")
+    if excepcion:
+        span.record_exception(RuntimeError("excepcion simulada"))
+    span.end()
+
+
+def test_procesador_errores_primero_exporta_errores_con_ratio_cero() -> None:
+    """Con ratio 0.0 los errores y las excepciones se exportan, los exitos no."""
+    destino = _ProcesadorDestino()
+    proveedor = TracerProvider(sampler=telemetria.ALWAYS_ON)
+    proveedor.add_span_processor(telemetria.ProcesadorErroresPrimero(destino, 0.0))
+
+    try:
+        _emitir_span(proveedor, "exito")
+        _emitir_span(proveedor, "error", error=True)
+        _emitir_span(proveedor, "excepcion", excepcion=True)
+    finally:
+        proveedor.shutdown()
+
+    assert [span.name for span in destino.spans] == ["error", "excepcion"]
+    assert destino.spans[0].status.status_code == StatusCode.ERROR
+
+
+def test_procesador_errores_primero_exporta_todo_con_ratio_uno() -> None:
+    """Con ratio 1.0 se exportan tanto los exitos como los errores."""
+    destino = _ProcesadorDestino()
+    proveedor = TracerProvider(sampler=telemetria.ALWAYS_ON)
+    proveedor.add_span_processor(telemetria.ProcesadorErroresPrimero(destino, 1.0))
+
+    try:
+        _emitir_span(proveedor, "exito")
+        _emitir_span(proveedor, "error", error=True)
+    finally:
+        proveedor.shutdown()
+
+    assert [span.name for span in destino.spans] == ["exito", "error"]
+
+
+@pytest.mark.parametrize(("entrada", "esperado"), [(-1.0, 0.0), (2.0, 1.0), (0.35, 0.35)])
+def test_procesador_errores_primero_acota_el_ratio(entrada: float, esperado: float) -> None:
+    """El ratio de exitos se acota al rango [0, 1]."""
+    procesador = telemetria.ProcesadorErroresPrimero(_ProcesadorDestino(), entrada)
+
+    assert procesador.ratio_exitos == pytest.approx(esperado)
+
+
+def test_procesador_errores_primero_delega_vaciado_y_apagado() -> None:
+    """force_flush y shutdown se delegan al procesador envuelto."""
+    destino = _ProcesadorDestino()
+    procesador = telemetria.ProcesadorErroresPrimero(destino, 0.2)
+
+    assert procesador.force_flush() is True
+    procesador.shutdown()
+
+    assert destino.vaciado is True
+    assert destino.apagado is True
+
+
+def test_procesador_errores_primero_sanitiza_atributos_antes_de_exportar() -> None:
+    """Los cuerpos, coordenadas y correos se eliminan o redactan al cerrar el span."""
+    destino = _ProcesadorDestino()
+    proveedor = TracerProvider(sampler=telemetria.ALWAYS_ON)
+    proveedor.add_span_processor(telemetria.ProcesadorErroresPrimero(destino, 1.0))
+    tracer = proveedor.get_tracer("pruebas.telemetria")
+
+    try:
+        with tracer.start_as_current_span("exito") as span:
+            span.set_attribute("precios.estado", "aceptado")
+            span.set_attribute("lat", 4.53)
+            span.set_attribute("request.body", '{"lng": -75.68}')
+            span.set_attribute(
+                "url.full", "https://app.example.com/v1?lat=4.53&lng=-75.68&email=a@b.co"
+            )
+    finally:
+        proveedor.shutdown()
+
+    assert len(destino.spans) == 1
+    atributos = dict(destino.spans[0].attributes or {})
+    assert atributos["precios.estado"] == "aceptado"
+    assert "lat" not in atributos
+    assert "request.body" not in atributos
+    assert atributos["url.full"] == (
+        "https://app.example.com/v1?lat=[REDACTADO_COORD]&lng=[REDACTADO_COORD]"
+        "&email=[REDACTADO_EMAIL]"
+    )
+
+
+class _ProviderApagable:
+    """Provider de prueba que registra las llamadas de apagado."""
+
+    def __init__(self, falla_vaciado: bool = False, falla_apagado: bool = False) -> None:
+        self.llamadas: list[str] = []
+        self.falla_vaciado = falla_vaciado
+        self.falla_apagado = falla_apagado
+
+    def force_flush(self) -> None:
+        """Registra el vaciado y falla si la prueba lo indica."""
+        self.llamadas.append("force_flush")
+        if self.falla_vaciado:
+            raise RuntimeError("fallo de vaciado")
+
+    def shutdown(self) -> None:
+        """Registra el apagado y falla si la prueba lo indica."""
+        self.llamadas.append("shutdown")
+        if self.falla_apagado:
+            raise RuntimeError("fallo de apagado")
+
+
+def test_apagar_telemetria_vacia_y_apaga_los_tres_providers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Apaga trazas, metricas y logs en orden y deja la telemetria inactiva."""
+    proveedor_trazas = _ProviderApagable()
+    proveedor_metricas = _ProviderApagable()
+    proveedor_logs = _ProviderApagable()
+    monkeypatch.setattr(telemetria, "_tracer_provider", proveedor_trazas)
+    monkeypatch.setattr(telemetria, "_meter_provider", proveedor_metricas)
+    monkeypatch.setattr(telemetria, "_logger_provider", proveedor_logs)
+    monkeypatch.setattr(telemetria, "_telemetria_activa", True)
+
+    telemetria.apagar_telemetria()
+
+    for proveedor in (proveedor_trazas, proveedor_metricas, proveedor_logs):
+        assert proveedor.llamadas == ["force_flush", "shutdown"]
+    assert telemetria.telemetria_activa() is False
+
+
+def test_apagar_telemetria_no_lanza_si_los_providers_fallan(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Los fallos de force_flush o shutdown no impiden apagar el resto."""
+    proveedor_trazas = _ProviderApagable(falla_vaciado=True)
+    proveedor_metricas = _ProviderApagable(falla_apagado=True)
+    proveedor_logs = _ProviderApagable()
+    monkeypatch.setattr(telemetria, "_tracer_provider", proveedor_trazas)
+    monkeypatch.setattr(telemetria, "_meter_provider", proveedor_metricas)
+    monkeypatch.setattr(telemetria, "_logger_provider", proveedor_logs)
+
+    telemetria.apagar_telemetria()
+
+    assert proveedor_trazas.llamadas == ["force_flush", "shutdown"]
+    assert proveedor_metricas.llamadas == ["force_flush", "shutdown"]
+    assert proveedor_logs.llamadas == ["force_flush", "shutdown"]
+
+
+def test_apagar_telemetria_sin_providers_no_lanza(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Llamar el apagado sin inicializacion previa es seguro e idempotente."""
+    monkeypatch.setattr(telemetria, "_tracer_provider", None)
+    monkeypatch.setattr(telemetria, "_meter_provider", None)
+    monkeypatch.setattr(telemetria, "_logger_provider", None)
+
+    telemetria.apagar_telemetria()
+    telemetria.apagar_telemetria()
+
+    assert telemetria.telemetria_activa() is False
+
+
+def test_sanitizar_atributos_bloquea_cuerpos_y_alias_de_ip() -> None:
+    """Los cuerpos de solicitud/respuesta y los alias de IP nunca se exportan."""
+    atributos = {
+        "request.body": '{"lat": 4.53}',
+        "response.body": "{}",
+        "http.request.body": '{"lng": -75.68}',
+        "http.response.body": "{}",
+        "cuerpo.body": "contenido",
+        "body": "contenido",
+        "client_ip": "192.168.1.10",
+        "ip_address": "192.168.1.10",
+        "net.peer.ip": "192.168.1.10",
+        "client.address": "192.168.1.10",
+        "http.route": "/v1/reportes",
+        "precios.estado": "aceptado",
+    }
+
+    resultado = telemetria.sanitizar_atributos(atributos)
+
+    assert resultado == {
+        "http.route": "/v1/reportes",
+        "precios.estado": "aceptado",
+    }
+
+
+def _registro_de_prueba(mensaje: str = "hola") -> logging.LogRecord:
+    """Crea un registro de log independiente de la configuracion global."""
+    return logging.LogRecord(
+        name="app",
+        level=logging.INFO,
+        pathname=__file__,
+        lineno=1,
+        msg=mensaje,
+        args=(),
+        exc_info=None,
+    )
+
+
+def test_filtro_correlacion_inyecta_ids_dentro_de_un_span() -> None:
+    """Dentro de un span valido el filtro copia trace_id y span_id en hex."""
+    filtro = FiltroCorrelacionTrazas()
+    proveedor = TracerProvider(sampler=telemetria.ALWAYS_ON)
+    tracer = proveedor.get_tracer("pruebas.logging")
+
+    try:
+        registro_fuera = _registro_de_prueba()
+        assert filtro.filter(registro_fuera) is True
+        assert registro_fuera.__dict__["trace_id"] == ""
+        assert registro_fuera.__dict__["span_id"] == ""
+
+        with tracer.start_as_current_span("prueba") as span:
+            contexto = span.get_span_context()
+            registro_dentro = _registro_de_prueba()
+            assert filtro.filter(registro_dentro) is True
+            assert registro_dentro.__dict__["trace_id"] == f"{contexto.trace_id:032x}"
+            assert registro_dentro.__dict__["span_id"] == f"{contexto.span_id:016x}"
+            assert len(registro_dentro.__dict__["trace_id"]) == 32
+            assert len(registro_dentro.__dict__["span_id"]) == 16
+    finally:
+        proveedor.shutdown()
+
+
+def test_filtro_correlacion_y_privacidad_coexisten() -> None:
+    """La correlacion de trazas no impide redactar coordenadas y correos."""
+    registro = _registro_de_prueba("lat=4.53,lng=-75.68 contacto@example.com")
+
+    assert FiltroCorrelacionTrazas().filter(registro) is True
+    assert FiltroPrivacidadLey1581().filter(registro) is True
+
+    assert registro.getMessage() == (
+        "lat=[REDACTADO_COORD],lng=[REDACTADO_COORD] [REDACTADO_EMAIL]"
+    )
+    assert registro.__dict__["trace_id"] == ""

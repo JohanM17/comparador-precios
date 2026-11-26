@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Annotated, Any
@@ -9,6 +10,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from pydantic import BaseModel
 
 from app.adaptadores.cache_dos_niveles import CacheDosNiveles
@@ -26,6 +28,11 @@ from app.compartido.logging_cfg import (
     configurar_logging,
 )
 from app.compartido.seguridad import UsuarioAutenticado, requiere_rol, requiere_usuario
+from app.compartido.telemetria import (
+    apagar_telemetria,
+    configurar_telemetria,
+    telemetria_activa,
+)
 from app.config import obtener_configuracion
 from app.modulos.catalogo.api import router as catalogo_router
 from app.modulos.cuentas.api import (
@@ -55,6 +62,8 @@ from app.modulos.precios.api import (
     router as precios_router,
 )
 from app.tareas.router_jobs import router as jobs_router
+
+_logger = logging.getLogger("app")
 
 
 class RespuestaSalud(BaseModel):
@@ -104,8 +113,22 @@ async def _verificar_redis() -> str:
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Ciclo de vida de la aplicacion: inicio y liberacion de recursos."""
     configurar_logging()
-    yield
-    await cerrar_conexiones()
+    configurar_telemetria(obtener_configuracion())
+
+    if telemetria_activa():
+        try:
+            FastAPIInstrumentor.instrument_app(app, excluded_urls="/v1/salud,/v1/salud/listo")
+        except Exception as error:  # La observabilidad nunca debe tumbar la API
+            _logger.warning(
+                "No fue posible instrumentar FastAPI con OpenTelemetry (%s)",
+                type(error).__name__,
+            )
+
+    try:
+        yield
+    finally:
+        apagar_telemetria()
+        await cerrar_conexiones()
 
 
 def create_app() -> FastAPI:

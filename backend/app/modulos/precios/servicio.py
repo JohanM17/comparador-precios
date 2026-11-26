@@ -6,12 +6,14 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID, uuid4
 
+from opentelemetry.trace import StatusCode
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.compartido.errores import NoEncontradoError
 from app.compartido.limites import LimitadorVentanaDeslizante
 from app.compartido.parametros import obtener_parametros_dominio
 from app.compartido.seguridad import UsuarioAutenticado
+from app.compartido.telemetria import obtener_meter, obtener_tracer
 from app.dominio.parametros import ParametrosDominio
 from app.dominio.unidades import calcular_precio_por_base
 from app.modulos.confianza.servicio import ServicioConfianza
@@ -32,6 +34,14 @@ from app.puertos.cache import PuertoCache
 from app.puertos.politica_precio import PoliticaPrecioReferencia, SoloUsuarios
 
 limitador_escritura = LimitadorVentanaDeslizante()
+
+tracer = obtener_tracer("app.modulos.precios.servicio")
+meter = obtener_meter("app.modulos.precios.servicio")
+_contador_reportes = meter.create_counter(
+    "precios.reportes",
+    unit="1",
+    description="Reportes de precio procesados por estado e idempotencia",
+)
 
 
 class ServicioPrecios:
@@ -114,6 +124,41 @@ class ServicioPrecios:
         ip_cliente: str,
         ahora: datetime | None = None,
     ) -> tuple[CrearReporteRespuesta, bool]:
+        """Registra un reporte dentro de un span sin atributos con PII."""
+        with tracer.start_as_current_span(
+            "precios.registrar_reporte",
+            record_exception=False,
+            set_status_on_exception=False,
+        ) as span:
+            span.set_attribute("precios.presentacion_id", str(entrada.presentacion_id))
+            span.set_attribute("precios.establecimiento_id", str(entrada.establecimiento_id))
+            span.set_attribute("precios.tiene_foto", bool(entrada.foto_ruta))
+            try:
+                respuesta, creado, estado = await self._registrar_reporte(
+                    usuario=usuario,
+                    idempotency_key=idempotency_key,
+                    entrada=entrada,
+                    ip_cliente=ip_cliente,
+                    ahora=ahora,
+                )
+            except Exception as error:
+                span.record_exception(error)
+                span.set_status(StatusCode.ERROR, type(error).__name__)
+                raise
+            span.set_attribute("precios.estado", estado)
+            span.set_attribute("precios.idempotente", not creado)
+            span.set_status(StatusCode.OK)
+            _contador_reportes.add(1, {"estado": estado, "idempotente": not creado})
+            return respuesta, creado
+
+    async def _registrar_reporte(
+        self,
+        usuario: UsuarioAutenticado,
+        idempotency_key: str | None,
+        entrada: CrearReporteEntrada,
+        ip_cliente: str,
+        ahora: datetime | None = None,
+    ) -> tuple[CrearReporteRespuesta, bool, str]:
         instante = ahora if ahora is not None else datetime.now(UTC)
         params = await obtener_parametros_dominio(self.sesion)
 
@@ -144,6 +189,7 @@ class ServicioPrecios:
                     )
                 ),
                 False,
+                str(rep_previo["estado"]),
             )
 
         ppb = calcular_precio_por_base(entrada.precio_cop, pres["cantidad_base"])
@@ -209,6 +255,7 @@ class ServicioPrecios:
                 datos=DatosReporteRespuesta(id=reporte_id, estado_visible=vis, mensaje=msg)
             ),
             True,
+            evaluacion.estado,
         )
 
     async def obtener_mis_reportes(

@@ -7,6 +7,7 @@ import re
 import time
 from uuid import uuid4
 
+from opentelemetry import trace
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
@@ -14,6 +15,14 @@ from starlette.responses import Response
 _PATRON_EMAIL = re.compile(r"\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b")
 _PATRON_COORDENADAS = re.compile(r"(lat|lng|latitude|longitude)=[-+]?(\d*\.\d+|\d+)")
 _PATRON_BEARER = re.compile(r"Bearer\s+[-a-z0-9._~+/]+=*", re.IGNORECASE)
+
+
+def _ids_traza_actuales() -> tuple[str, str]:
+    """Devuelve `trace_id` y `span_id` del span actual, o cadenas vacias."""
+    contexto = trace.get_current_span().get_span_context()
+    if not contexto.is_valid:
+        return "", ""
+    return f"{contexto.trace_id:032x}", f"{contexto.span_id:016x}"
 
 
 def redactar_texto_sensible(texto: str) -> str:
@@ -46,6 +55,20 @@ class FiltroPrivacidadLey1581(logging.Filter):
         return True
 
 
+class FiltroCorrelacionTrazas(logging.Filter):
+    """Inyecta `trace_id` y `span_id` del span actual en cada registro de log.
+
+    Fuera de un span valido los atributos quedan como cadenas vacias, de modo
+    que los formateadores pueden referenciarlos sin errores.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        trace_id, span_id = _ids_traza_actuales()
+        record.__dict__["trace_id"] = trace_id
+        record.__dict__["span_id"] = span_id
+        return True
+
+
 class RequestIdMiddleware(BaseHTTPMiddleware):
     """Middleware que inyecta y propaga la cabecera X-Request-ID."""
 
@@ -73,30 +96,49 @@ class LoggingAccesoMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
 
         duracion_ms = (time.perf_counter() - inicio) * 1000
+        trace_id, span_id = _ids_traza_actuales()
         self.logger.info(
-            "%s %s -> %d (%.2f ms) [req=%s]",
+            "%s %s -> %d (%.2f ms) [req=%s] [trace=%s span=%s]",
             request.method,
             url_segura,
             response.status_code,
             duracion_ms,
             request_id,
+            trace_id or "-",
+            span_id or "-",
         )
         return response
 
 
+def _agregar_filtro_si_falta(
+    destino: logging.Logger | logging.Handler,
+    filtro: logging.Filter,
+) -> None:
+    """Evita duplicar filtros cuando la configuracion se aplica varias veces."""
+    if not any(isinstance(actual, type(filtro)) for actual in destino.filters):
+        destino.addFilter(filtro)
+
+
 def configurar_logging() -> None:
-    """Inicializa la configuracion de logging aplicando el filtro de privacidad."""
-    filtro = FiltroPrivacidadLey1581()
+    """Inicializa el logging con privacidad y correlacion de trazas."""
+    filtro_privacidad = FiltroPrivacidadLey1581()
+    filtro_correlacion = FiltroCorrelacionTrazas()
     logger_raiz = logging.getLogger()
     logger_raiz.setLevel(logging.INFO)
 
     for handler in logger_raiz.handlers:
-        handler.addFilter(filtro)
+        _agregar_filtro_si_falta(handler, filtro_privacidad)
+        _agregar_filtro_si_falta(handler, filtro_correlacion)
 
     logger_app = logging.getLogger("app")
     logger_app.setLevel(logging.INFO)
-    logger_app.addFilter(filtro)
+    _agregar_filtro_si_falta(logger_app, filtro_privacidad)
+    _agregar_filtro_si_falta(logger_app, filtro_correlacion)
 
     logger_acceso = logging.getLogger("app.acceso")
     logger_acceso.setLevel(logging.INFO)
-    logger_acceso.addFilter(filtro)
+    _agregar_filtro_si_falta(logger_acceso, filtro_privacidad)
+    _agregar_filtro_si_falta(logger_acceso, filtro_correlacion)
+
+    _agregar_filtro_si_falta(logger_raiz, filtro_privacidad)
+    _agregar_filtro_si_falta(logger_raiz, filtro_correlacion)
