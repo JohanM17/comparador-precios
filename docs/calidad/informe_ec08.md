@@ -4,7 +4,7 @@
 
 **Fecha**: 2026-11-26
 
-**Estado**: certificación funcional completa; criterio de rendimiento pendiente de medición en un entorno tipo producción.
+**Estado**: certificación funcional y de rendimiento completa en el backend desplegado en Render (Ohio).
 
 **Alcance**: serie de los últimos 90 días por producto y establecimiento, con origen, estado de confiabilidad, datos demo, ausencia de PII y cambio de precio visible dentro del plazo de `EC-02`.
 
@@ -21,8 +21,8 @@
 | Cambio visible en ≤ 60 s | **CUMPLE** | Prueba de integración: consulta directa en la misma transacción |
 | 0 PII en la respuesta | **CUMPLE** | Aserciones de claves prohibidas en DTO y endpoint |
 | Gráfica accesible y tabla alternativa | **CUMPLE** | E2E y axe de ejecuciones previas |
-| p95 ≤ 500 ms con 100 puntos | **NO CUMPLE en entorno local remoto** | Benchmark de este informe |
-| p95 ≤ 500 ms en entorno tipo producción | **PENDIENTE** | Requiere desplegar el backend en la región del pooler |
+| p95 ≤ 500 ms con 100 puntos, backend desplegado | **CUMPLE: 272.40 ms** | Benchmark contra Render Ohio |
+| p95 local contra pooler remoto | 1208.57 ms (referencia) | Benchmark local; no representa producción |
 
 ---
 
@@ -123,15 +123,37 @@ criterio_p95_500ms: INCUMPLE
 
 El cuello de botella es la **latencia de red**: cada ida y vuelta al pooler remoto cuesta ~200 ms y `ServicioHistorial` hace cuatro consultas secuenciales (producto, establecimiento, presentación y reportes). La consulta usa `idx_reporte_historial_serie` y se ejecuta en microsegundos.
 
-En un backend desplegado en `us-east-2`, junto al pooler, la latencia por consulta debería bajar a milisegundos y el p95 debería quedar muy por debajo de 500 ms. Esa medición es la que falta para cerrar el criterio de rendimiento.
+En un backend desplegado en `us-east-2`, junto al pooler, la latencia por consulta debería bajar a milisegundos y el p95 debería quedar muy por debajo de 500 ms.
+
+### 3.4 Medición contra el backend desplegado
+
+| Elemento | Valor |
+|---|---|
+| URL | `https://comparador-precios-api-f0hh.onrender.com` |
+| Plataforma | Render, plan Free, región Ohio |
+| Puntos persistidos temporalmente | 100 |
+| Puntos devueltos | 100 |
+| Iteraciones medidas | 50 |
+| Calentamiento | 5 |
+| Cliente | `httpx.AsyncClient` con keep-alive |
+
+```text
+p50_ms: 170.36
+p95_ms: 272.40
+p99_ms: 513.97
+max_ms: 513.97
+criterio_p95_500ms: CUMPLE
+```
+
+Los 100 puntos temporales se eliminaron al terminar y el trigger de inmutabilidad quedó habilitado. El p99 supera 500 ms, pero el criterio de aceptación es p95.
 
 ---
 
 ## 4. Conclusión
 
 - **EC-08 funcional: cumple.** La serie, el origen, el estado, el cambio oficial, la privacidad y la accesibilidad están verificados.
-- **EC-08 rendimiento: pendiente.** El criterio de 500 ms no se cumple midiendo desde local contra el pooler remoto; no se declara aprobado.
-- **Siguiente acción**: desplegar el backend en una región cercana a `us-east-2` y repetir el benchmark. Alternativa de optimización: reducir las consultas secuenciales de metadatos a una sola consulta combinada.
+- **EC-08 rendimiento: cumple en el backend desplegado.** p95 = **272.40 ms** con 100 puntos en Render Ohio. La medición local contra el pooler remoto (1208.57 ms) queda como referencia de diagnóstico, no como resultado de producción.
+- **Cierre:** no quedan pendientes funcionales ni de rendimiento para EC-08. La siguiente evidencia pendiente es EC-11/T-126.
 
 ## 5. Reproducibilidad
 
