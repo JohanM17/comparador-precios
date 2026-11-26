@@ -1,0 +1,66 @@
+# Blueprint de Render para el backend del comparador de precios.
+#
+# - El servicio se construye desde backend/Dockerfile.
+# - Los secretos y valores de entorno reales usan `sync: false`: se cargan en
+#   el dashboard de Render y nunca se versionan en este archivo.
+# - El health check usa /v1/salud (liveness), no /v1/salud/listo, para evitar
+#   reinicios si una dependencia externa falla temporalmente.
+#
+# Para desplegar: Render Dashboard -> New + -> Blueprint -> seleccionar el
+# repositorio y esta rama. Render leerá este archivo.
+
+services:
+  - type: web
+    name: comparador-precios-api
+    runtime: docker
+    plan: free
+    region: ohio
+    branch: main
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /v1/salud
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: ENTORNO
+        value: production
+      - key: SIMULAR_LATENCIA_MS
+        value: "0"
+
+      # Conexiones externas: cargar en el dashboard de Render.
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+
+      # Seguridad operativa: valores propios, distintos a los de ejemplo.
+      - key: HUELLA_SECRETO_MAESTRO
+        sync: false
+      - key: JOB_TOKEN
+        sync: false
+
+      # Orígenes permitidos del frontend (JSON o lista separada por comas).
+      - key: CORS_ORIGINS
+        sync: false
+
+      # Observabilidad B1. Si aún no hay colector, dejar el endpoint vacío
+      # en el dashboard; la API funciona sin telemetría.
+      - key: OTEL_SDK_DISABLED
+        value: "false"
+      - key: OTEL_SERVICE_NAME
+        value: comparador-precios-backend
+      - key: OTEL_EXPORTER_OTLP_ENDPOINT
+        sync: false
+      - key: OTEL_EXPORTER_OTLP_HEADERS
+        sync: false
+      - key: OTEL_TRACES_SAMPLER_ARG
+        value: "0.2"
+      - key: OTEL_METRICS_EXPORTER
+        value: otlp
+      - key: OTEL_LOGS_EXPORTER
+        value: otlp
