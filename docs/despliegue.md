@@ -65,7 +65,15 @@ uv --directory backend run python ../scripts/migrar.py
 
 # Cargar catálogo inicial de productos, presentaciones, tiendas y precios semilla
 uv --directory backend run python ../scripts/semilla.py
+
+# Opcional: sembrar 90 días de historial demo para la gráfica A2 / EC-08
+uv --directory backend run python ../scripts/semilla_historial.py
 ```
+
+El script de historial es **opcional** y se ejecuta después de `semilla.py` (requiere el perfil
+semilla `vecino_centenario`). Genera puntos históricos deterministas marcados con
+`es_demo = true`, es idempotente (`ON CONFLICT (id) DO NOTHING`) y **no modifica
+`precio_vigente`**, por lo que no altera la comparación vigente.
 
 ### 4. Levantar Backend y Frontend en Desarrollo
 
