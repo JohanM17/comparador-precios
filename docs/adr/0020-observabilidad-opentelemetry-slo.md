@@ -2,7 +2,9 @@
 
 ## Estado
 
-Propuesto — pendiente de aprobación del equipo antes de implementar.
+Aceptado — 2026-11-25.
+
+Implementado en `T-120` a `T-125`: instrumentación OTel, tablero, SLO/alertas, simulacro k6, pruebas de privacidad/degradación, corrección del logging y runbook. La certificación real de `EC-11` (colector OTLP/Grafana, alerta disparada, traza y tablero) queda pendiente en `T-126`.
 
 ## Contexto
 

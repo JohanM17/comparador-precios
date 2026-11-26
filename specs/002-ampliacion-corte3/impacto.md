@@ -4,11 +4,11 @@
 
 **Fecha**: 2026-11-25
 
-**Estado**: Borrador para revisión y aprobación — debe confirmarse en Git antes del primer commit de implementación.
+**Estado**: Aprobado — 2026-11-25. Contraste estimado/real en curso (`T-131`); las horas reales se registran al cierre y no se inventan.
 
 **Alcance**: opción **A2 (Historial y tendencia de precios)** y opción **B1 (Observabilidad con SLO)** del Anexo 1 del corte 3.
 
-> Este documento usa la plantilla 8.3 del anexo. Las horas son una estimación preliminar del equipo técnico; deben validarse en la reunión de planificación y contrastarse con las horas reales al cierre. El contraste exigido por el entregable 6 de Arquitectura II incluye **dos cambios**: el módulo comercial (`T-60` a `T-69`) y esta ampliación. La estimación del módulo comercial debe producirse en `T-60`; aún no existe en el repositorio.
+> Este documento usa la plantilla 8.3 del anexo. Las horas son una estimación preliminar del equipo técnico; deben contrastarse con las horas reales al cierre. El contraste exigido por el entregable 6 de Arquitectura II incluye **dos cambios**: el módulo comercial (`T-60` a `T-69`) y esta ampliación. La estimación del módulo comercial debe producirse en `T-60`; aún no existe en el repositorio.
 
 ---
 
@@ -43,6 +43,17 @@
 | **B1 — Observabilidad con SLO** | 42 | Cuota gratuita del backend de observabilidad y configuración de credenciales. |
 | **Transversal** | 12 | Coordinación con el módulo comercial y evidencia del simulacro. |
 | **Total** | **110** | — |
+
+### 1.2 Estado de las horas reales
+
+| Cambio | Estado del contraste |
+|---|---|
+| **Ampliación A2 + B1** | Pendiente de consolidar las horas reales del equipo. La implementación, revisión y corrección de logging están cerradas; `T-131` debe registrar el esfuerzo real por componente. |
+| **Módulo comercial** | Pendiente de `T-60` (estimación) y `T-69` (real). No existe todavía en esta rama, por lo que no se puede contrastar. |
+
+**Desviación registrada**: el follow-up de logging de `T-120` (handler raíz, access log de Uvicorn, puente OTLP y filtros de terceros) no estaba en la estimación inicial. Se documentará como esfuerzo no estimado en el contraste real.
+
+**Criterio**: las celdas de esfuerzo real permanecen vacías hasta que el equipo registre sus horas; no se rellenan con inferencias.
 
 ---
 

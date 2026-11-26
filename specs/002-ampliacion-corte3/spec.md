@@ -224,3 +224,5 @@ Como integrante del equipo, quiero un tablero con métricas, trazas y registros 
 |---|---|---|---|
 | **EC-08** | US-A2-1 | FR-A2-001 a FR-A2-015 | `backend/tests/integracion/test_historial_precios.py`, `frontend/tests/e2e/historial_precios.spec.ts` |
 | **EC-11** | US-B1-1, US-B1-2 | FR-B1-001 a FR-B1-014 | `backend/tests/integracion/test_telemetria.py`, simulacro `EC-11` documentado |
+
+Los escenarios refinados en la plantilla 8.2 del anexo están en [escenarios.md](./escenarios.md).

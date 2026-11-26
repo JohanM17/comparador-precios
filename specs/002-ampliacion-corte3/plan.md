@@ -150,6 +150,7 @@ Ver [research.md](./research.md). Decisiones principales:
 
 - [data-model.md](./data-model.md): entidades, DTOs, consulta SQL, índice, atributos de telemetría y SLO.
 - [contracts/api-historial.md](./contracts/api-historial.md): contrato del endpoint y variables de observabilidad.
+- [escenarios.md](./escenarios.md): escenarios EC-08 y EC-11 refinados en la plantilla 8.2 del anexo.
 - [quickstart.md](./quickstart.md): escenarios ejecutables para EC-08 y EC-11.
 
 ## Implementation Strategy

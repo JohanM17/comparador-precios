@@ -2,7 +2,9 @@
 
 ## Estado
 
-Propuesto — pendiente de aprobación del equipo antes de implementar.
+Aceptado — 2026-11-25.
+
+Implementado en `T-110` a `T-119`. `EC-08` se verificó con 13/13 pruebas de integración, E2E 19/19 y axe sin violaciones críticas. La escritura del historial oficial (`fuente='comercio'`) queda coordinada con `T-63` del módulo comercial; la medición p95 con 100 puntos queda pendiente de registrar.
 
 ## Contexto
 
