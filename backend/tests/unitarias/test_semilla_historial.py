@@ -8,6 +8,7 @@ from uuid import NAMESPACE_DNS, UUID, uuid4, uuid5
 
 import pytest
 
+from scripts import semilla_historial
 from scripts.semilla_historial import (
     DIAS_HISTORIAL,
     PERFIL_VECINO_CENTENARIO,
@@ -177,3 +178,45 @@ def test_rechaza_precio_base_no_positivo(precio_base_cop: int) -> None:
     """Un precio base invalido falla antes de generar puntos."""
     with pytest.raises(ValueError):
         _generar(precio_base_cop=precio_base_cop)
+
+
+def test_main_devuelve_2_cuando_no_genera_puntos(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Sin puntos generados, main advierte y devuelve un codigo distinto de cero."""
+
+    async def _sin_puntos() -> dict[str, int]:
+        return {
+            "combinaciones": 0,
+            "combinaciones_omitidas": 0,
+            "puntos_generados": 0,
+            "puntos_insertados": 0,
+        }
+
+    monkeypatch.setattr(semilla_historial, "ejecutar_semilla_historial", _sin_puntos)
+
+    assert semilla_historial.main() == 2
+    assert "ADVERTENCIA" in capsys.readouterr().out
+
+
+def test_main_devuelve_0_cuando_genera_puntos(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Con puntos generados, main reporta exito y devuelve cero."""
+
+    async def _con_puntos() -> dict[str, int]:
+        return {
+            "combinaciones": 2,
+            "combinaciones_omitidas": 0,
+            "puntos_generados": 12,
+            "puntos_insertados": 12,
+        }
+
+    monkeypatch.setattr(semilla_historial, "ejecutar_semilla_historial", _con_puntos)
+
+    assert semilla_historial.main() == 0
+    salida = capsys.readouterr().out
+    assert "puntos_generados: 12" in salida
+    assert "ADVERTENCIA" not in salida

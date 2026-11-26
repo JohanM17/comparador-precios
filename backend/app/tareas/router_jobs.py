@@ -77,7 +77,8 @@ async def job_reconstruir_precio_vigente(
     sql_pares = text("""
         SELECT DISTINCT presentacion_id, establecimiento_id
         FROM public.reporte_precio
-        WHERE observado_en >= :limite;
+        WHERE observado_en >= :limite
+          AND es_demo = false;
     """)
     pares = (await sesion.execute(sql_pares, {"limite": limite})).fetchall()
     politica = SoloUsuarios()

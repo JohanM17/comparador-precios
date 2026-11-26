@@ -54,6 +54,7 @@ class SoloUsuarios:
               AND establecimiento_id = :est_id
               AND observado_en >= :limite
               AND estado IN ('aceptado', 'dudoso')
+              AND es_demo = false
             ORDER BY observado_en DESC;
         """)
 
@@ -220,7 +221,8 @@ async def _reconstruir_con_politica_personalizada(
         SELECT DISTINCT presentacion_id, establecimiento_id
         FROM public.reporte_precio
         WHERE observado_en >= :limite
-          AND estado IN ('aceptado', 'dudoso');
+          AND estado IN ('aceptado', 'dudoso')
+          AND es_demo = false;
     """)
     pares = (await sesion.execute(sql_pares, {"limite": limite_inferior})).fetchall()
     recalculados = 0
@@ -254,6 +256,7 @@ async def reconstruir_precio_vigente(
         FROM public.reporte_precio
         WHERE observado_en >= :limite
           AND estado IN ('aceptado', 'dudoso')
+          AND es_demo = false
         ORDER BY observado_en DESC;
     """)
     filas = list((await sesion.execute(sql_reportes, {"limite": limite_inferior})).fetchall())

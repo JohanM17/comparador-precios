@@ -86,6 +86,7 @@ SQL_ULTIMO_REPORTE = """
     WHERE presentacion_id = $1
       AND establecimiento_id = $2
       AND estado::text = 'aceptado'
+      AND es_demo = false
     ORDER BY observado_en DESC, id DESC
     LIMIT 1;
 """
@@ -95,6 +96,7 @@ SQL_ULTIMO_REPORTE_PRESENTACION = """
     FROM public.reporte_precio
     WHERE presentacion_id = $1
       AND estado::text = 'aceptado'
+      AND es_demo = false
     ORDER BY observado_en DESC, id DESC
     LIMIT 1;
 """
@@ -313,7 +315,7 @@ async def ejecutar_semilla_historial(ahora: datetime | None = None) -> dict[str,
 
 
 def main() -> int:
-    """Punto de entrada del script; devuelve 0 si la semilla se aplico."""
+    """Punto de entrada del script; devuelve 0 solo si genero puntos demo."""
     try:
         resultado = asyncio.run(ejecutar_semilla_historial())
     except RuntimeError as error:
@@ -326,6 +328,14 @@ def main() -> int:
     print(f"  -> puntos_generados: {resultado['puntos_generados']}")
     print(f"  -> puntos_insertados: {resultado['puntos_insertados']}")
     print("  -> precio_vigente: sin cambios")
+
+    if resultado["puntos_generados"] == 0:
+        print(
+            "\n[ADVERTENCIA] No se generaron puntos demo: no hay combinaciones "
+            "con precio base. Ejecuta scripts/semilla.py y verifica el catalogo."
+        )
+        return 2
+
     return 0
 
 
