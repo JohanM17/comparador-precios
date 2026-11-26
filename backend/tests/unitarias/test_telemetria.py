@@ -1,4 +1,4 @@
-"""Pruebas unitarias de la configuracion de telemetria (Tareas T-103 y T-120)."""
+"""Pruebas unitarias de la configuracion de telemetria (Tareas T-103, T-120 y T-124)."""
 
 from __future__ import annotations
 
@@ -213,6 +213,17 @@ def test_sanitizar_atributos_recursivo_redacta_pii_y_no_muta_la_entrada() -> Non
     assert atributos["etiquetas"][1]["visible"] == "ok"
     assert resultado["etiquetas"][1] is not atributos["etiquetas"][1]
     assert resultado["usuario"] is not atributos["usuario"]
+
+
+def test_sanitizar_atributos_redacta_ip_y_huella_en_valores() -> None:
+    """La redaccion de valores cubre IP y huellas ademas de correos y coordenadas."""
+    huella = "a" * 64
+
+    resultado = telemetria.sanitizar_atributos(
+        {"detalle": f"cliente 190.1.2.3 huella_red={huella}"}
+    )
+
+    assert resultado == {"detalle": "cliente [REDACTADO_IP] [REDACTADO_HUELLA]"}
 
 
 def test_parsear_headers_otlp_conserva_iguales_y_limpia_espacios() -> None:
@@ -578,6 +589,41 @@ def test_procesador_errores_primero_sanitiza_atributos_eventos_y_estado() -> Non
     assert mensaje == "correo [REDACTADO_EMAIL] con lat%3D[REDACTADO_COORD]"
 
 
+def test_procesador_errores_primero_redacta_pii_cruda_en_evento_y_estado() -> None:
+    """El correo y las coordenadas crudos se redactan en eventos y descripcion."""
+    destino = _ProcesadorDestino()
+    proveedor = TracerProvider(sampler=telemetria.ALWAYS_ON)
+    proveedor.add_span_processor(telemetria.ProcesadorErroresPrimero(destino, 1.0))
+    tracer = proveedor.get_tracer("pruebas.telemetria")
+
+    try:
+        with tracer.start_as_current_span("error") as span:
+            span.set_status(
+                Status(
+                    StatusCode.ERROR,
+                    "fallo con persona@example.com lat=4.53 lng=-75.68",
+                )
+            )
+            span.record_exception(ValueError("orden=persona@example.com&lat=4.53&lng=-75.68"))
+    finally:
+        proveedor.shutdown()
+
+    assert len(destino.spans) == 1
+    span_exportado = destino.spans[0]
+    assert span_exportado.status.description == (
+        "fallo con [REDACTADO_EMAIL] lat=[REDACTADO_COORD] lng=[REDACTADO_COORD]"
+    )
+    evento = next(evento for evento in span_exportado.events if evento.name == "exception")
+    atributos_evento = dict(evento.attributes or {})
+    assert atributos_evento["exception.message"] == (
+        "orden=[REDACTADO_EMAIL]&lat=[REDACTADO_COORD]&lng=[REDACTADO_COORD]"
+    )
+    rastro = str(atributos_evento["exception.stacktrace"])
+    assert "persona@example.com" not in rastro
+    assert "4.53" not in rastro
+    assert "-75.68" not in rastro
+
+
 def test_procesador_errores_primero_no_propaga_fallo_de_sanitizacion(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
@@ -632,6 +678,26 @@ def test_redactar_texto_sensible_cubre_percent_encoding() -> None:
     assert redactado == (
         "email=[REDACTADO_EMAIL]&orden=lat%3D[REDACTADO_COORD]&lng%3D[REDACTADO_COORD]"
     )
+
+
+def test_redactar_texto_sensible_redacta_ip_y_huella_red() -> None:
+    """Las IP y las huellas de red tampoco sobreviven a la redaccion."""
+    huella = "0123456789abcdef" * 4
+    texto = (
+        "cliente 190.1.2.3 desde [::1] e ip=10.0.0.1; "
+        f"huella_red={huella}; hash={huella}; huella_red=huella-corta"
+    )
+
+    redactado = redactar_texto_sensible(texto)
+
+    assert "190.1.2.3" not in redactado
+    assert "10.0.0.1" not in redactado
+    assert "::1" not in redactado
+    assert huella not in redactado
+    assert "huella-corta" not in redactado
+    assert "huella_red" not in redactado
+    assert redactado.count("[REDACTADO_IP]") == 3
+    assert redactado.count("[REDACTADO_HUELLA]") == 3
 
 
 @pytest.mark.parametrize(
@@ -718,6 +784,25 @@ def test_apagar_telemetria_sin_providers_no_lanza(monkeypatch: pytest.MonkeyPatc
     assert telemetria.telemetria_activa() is False
 
 
+def test_apagar_telemetria_es_idempotente_con_providers_que_fallan(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Dos apagados con providers defectuosos no lanzan ni repiten el cierre."""
+    proveedor_trazas = _ProviderApagable(falla_vaciado=True, falla_apagado=True)
+    proveedor_metricas = _ProviderApagable(falla_vaciado=True, falla_apagado=True)
+    proveedor_logs = _ProviderApagable(falla_vaciado=True, falla_apagado=True)
+    monkeypatch.setattr(telemetria, "_tracer_provider", proveedor_trazas)
+    monkeypatch.setattr(telemetria, "_meter_provider", proveedor_metricas)
+    monkeypatch.setattr(telemetria, "_logger_provider", proveedor_logs)
+
+    telemetria.apagar_telemetria()
+    telemetria.apagar_telemetria()
+
+    for proveedor in (proveedor_trazas, proveedor_metricas, proveedor_logs):
+        assert proveedor.llamadas == ["force_flush", "shutdown"]
+    assert telemetria.telemetria_activa() is False
+
+
 def test_sanitizar_atributos_bloquea_cuerpos_y_alias_de_ip() -> None:
     """Los cuerpos de solicitud/respuesta y los alias de IP nunca se exportan."""
     atributos = {
@@ -778,6 +863,21 @@ def test_filtro_correlacion_inyecta_ids_dentro_de_un_span() -> None:
             assert len(registro_dentro.__dict__["span_id"]) == 16
     finally:
         proveedor.shutdown()
+
+
+def test_filtro_privacidad_formatea_antes_de_redactar_sin_romper_placeholders() -> None:
+    """Un placeholder con huella o IP se redacta sin dejar argumentos colgados."""
+    registro = _registro_de_prueba()
+    registro.msg = "huella_red=%s ip=%s"
+    registro.args = ("a" * 64, "190.1.2.3")
+
+    assert FiltroPrivacidadLey1581().filter(registro) is True
+
+    mensaje = registro.getMessage()
+    assert "huella_red" not in mensaje
+    assert "190.1.2.3" not in mensaje
+    assert "[REDACTADO_HUELLA]" in mensaje
+    assert "[REDACTADO_IP]" in mensaje
 
 
 def test_filtro_correlacion_y_privacidad_coexisten() -> None:

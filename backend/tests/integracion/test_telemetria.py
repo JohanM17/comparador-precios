@@ -1,7 +1,10 @@
-"""Pruebas de integracion de telemetria sin colector OTLP ni escritura en BD (T-120)."""
+"""Pruebas de integracion de telemetria sin colector OTLP ni escritura en BD (T-120/T-124)."""
 
 from __future__ import annotations
 
+import logging
+import re
+import time
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -10,18 +13,29 @@ from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 from opentelemetry import trace as otel_trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry._logs import _internal as otel_logs_internal
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.metrics import _internal as otel_metrics_internal
+from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor, SpanExporter
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.trace import SpanKind, StatusCode
+from opentelemetry.util._once import Once
 
 from app import main as modulo_main
 from app.compartido import telemetria
 from app.compartido.errores import ValidacionError
+from app.compartido.logging_cfg import (
+    FiltroCorrelacionTrazas,
+    FiltroPrivacidadLey1581,
+    LoggingAccesoMiddleware,
+    RequestIdMiddleware,
+)
 from app.compartido.seguridad import UsuarioAutenticado
+from app.config import Configuracion
 from app.dominio.parametros import ParametrosDominio
 from app.dominio.riesgo import EvaluacionReporte
 from app.modulos.precios import repositorio
@@ -31,6 +45,193 @@ from app.modulos.precios.esquemas import CrearReporteEntrada
 from app.modulos.precios.servicio import ServicioPrecios
 from app.modulos.precios.servicio_comparacion import ServicioComparacion
 
+_CLAVES_PROHIBIDAS = frozenset(
+    {
+        "lat",
+        "lng",
+        "latitude",
+        "longitude",
+        "reportante_id",
+        "alias",
+        "email",
+        "ip",
+        "client_ip",
+        "ip_address",
+        "net.peer.ip",
+        "client.address",
+        "huella_red",
+        "foto_ruta",
+        "foto_prueba_path",
+        "body",
+        "request.body",
+        "response.body",
+        "http.request.body",
+        "http.response.body",
+        "authorization",
+        "cookie",
+        "set-cookie",
+        "http.request.header.authorization",
+        "http.request.header.cookie",
+    }
+)
+
+_VALORES_PROHIBIDOS = (
+    "persona@example.com",
+    "persona%40example.com",
+    "lat=4.53",
+    "lng=-75.68",
+    "lat%3D4.53",
+    "lng%3D-75.68",
+    "token-secreto",
+    "sesion=abc",
+)
+
+
+def _configuracion(**cambios: Any) -> Configuracion:
+    """Construye una configuracion sin leer el archivo .env real."""
+    return Configuracion(_env_file=None, **cambios)
+
+
+def _proveedor_de_telemetria(exportador: SpanExporter) -> TracerProvider:
+    """Crea un provider que aplica la sanitizacion real antes de exportar."""
+    proveedor = TracerProvider(sampler=telemetria.ALWAYS_ON)
+    proveedor.add_span_processor(
+        telemetria.ProcesadorErroresPrimero(
+            SimpleSpanProcessor(exportador),
+            ratio_exitos=1.0,
+        )
+    )
+    return proveedor
+
+
+def _texto_de_span(span: ReadableSpan) -> str:
+    """Serializa atributos, eventos y estado para buscar PII en un span."""
+    partes = [str(dict(span.attributes or {}))]
+    if span.status.description:
+        partes.append(span.status.description)
+    for evento in span.events:
+        partes.append(f"{evento.name}:{dict(evento.attributes or {})}")
+    return " ".join(partes)
+
+
+def _assert_sin_pii_en_spans(spans: list[ReadableSpan]) -> None:
+    """Falla si algun span expone valores o claves prohibidas."""
+    for span in spans:
+        texto = _texto_de_span(span)
+        for valor in _VALORES_PROHIBIDOS:
+            assert valor not in texto
+        claves = {str(clave).lower() for clave in (span.attributes or {})}
+        assert not claves.intersection(_CLAVES_PROHIBIDAS)
+        for evento in span.events:
+            claves_evento = {str(clave).lower() for clave in (evento.attributes or {})}
+            assert not claves_evento.intersection(_CLAVES_PROHIBIDAS)
+
+
+class _CapturadorLogs(logging.Handler):
+    """Handler de prueba que conserva los registros y aplica los filtros reales."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.registros: list[logging.LogRecord] = []
+
+    def emit(self, registro: logging.LogRecord) -> None:
+        """Conserva el registro ya filtrado."""
+        self.registros.append(registro)
+
+
+class _ExportadorQueFalla(SpanExporter):
+    """Exportador que siempre lanza para simular un colector caido."""
+
+    def __init__(self) -> None:
+        self.lotes: list[int] = []
+
+    def export(self, spans: Any) -> Any:
+        """Registra el lote y falla como lo haria un colector inalcanzable."""
+        self.lotes.append(len(spans))
+        raise RuntimeError("colector de pruebas inalcanzable")
+
+    def shutdown(self) -> None:
+        """No hay recursos que liberar."""
+
+
+def _crear_app_de_prueba(proveedor: TracerProvider) -> FastAPI:
+    """Crea una app ASGI instrumentada con rutas que no tocan la base de datos."""
+    app = FastAPI(title="Pruebas de privacidad de telemetria")
+    app.add_middleware(LoggingAccesoMiddleware)
+    app.add_middleware(RequestIdMiddleware)
+
+    @app.get("/v1/prueba")
+    async def prueba(request: Request) -> dict[str, str]:
+        if request.query_params.get("registrar") != "0":
+            logging.getLogger("app").info(
+                "evento correo=persona@example.com codificado=persona%%40example.com "
+                "lat=4.53 lng=-75.68 token=Bearer abc.def ip=190.1.2.3 huella_red=%s",
+                "a" * 64,
+            )
+        return {"estado": "ok"}
+
+    @app.get("/v1/prueba/error")
+    async def error() -> None:
+        raise ValueError("orden=persona@example.com&lat=4.53&lng=-75.68")
+
+    @app.get("/v1/prueba/estado")
+    async def estado() -> dict[str, str]:
+        span = otel_trace.get_current_span()
+        span.set_status(StatusCode.ERROR, "fallo con persona@example.com lat=4.53")
+        return {"estado": "ok"}
+
+    @app.post("/v1/prueba/cuerpo")
+    async def cuerpo(request: Request) -> dict[str, str]:
+        contenido = await request.body()
+        if b"persona@example.com" not in contenido:
+            raise ValueError("El cuerpo esperado no llego completo.")
+        return {"estado": "recibido"}
+
+    FastAPIInstrumentor.instrument_app(app, tracer_provider=proveedor)
+    return app
+
+
+@pytest.fixture
+def proveedores_globales_aislados() -> Iterator[None]:
+    """Restaura los providers globales de OpenTelemetry despues de la prueba.
+
+    `set_tracer_provider`, `set_meter_provider` y `set_logger_provider` solo
+    aceptan una asignacion por proceso; la fixture reinicia el estado privado
+    del SDK para que las pruebas puedan configurar su propio provider sin
+    contaminar a las demas.
+    """
+    estado = {
+        "trazas": (otel_trace._TRACER_PROVIDER, otel_trace._TRACER_PROVIDER_SET_ONCE._done),
+        "metricas": (
+            otel_metrics_internal._METER_PROVIDER,
+            otel_metrics_internal._METER_PROVIDER_SET_ONCE._done,
+        ),
+        "logs": (
+            otel_logs_internal._LOGGER_PROVIDER,
+            otel_logs_internal._LOGGER_PROVIDER_SET_ONCE._done,
+        ),
+    }
+    otel_trace._TRACER_PROVIDER = None
+    otel_trace._TRACER_PROVIDER_SET_ONCE = Once()
+    otel_metrics_internal._METER_PROVIDER = None
+    otel_metrics_internal._METER_PROVIDER_SET_ONCE = Once()
+    otel_logs_internal._LOGGER_PROVIDER = None
+    otel_logs_internal._LOGGER_PROVIDER_SET_ONCE = Once()
+
+    try:
+        yield
+    finally:
+        telemetria.apagar_telemetria()
+        otel_trace._TRACER_PROVIDER = estado["trazas"][0]
+        otel_trace._TRACER_PROVIDER_SET_ONCE = Once()
+        otel_trace._TRACER_PROVIDER_SET_ONCE._done = estado["trazas"][1]
+        otel_metrics_internal._METER_PROVIDER = estado["metricas"][0]
+        otel_metrics_internal._METER_PROVIDER_SET_ONCE = Once()
+        otel_metrics_internal._METER_PROVIDER_SET_ONCE._done = estado["metricas"][1]
+        otel_logs_internal._LOGGER_PROVIDER = estado["logs"][0]
+        otel_logs_internal._LOGGER_PROVIDER_SET_ONCE = Once()
+        otel_logs_internal._LOGGER_PROVIDER_SET_ONCE._done = estado["logs"][1]
+
 
 @pytest.fixture
 def exportador_spans(
@@ -38,8 +239,7 @@ def exportador_spans(
 ) -> Iterator[InMemorySpanExporter]:
     """Sustituye los tracers de los servicios por uno con exportador en memoria."""
     exportador = InMemorySpanExporter()
-    proveedor = TracerProvider(sampler=telemetria.ALWAYS_ON)
-    proveedor.add_span_processor(SimpleSpanProcessor(exportador))
+    proveedor = _proveedor_de_telemetria(exportador)
     tracer = proveedor.get_tracer("pruebas.integracion.telemetria")
     monkeypatch.setattr(modulo_servicio, "tracer", tracer)
     monkeypatch.setattr(modulo_comparacion, "tracer", tracer)
@@ -161,8 +361,21 @@ async def test_comparacion_crea_span_sin_coordenadas_ni_pii(
     assert atributos["precios.radio_km"] == pytest.approx(10.0)
     assert float(atributos["precios.db_ms"]) >= 0.0
 
-    assert "lat" not in atributos
-    assert "lng" not in atributos
+    claves_prohibidas = {
+        "lat",
+        "lng",
+        "reportante_id",
+        "huella_red",
+        "alias",
+        "foto_ruta",
+        "foto_prueba_path",
+        "client.address",
+        "net.peer.ip",
+        "http.request.header.authorization",
+        "request.body",
+        "response.body",
+    }
+    assert not claves_prohibidas.intersection(atributos)
     texto_atributos = str(atributos)
     assert "4.5339" not in texto_atributos
     assert "-75.6811" not in texto_atributos
@@ -336,6 +549,11 @@ async def test_registro_crea_span_con_atributos_permitidos_sin_pii(
         "ip",
         "foto_ruta",
         "foto_prueba_path",
+        "client.address",
+        "net.peer.ip",
+        "http.request.header.authorization",
+        "request.body",
+        "response.body",
     }
     assert not claves_prohibidas.intersection(atributos)
     texto_atributos = str(atributos)
@@ -362,7 +580,7 @@ async def test_registro_con_error_marca_span_error_y_relanza(
         instante: datetime,
         idempotency_key: str | None,
     ) -> UUID:
-        raise ValidacionError("Regla de negocio incumplida.")
+        raise ValidacionError("Regla de negocio incumplida para persona@example.com lat=4.53.")
 
     monkeypatch.setattr(modulo_servicio, "validar_entrada_reporte", validar_con_error)
 
@@ -390,7 +608,14 @@ async def test_registro_con_error_marca_span_error_y_relanza(
     assert len(spans) == 1
     span = spans[0]
     assert span.status.status_code == StatusCode.ERROR
-    assert any(evento.name == "exception" for evento in span.events)
+    evento = next(evento for evento in span.events if evento.name == "exception")
+    atributos_evento = dict(evento.attributes or {})
+    assert "persona@example.com" not in str(atributos_evento)
+    assert "4.53" not in str(atributos_evento)
+    assert "[REDACTADO_EMAIL]" in str(atributos_evento["exception.message"])
+    assert "[REDACTADO_COORD]" in str(atributos_evento["exception.message"])
+    assert "huella_red" not in str(span.attributes or {})
+    _assert_sin_pii_en_spans([span])
 
 
 class _InstrumentadorFalso:
@@ -457,19 +682,30 @@ def test_create_app_instrumenta_antes_de_construir_la_pila(
 def test_http_real_genera_span_y_excluye_salud() -> None:
     """Con un provider real, una ruta normal se traza y la salud no genera spans."""
     exportador = InMemorySpanExporter()
-    proveedor = TracerProvider(sampler=telemetria.ALWAYS_ON)
-    proveedor.add_span_processor(
-        telemetria.ProcesadorErroresPrimero(
-            SimpleSpanProcessor(exportador),
-            ratio_exitos=1.0,
-        )
-    )
+    proveedor = _proveedor_de_telemetria(exportador)
     otel_trace.set_tracer_provider(proveedor)
 
     try:
         with TestClient(modulo_main.app) as cliente:
-            respuesta = cliente.get("/openapi.json?orden=persona%40example.com&lat%3D4.53")
+            respuesta = cliente.get(
+                "/openapi.json?correo=persona@example.com"
+                "&correo_cod=persona%40example.com"
+                "&lat=4.53&lng=-75.68&coord_cod=lat%3D4.53",
+                headers={
+                    "authorization": "Bearer token-secreto",
+                    "cookie": "sesion=abc; huella_red=" + "b" * 64,
+                },
+            )
             assert respuesta.status_code == 200
+            respuesta_cuerpo = cliente.post(
+                "/openapi.json",
+                content=('{"correo":"persona@example.com","lat":4.53,"lng":-75.68}'),
+                headers={
+                    "authorization": "Bearer token-secreto",
+                    "cookie": "sesion=abc",
+                },
+            )
+            assert respuesta_cuerpo.status_code == 405
             assert cliente.get("/v1/salud").status_code == 200
             assert cliente.get("/v1/salud/listo").status_code in (200, 503)
 
@@ -479,7 +715,12 @@ def test_http_real_genera_span_y_excluye_salud() -> None:
 
     assert any("openapi" in span.name.lower() for span in spans)
     span_openapi = next(
-        span for span in spans if span.kind == SpanKind.SERVER and "openapi" in span.name.lower()
+        span
+        for span in spans
+        if span.kind == SpanKind.SERVER
+        and span.attributes is not None
+        and span.attributes.get("http.method") == "GET"
+        and "openapi" in span.name.lower()
     )
     assert span_openapi.kind == SpanKind.SERVER
     assert not any(span.name.startswith("fastapi.") for span in spans)
@@ -490,8 +731,276 @@ def test_http_real_genera_span_y_excluye_salud() -> None:
     assert "persona%40example.com" not in str(atributos_openapi)
     assert "net.peer.ip" not in atributos_openapi
     assert "4.53" not in str(atributos_openapi)
+    _assert_sin_pii_en_spans(spans)
     for span in spans:
         atributos = dict(span.attributes or {})
         assert atributos.get("http.route") not in ("/v1/salud", "/v1/salud/listo")
         assert "/v1/salud" not in str(atributos.get("http.target", ""))
         assert "/v1/salud" not in str(atributos.get("url.path", ""))
+
+
+def test_http_redacta_excepcion_y_estado_con_pii() -> None:
+    """Los eventos de excepcion y la descripcion del estado no exponen PII."""
+    exportador = InMemorySpanExporter()
+    proveedor = _proveedor_de_telemetria(exportador)
+    app = _crear_app_de_prueba(proveedor)
+
+    try:
+        with TestClient(app, raise_server_exceptions=False) as cliente:
+            respuesta = cliente.get(
+                "/v1/prueba/error?correo=persona@example.com&lat=4.53&lng=-75.68"
+            )
+            assert respuesta.status_code == 500
+            assert cliente.get("/v1/prueba/estado").status_code == 200
+
+        spans = list(exportador.get_finished_spans())
+    finally:
+        proveedor.shutdown()
+
+    span_error = next(
+        span for span in spans if span.kind == SpanKind.SERVER and "error" in span.name
+    )
+    assert span_error.status.status_code == StatusCode.ERROR
+    descripcion_error = span_error.status.description or ""
+    assert "persona@example.com" not in descripcion_error
+    assert "4.53" not in descripcion_error
+    eventos_error = [evento for evento in span_error.events if evento.name == "exception"]
+    assert eventos_error
+    for evento in eventos_error:
+        atributos_evento = dict(evento.attributes or {})
+        assert "persona@example.com" not in str(atributos_evento.get("exception.message", ""))
+        assert "4.53" not in str(atributos_evento.get("exception.message", ""))
+        assert "persona@example.com" not in str(atributos_evento.get("exception.stacktrace", ""))
+        assert "4.53" not in str(atributos_evento.get("exception.stacktrace", ""))
+
+    span_estado = next(
+        span for span in spans if span.kind == SpanKind.SERVER and "estado" in span.name
+    )
+    assert span_estado.status.status_code == StatusCode.ERROR
+    assert span_estado.status.description == ("fallo con [REDACTADO_EMAIL] lat=[REDACTADO_COORD]")
+    _assert_sin_pii_en_spans(spans)
+
+
+def test_http_no_exporta_cuerpos_cabeceras_ni_alias_de_ip() -> None:
+    """El cuerpo, las cabeceras y los alias de IP nunca llegan a los spans."""
+    exportador = InMemorySpanExporter()
+    proveedor = _proveedor_de_telemetria(exportador)
+    app = _crear_app_de_prueba(proveedor)
+    cuerpo = '{"correo":"persona@example.com","lat":4.53,"lng":-75.68}'
+
+    try:
+        with TestClient(app) as cliente:
+            respuesta = cliente.post(
+                "/v1/prueba/cuerpo?correo=persona@example.com&lat=4.53&lng=-75.68",
+                content=cuerpo,
+                headers={
+                    "authorization": "Bearer token-secreto",
+                    "cookie": "sesion=abc; huella_red=" + "b" * 64,
+                    "x-forwarded-for": "190.1.2.3",
+                    "x-real-ip": "190.1.2.3",
+                },
+            )
+        assert respuesta.status_code == 200
+        spans = list(exportador.get_finished_spans())
+    finally:
+        proveedor.shutdown()
+
+    _assert_sin_pii_en_spans(spans)
+    for span in spans:
+        texto = _texto_de_span(span)
+        assert cuerpo not in texto
+        assert "190.1.2.3" not in texto
+        assert "b" * 64 not in texto
+        claves = {str(clave).lower() for clave in (span.attributes or {})}
+        assert not claves.intersection(_CLAVES_PROHIBIDAS)
+
+
+def test_logs_correlacionados_no_filtran_pii() -> None:
+    """Los logs de app y app.acceso salen redactados y con trace_id/span_id."""
+    exportador = InMemorySpanExporter()
+    proveedor = _proveedor_de_telemetria(exportador)
+    app = _crear_app_de_prueba(proveedor)
+    capturador = _CapturadorLogs()
+    capturador.addFilter(FiltroPrivacidadLey1581())
+    capturador.addFilter(FiltroCorrelacionTrazas())
+    logger_app = logging.getLogger("app")
+    logger_acceso = logging.getLogger("app.acceso")
+    nivel_app = logger_app.level
+    nivel_acceso = logger_acceso.level
+    logger_app.addHandler(capturador)
+    logger_app.setLevel(logging.INFO)
+    logger_acceso.setLevel(logging.INFO)
+
+    cabeceras = {
+        "authorization": "Bearer token-secreto",
+        "cookie": "sesion=abc; huella_red=" + "b" * 64,
+    }
+    cuerpo = '{"correo":"persona@example.com","lat":4.53,"lng":-75.68}'
+
+    try:
+        with TestClient(app) as cliente:
+            respuesta = cliente.get(
+                "/v1/prueba?correo=persona@example.com"
+                "&correo_cod=persona%40example.com"
+                "&lat=4.53&lng=-75.68",
+                headers=cabeceras,
+            )
+            respuesta_cuerpo = cliente.post(
+                "/v1/prueba/cuerpo?correo=persona@example.com&lat=4.53",
+                content=cuerpo,
+                headers=cabeceras,
+            )
+        assert respuesta.status_code == 200
+        assert respuesta_cuerpo.status_code == 200
+    finally:
+        logger_app.removeHandler(capturador)
+        logger_app.setLevel(nivel_app)
+        logger_acceso.setLevel(nivel_acceso)
+        proveedor.shutdown()
+
+    registros = [
+        registro for registro in capturador.registros if registro.name in ("app", "app.acceso")
+    ]
+    assert any(registro.name == "app" for registro in registros)
+    assert any(registro.name == "app.acceso" for registro in registros)
+    texto = "\n".join(registro.getMessage() for registro in registros)
+    for valor in _VALORES_PROHIBIDOS:
+        assert valor not in texto
+    assert cuerpo not in texto
+    assert "abc.def" not in texto
+    assert "190.1.2.3" not in texto
+    assert "a" * 64 not in texto
+    assert "b" * 64 not in texto
+    assert "huella_red" not in texto
+    assert "[REDACTADO_EMAIL]" in texto
+    assert "[REDACTADO_COORD]" in texto
+    assert "[REDACTADO_TOKEN]" in texto
+    assert "[REDACTADO_IP]" in texto
+    assert "[REDACTADO_HUELLA]" in texto
+    for registro in registros:
+        assert re.fullmatch(r"[0-9a-f]{32}", registro.__dict__["trace_id"])
+        assert re.fullmatch(r"[0-9a-f]{16}", registro.__dict__["span_id"])
+
+
+def test_exportador_que_falla_no_afecta_la_respuesta(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Un exportador que lanza solo deja un registro; la API responde 200."""
+    exportador = _ExportadorQueFalla()
+    proveedor = _proveedor_de_telemetria(exportador)
+    app = _crear_app_de_prueba(proveedor)
+
+    try:
+        with caplog.at_level(logging.WARNING):
+            with TestClient(app) as cliente:
+                respuesta = cliente.get("/v1/prueba?registrar=0")
+        assert respuesta.status_code == 200
+    finally:
+        proveedor.shutdown()
+
+    assert exportador.lotes
+    assert "Exception while exporting Span" in caplog.text
+    assert "persona@example.com" not in caplog.text
+
+
+def test_colector_inalcanzable_no_afecta_la_api(
+    monkeypatch: pytest.MonkeyPatch,
+    proveedores_globales_aislados: None,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Un OTLP cerrado no impide responder ni hace fallar el apagado."""
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_TIMEOUT", "1")
+    configuracion = _configuracion(
+        OTEL_EXPORTER_OTLP_ENDPOINT="http://127.0.0.1:9",
+        OTEL_EXPORTER_OTLP_HEADERS="Authorization=Basic super-secreto",
+        OTEL_METRICS_EXPORTER="none",
+        OTEL_LOGS_EXPORTER="none",
+        OTEL_TRACES_SAMPLER_ARG=1.0,
+    )
+    telemetria.configurar_telemetria(configuracion)
+    proveedor = telemetria._tracer_provider
+    assert telemetria.telemetria_activa() is True
+    assert proveedor is not None
+
+    app = FastAPI(title="Pruebas de colector inalcanzable")
+
+    @app.get("/v1/salud")
+    async def salud() -> dict[str, str]:
+        return {"estado": "ok"}
+
+    FastAPIInstrumentor.instrument_app(app, tracer_provider=proveedor)
+
+    inicio = time.monotonic()
+    with caplog.at_level(logging.WARNING):
+        with TestClient(app) as cliente:
+            assert cliente.get("/v1/salud").status_code == 200
+            assert cliente.get("/openapi.json").status_code == 200
+        telemetria.apagar_telemetria()
+        telemetria.apagar_telemetria()
+
+    assert time.monotonic() - inicio < 5.0
+    assert telemetria.telemetria_activa() is False
+    assert "Failed to export" in caplog.text or "Transient error" in caplog.text
+    assert "super-secreto" not in caplog.text
+    assert "Authorization" not in caplog.text
+
+
+def test_otel_sdk_disabled_responde_sin_exportar_spans(
+    monkeypatch: pytest.MonkeyPatch,
+    proveedores_globales_aislados: None,
+) -> None:
+    """Con OTEL_SDK_DISABLED=true la API responde y el SDK no exporta spans."""
+    monkeypatch.setenv("OTEL_SDK_DISABLED", "true")
+    exportador = InMemorySpanExporter()
+    proveedor = TracerProvider(sampler=telemetria.ALWAYS_ON)
+    proveedor.add_span_processor(SimpleSpanProcessor(exportador))
+    otel_trace.set_tracer_provider(proveedor)
+    configuracion = _configuracion(
+        OTEL_SDK_DISABLED=True,
+        OTEL_EXPORTER_OTLP_ENDPOINT="http://127.0.0.1:9",
+    )
+    monkeypatch.setattr(modulo_main, "obtener_configuracion", lambda: configuracion)
+    aplicacion = modulo_main.create_app()
+
+    try:
+        with TestClient(aplicacion) as cliente:
+            assert cliente.get("/v1/salud").status_code == 200
+            assert cliente.get("/openapi.json").status_code == 200
+            assert telemetria.telemetria_activa() is False
+        span = otel_trace.get_tracer("pruebas").start_span("no-grabado")
+        try:
+            assert span.is_recording() is False
+        finally:
+            span.end()
+        assert exportador.get_finished_spans() == ()
+    finally:
+        proveedor.shutdown()
+
+
+def test_sanitizacion_fallida_descarta_span_y_api_responde(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Si la sanitizacion lanza, el span se descarta y la peticion continua."""
+
+    def sanitizar_con_error(span: ReadableSpan) -> None:
+        raise RuntimeError("fallo de sanitizacion")
+
+    exportador = InMemorySpanExporter()
+    proveedor = _proveedor_de_telemetria(exportador)
+    app = _crear_app_de_prueba(proveedor)
+    monkeypatch.setattr(telemetria, "_sanitizar_span", sanitizar_con_error)
+
+    try:
+        with caplog.at_level(logging.WARNING, logger="app.telemetria"):
+            with TestClient(app) as cliente:
+                respuesta = cliente.get(
+                    "/v1/prueba?registrar=0&correo=persona@example.com&lat=4.53"
+                )
+            assert respuesta.status_code == 200
+        assert exportador.get_finished_spans() == ()
+    finally:
+        proveedor.shutdown()
+
+    assert "Se descarta un span por fallo en la sanitizacion" in caplog.text
+    assert "persona@example.com" not in caplog.text

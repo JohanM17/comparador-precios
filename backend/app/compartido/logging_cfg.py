@@ -21,6 +21,10 @@ _PATRON_COORDENADAS_CODIFICADAS = re.compile(
     r"(lat|lng|latitude|longitude)%3D[-+]?(\d*\.\d+|\d+)", re.IGNORECASE
 )
 _PATRON_BEARER = re.compile(r"Bearer\s+[-a-z0-9._~+/]+=*", re.IGNORECASE)
+_PATRON_IPV4 = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
+_PATRON_IPV6_LOCAL = re.compile(r"(?<![\w:])(?:\[::1\]|::1)(?![\w:])")
+_PATRON_HUELLA_RED = re.compile(r"\bhuella_red\s*[=:]\s*[^\s,;]+", re.IGNORECASE)
+_PATRON_HUELLA_HEX = re.compile(r"\b[a-f0-9]{64}\b", re.IGNORECASE)
 
 FORMATO_LOG_CORRELACION = (
     "%(asctime)s %(levelname)s %(name)s [trace_id=%(trace_id)s span_id=%(span_id)s] %(message)s"
@@ -36,7 +40,13 @@ def _ids_traza_actuales() -> tuple[str, str]:
 
 
 def redactar_texto_sensible(texto: str) -> str:
-    """Redacta correos, coordenadas y tokens, incluidas variantes percent-encoded."""
+    """Redacta correos, coordenadas, IP, huellas y tokens.
+
+    Cubre las variantes percent-encoded de correos y coordenadas. Las
+    direcciones IPv4 y el loopback IPv6 se sustituyen por `[REDACTADO_IP]`; las
+    huellas de red etiquetadas o con 64 caracteres hexadecimales se sustituyen
+    por `[REDACTADO_HUELLA]`.
+    """
     if not texto:
         return texto
     redactado = _PATRON_EMAIL.sub("[REDACTADO_EMAIL]", texto)
@@ -44,26 +54,28 @@ def redactar_texto_sensible(texto: str) -> str:
     redactado = _PATRON_COORDENADAS.sub(r"\1=[REDACTADO_COORD]", redactado)
     redactado = _PATRON_COORDENADAS_CODIFICADAS.sub(r"\1%3D[REDACTADO_COORD]", redactado)
     redactado = _PATRON_BEARER.sub("Bearer [REDACTADO_TOKEN]", redactado)
+    redactado = _PATRON_IPV4.sub("[REDACTADO_IP]", redactado)
+    redactado = _PATRON_IPV6_LOCAL.sub("[REDACTADO_IP]", redactado)
+    redactado = _PATRON_HUELLA_RED.sub("[REDACTADO_HUELLA]", redactado)
+    redactado = _PATRON_HUELLA_HEX.sub("[REDACTADO_HUELLA]", redactado)
     return redactado
 
 
 class FiltroPrivacidadLey1581(logging.Filter):
-    """Filtro de logging que garantiza la no filtracion de coordenadas o emails."""
+    """Filtro de logging que garantiza la no filtracion de datos personales.
+
+    El mensaje se formatea antes de redactarlo para que la redaccion cubra
+    tambien los argumentos y no deje placeholders sin reemplazar. Despues del
+    filtro el registro queda con el texto final y sin argumentos pendientes.
+    """
 
     def filter(self, record: logging.LogRecord) -> bool:
-        if isinstance(record.msg, str):
-            record.msg = redactar_texto_sensible(record.msg)
-        if record.args:
-            if isinstance(record.args, dict):
-                record.args = {
-                    k: (redactar_texto_sensible(v) if isinstance(v, str) else v)
-                    for k, v in record.args.items()
-                }
-            elif isinstance(record.args, tuple):
-                record.args = tuple(
-                    redactar_texto_sensible(arg) if isinstance(arg, str) else arg
-                    for arg in record.args
-                )
+        try:
+            mensaje = record.getMessage()
+        except Exception:  # Un registro mal formado nunca debe romper el logging
+            mensaje = str(record.msg)
+        record.msg = redactar_texto_sensible(mensaje)
+        record.args = ()
         return True
 
 
