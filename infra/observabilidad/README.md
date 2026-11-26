@@ -1,9 +1,15 @@
 # Observabilidad del comparador de precios
 
 Artefactos como código para operar el comparador con OpenTelemetry y Grafana.
-El backend exporta métricas, trazas y logs por OTLP/HTTP; este directorio
-versiona el tablero, las reglas de SLO y alertas, y su aprovisionamiento.
+El backend exporta métricas y trazas por OTLP/HTTP y emite logs de aplicación
+correlacionados con `trace_id`/`span_id`; este directorio versiona el tablero,
+las reglas de SLO y alertas, y su aprovisionamiento.
 **No contiene credenciales ni endpoints reales.**
+
+El procedimiento operativo de respuesta a alertas, diagnóstico, simulacro,
+muestreo, retención y reversión está en el runbook
+[`docs/observabilidad.md`](../../docs/observabilidad.md). Este README se limita
+a los artefactos y a su carga; no duplica el runbook.
 
 ## Contenido
 
@@ -92,7 +98,8 @@ corresponden a **T-126**.
    Prometheus.
 
 La etiqueta `service` de las alertas es `comparador-precios-backend`. El enlace
-`runbook_url` apunta a `docs/observabilidad.md`, que crea T-125.
+`runbook_url` apunta a [`docs/observabilidad.md`](../../docs/observabilidad.md),
+el runbook operativo de T-125.
 
 ## Métricas esperadas
 
