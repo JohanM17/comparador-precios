@@ -8,9 +8,15 @@ from typing import Any
 from uuid import UUID
 
 import pytest
+from pydantic import ValidationError
 
 from app.compartido.errores import NoEncontradoError, ValidacionError
 from app.modulos.precios import servicio_historial as modulo_historial
+from app.modulos.precios.esquemas import (
+    DatosHistorial,
+    PuntoHistorial,
+    RespuestaHistorial,
+)
 from app.modulos.precios.servicio_historial import (
     ServicioHistorial,
     validar_parametros_historial,
@@ -116,13 +122,21 @@ def _fila_reporte(
     }
 
 
+class _NoSolicitado:
+    """Centinela para distinguir 'no consultar' de un recurso inexistente."""
+
+
+_NO_SOLICITADO = _NoSolicitado()
+
+
 def _montar_repositorio(
     monkeypatch: pytest.MonkeyPatch,
     *,
     producto: dict[str, Any] | None,
     filas: list[dict[str, Any]],
     llamadas: dict[str, Any],
-    presentacion: dict[str, Any] | None = None,
+    presentacion: dict[str, Any] | None | _NoSolicitado = _NO_SOLICITADO,
+    establecimiento: dict[str, Any] | None | _NoSolicitado = _NO_SOLICITADO,
 ) -> None:
     """Reemplaza las consultas del repositorio por dobles de prueba."""
 
@@ -130,16 +144,18 @@ def _montar_repositorio(
         return producto
 
     async def establecimiento_falso(sesion: Any, establecimiento_id: UUID) -> dict[str, Any] | None:
-        return {
-            "id": ESTABLECIMIENTO_ID,
-            "nombre": "Tienda de prueba",
-            "municipio": "Armenia",
-        }
+        if isinstance(establecimiento, _NoSolicitado):
+            return {
+                "id": ESTABLECIMIENTO_ID,
+                "nombre": "Tienda de prueba",
+                "municipio": "Armenia",
+            }
+        return establecimiento
 
     async def presentacion_falso(
         sesion: Any, presentacion_id: UUID, producto_id: UUID
     ) -> dict[str, Any] | None:
-        if presentacion is None:
+        if isinstance(presentacion, _NoSolicitado):
             raise AssertionError("No debe consultar la presentacion si no se solicito.")
         return presentacion
 
@@ -314,3 +330,132 @@ async def test_servicio_rechaza_producto_inexistente(monkeypatch: pytest.MonkeyP
             desde=DESDE,
             hasta=HASTA,
         )
+
+
+@pytest.mark.asyncio
+async def test_servicio_rechaza_establecimiento_inexistente(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Un establecimiento inexistente o inactivo se traduce en un 404 de negocio."""
+    _montar_repositorio(
+        monkeypatch,
+        producto={"id": PRODUCTO_ID, "nombre": "Arroz", "unidad_base": "g"},
+        filas=[],
+        llamadas={},
+        establecimiento=None,
+    )
+
+    with pytest.raises(NoEncontradoError, match="Establecimiento no encontrado o inactivo"):
+        await ServicioHistorial(object(), ahora=HASTA).obtener_historial(  # type: ignore[arg-type]
+            producto_id=PRODUCTO_ID,
+            establecimiento_id=ESTABLECIMIENTO_ID,
+            desde=DESDE,
+            hasta=HASTA,
+        )
+
+
+@pytest.mark.asyncio
+async def test_servicio_rechaza_presentacion_inexistente(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Una presentacion inexistente o inactiva se traduce en un 404 de negocio."""
+    _montar_repositorio(
+        monkeypatch,
+        producto={"id": PRODUCTO_ID, "nombre": "Arroz", "unidad_base": "g"},
+        filas=[],
+        llamadas={},
+        presentacion=None,
+    )
+
+    with pytest.raises(NoEncontradoError, match="Presentación no encontrada o inactiva"):
+        await ServicioHistorial(object(), ahora=HASTA).obtener_historial(  # type: ignore[arg-type]
+            producto_id=PRODUCTO_ID,
+            establecimiento_id=ESTABLECIMIENTO_ID,
+            presentacion_id=PRESENTACION_ID,
+            desde=DESDE,
+            hasta=HASTA,
+        )
+
+
+def _punto_valido() -> dict[str, Any]:
+    """Payload minimo valido de un punto publico del historial."""
+    return {
+        "id": str(UUID(int=401)),
+        "observado_en": DESDE.isoformat(),
+        "precio_cop": 5000,
+        "precio_por_unidad": {"valor_cop": 5000, "por": "kg"},
+        "origen": "usuario",
+        "estado": "aceptado",
+        "es_demo": False,
+        "presentacion_id": None,
+        "cantidad_base": 1000.0,
+    }
+
+
+def _datos_validos() -> dict[str, Any]:
+    """Payload minimo valido del cuerpo de datos del historial."""
+    return {
+        "producto": {
+            "id": str(PRODUCTO_ID),
+            "nombre": "Arroz",
+            "unidad_base": "g",
+            "unidad_visualizacion": "kg",
+        },
+        "establecimiento": {
+            "id": str(ESTABLECIMIENTO_ID),
+            "nombre": "Tienda de prueba",
+            "municipio": "Armenia",
+        },
+        "presentacion": None,
+        "desde": DESDE.isoformat(),
+        "hasta": HASTA.isoformat(),
+        "puntos": [_punto_valido()],
+        "total": 1,
+        "truncado": False,
+        "datos_de_demostracion": False,
+    }
+
+
+def test_modelos_historial_aceptan_el_payload_valido() -> None:
+    """Los tres DTO publicos aceptan un payload completo sin campos adicionales."""
+    punto = PuntoHistorial.model_validate(_punto_valido())
+    datos = DatosHistorial.model_validate(_datos_validos())
+    respuesta = RespuestaHistorial.model_validate({"datos": _datos_validos()})
+
+    assert punto.origen == "usuario"
+    assert punto.precio_por_unidad.valor_cop == 5000
+    assert datos.total == 1
+    assert respuesta.datos.puntos[0].id == UUID(int=401)
+
+
+@pytest.mark.parametrize(
+    "campo_extra",
+    ["reportante_id", "huella_red", "alias", "correo", "email", "ip", "lat", "lng"],
+)
+def test_punto_historial_rechaza_campos_extra(campo_extra: str) -> None:
+    """El punto no admite campos distintos al contrato publico."""
+    with pytest.raises(ValidationError) as capturado:
+        PuntoHistorial.model_validate({**_punto_valido(), campo_extra: "prohibido"})
+
+    assert capturado.value.errors()[0]["type"] == "extra_forbidden"
+
+
+@pytest.mark.parametrize(
+    "campo_extra",
+    ["reportante_id", "huella_red", "alias", "correo", "email", "ip", "lat", "lng"],
+)
+def test_datos_historial_rechazan_campos_extra(campo_extra: str) -> None:
+    """El cuerpo de datos no admite campos distintos al contrato publico."""
+    with pytest.raises(ValidationError) as capturado:
+        DatosHistorial.model_validate({**_datos_validos(), campo_extra: "prohibido"})
+
+    assert capturado.value.errors()[0]["type"] == "extra_forbidden"
+
+
+@pytest.mark.parametrize("campo_extra", ["datos_privados", "pii"])
+def test_respuesta_historial_rechaza_campos_extra(campo_extra: str) -> None:
+    """La respuesta completa no admite bloques adicionales fuera de 'datos'."""
+    with pytest.raises(ValidationError) as capturado:
+        RespuestaHistorial.model_validate(
+            {"datos": _datos_validos(), campo_extra: {"reportante_id": "filtrado"}}
+        )
+
+    assert capturado.value.errors()[0]["type"] == "extra_forbidden"

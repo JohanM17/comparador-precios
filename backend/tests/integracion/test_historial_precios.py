@@ -7,7 +7,9 @@ claro en lugar de fallar.
 
 from __future__ import annotations
 
+import time
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from typing import Any
 from uuid import uuid4
 
@@ -15,8 +17,9 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 
-from app.bd import sesion_transaccional
+from app.bd import obtener_creador_sesiones, sesion_transaccional
 from app.config import obtener_configuracion
+from app.dominio.unidades import calcular_precio_por_base
 from app.main import app
 from app.modulos.precios.repositorio import listar_reportes_serie
 from app.modulos.precios.servicio_historial import ServicioHistorial
@@ -78,7 +81,17 @@ CLAVES_ESPERADAS = {
     "presentacion_id",
 }
 
-CLAVES_PROHIBIDAS = {"reportante_id", "huella_red", "foto_prueba_path", "lat", "lng"}
+CLAVES_PROHIBIDAS = {
+    "reportante_id",
+    "huella_red",
+    "foto_prueba_path",
+    "lat",
+    "lng",
+    "alias",
+    "correo",
+    "email",
+    "ip",
+}
 
 
 @pytest.mark.asyncio
@@ -442,3 +455,148 @@ async def test_endpoint_historial_200_filtra_por_presentacion() -> None:
     assert datos["puntos"], "La presentacion elegida debe tener puntos visibles."
     assert all(punto["presentacion_id"] == str(par.presentacion_id) for punto in datos["puntos"])
     assert datos["total"] == len(datos["puntos"])
+
+
+async def _buscar_par_activo_sin_reportes_recientes(
+    sesion: Any, desde: datetime, hasta: datetime
+) -> Any:
+    """Elige un par producto-establecimiento activo sin reportes en la ventana."""
+    return (
+        await sesion.execute(
+            text("""
+                SELECT pr.id AS presentacion_id,
+                       pr.producto_id,
+                       pr.cantidad_base,
+                       e.id AS establecimiento_id
+                FROM public.presentacion pr
+                JOIN public.producto p ON p.id = pr.producto_id AND p.activo = true
+                JOIN public.establecimiento e ON e.activo = true
+                WHERE pr.activa = true
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM public.reporte_precio rp
+                      WHERE rp.presentacion_id = pr.id
+                        AND rp.establecimiento_id = e.id
+                        AND rp.observado_en BETWEEN :desde AND :hasta
+                  )
+                ORDER BY pr.id, e.id
+                LIMIT 1;
+            """),
+            {"desde": desde, "hasta": hasta},
+        )
+    ).first()
+
+
+@pytest.mark.asyncio
+async def test_ec08_cambio_oficial_visible_dudoso_marcado_rechazado_excluido() -> None:
+    """EC-08: el cambio oficial aparece sin borrar el anterior y sin caché.
+
+    Inserta cuatro reportes reales en una transacción que siempre se revierte:
+    usuario aceptado, usuario dudoso, usuario rechazado y comercio aceptado.
+    """
+    ahora = datetime.now(UTC)
+    desde = ahora - timedelta(days=90)
+    creador = obtener_creador_sesiones()
+
+    async with creador() as sesion:
+        transaccion = await sesion.begin()
+        try:
+            await sesion.execute(text("SET LOCAL ROLE app_backend;"))
+            par = await _buscar_par_activo_sin_reportes_recientes(sesion, desde, ahora)
+            if par is None:
+                pytest.skip(
+                    "No hay un par producto-establecimiento activo sin reportes recientes; "
+                    "no se puede aislar el escenario EC-08."
+                )
+
+            cantidad_base = Decimal(str(par.cantidad_base))
+            insertar_reporte = text("""
+                INSERT INTO public.reporte_precio (
+                    id, presentacion_id, establecimiento_id, producto_id,
+                    precio_cop, cantidad_base_snapshot, precio_por_base,
+                    fuente, reportante_id, observado_en,
+                    estado, estado_original, conjunto_referencia, es_demo
+                ) VALUES (
+                    :id, :presentacion_id, :establecimiento_id, :producto_id,
+                    :precio_cop, :cantidad_base, :precio_por_base,
+                    CAST(:fuente AS fuente_precio), NULL, :observado_en,
+                    CAST(:estado AS estado_confianza),
+                    CAST(:estado AS estado_confianza), 'presentacion_tienda', false
+                );
+            """)
+
+            ids: dict[str, Any] = {}
+            casos = (
+                ("usuario_aceptado", "usuario", "aceptado", ahora - timedelta(days=10), 4800),
+                ("usuario_dudoso", "usuario", "dudoso", ahora - timedelta(days=5), 4700),
+                ("usuario_rechazado", "usuario", "rechazado", ahora - timedelta(days=3), 4600),
+                ("comercio_aceptado", "comercio", "aceptado", ahora - timedelta(days=1), 5200),
+            )
+            for clave, fuente, estado, observado_en, precio_cop in casos:
+                reporte_id = uuid4()
+                ids[clave] = reporte_id
+                await sesion.execute(
+                    insertar_reporte,
+                    {
+                        "id": reporte_id,
+                        "presentacion_id": par.presentacion_id,
+                        "establecimiento_id": par.establecimiento_id,
+                        "producto_id": par.producto_id,
+                        "precio_cop": precio_cop,
+                        "cantidad_base": cantidad_base,
+                        "precio_por_base": calcular_precio_por_base(precio_cop, cantidad_base),
+                        "fuente": fuente,
+                        "observado_en": observado_en,
+                        "estado": estado,
+                    },
+                )
+
+            inicio = time.monotonic()
+            respuesta = await ServicioHistorial(sesion, ahora=ahora).obtener_historial(
+                producto_id=par.producto_id,
+                establecimiento_id=par.establecimiento_id,
+                desde=desde,
+                hasta=ahora,
+            )
+            transcurrido = time.monotonic() - inicio
+
+            datos = respuesta.datos
+            puntos = datos.puntos
+            ids_visibles = {punto.id for punto in puntos}
+
+            assert len(puntos) == 3, "Solo los estados aceptado y dudoso son visibles."
+            assert ids_visibles == {
+                ids["usuario_aceptado"],
+                ids["usuario_dudoso"],
+                ids["comercio_aceptado"],
+            }
+            assert ids["usuario_rechazado"] not in ids_visibles
+
+            fechas = [punto.observado_en for punto in puntos]
+            assert fechas == sorted(fechas), "La serie debe venir en orden ascendente."
+
+            oficial = next(punto for punto in puntos if punto.origen == "comercio")
+            assert oficial.id == ids["comercio_aceptado"]
+            assert oficial.estado == "aceptado"
+            assert oficial.precio_cop == 5200
+            assert puntos[-1].id == ids["comercio_aceptado"], (
+                "El cambio oficial debe ser el punto más reciente sin borrar el anterior."
+            )
+
+            for punto in puntos:
+                assert punto.origen in {"usuario", "comercio", "semilla"}
+                assert punto.estado in {"aceptado", "dudoso"}
+                assert punto.es_demo is False
+                assert punto.precio_por_unidad.valor_cop > 0
+
+            assert datos.datos_de_demostracion is False
+            assert transcurrido < 60, (
+                "La consulta directa debe reflejar el cambio dentro del plazo de EC-02."
+            )
+
+            claves = _claves_serializadas(respuesta.model_dump(mode="json"))
+            assert not (CLAVES_PROHIBIDAS & claves), (
+                "El DTO del historial no debe exponer datos personales."
+            )
+        finally:
+            await transaccion.rollback()
