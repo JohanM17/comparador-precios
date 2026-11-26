@@ -130,6 +130,17 @@ def test_dashboard_exige_buckets_y_ventana_del_sli(dashboard_valido: dict[str, A
     assert any('le="2500"' in error for error in errores)
 
 
+def test_dashboard_exige_ventana_de_siete_dias(dashboard_valido: dict[str, Any]) -> None:
+    """La ventana del SLI no puede cambiar sin actualizar la validacion."""
+    datos = copy.deepcopy(dashboard_valido)
+    panel_sli = next(panel for panel in datos["panels"] if "SLI" in panel["title"])
+    panel_sli["targets"][0]["expr"] = panel_sli["targets"][0]["expr"].replace("[7d]", "[6h]")
+
+    errores = validador.validar_dashboard(datos)
+
+    assert any("[7d]" in error for error in errores)
+
+
 def test_reglas_sin_grupos_falla(reglas_validas: dict[str, Any]) -> None:
     """Un archivo sin grupos no puede importarse en Prometheus/Mimir."""
     datos = copy.deepcopy(reglas_validas)
@@ -152,12 +163,12 @@ def test_reglas_sin_alertas_falla(reglas_validas: dict[str, Any]) -> None:
     assert any("ninguna regla de tipo 'alert'" in error for error in errores)
 
 
-@pytest.mark.parametrize("campo", ["for", "severity", "summary"])
+@pytest.mark.parametrize("campo", ["for", "severity", "summary", "description"])
 def test_alerta_principal_exige_campos_obligatorios(
     reglas_validas: dict[str, Any],
     campo: str,
 ) -> None:
-    """La alerta principal necesita for, severidad y resumen."""
+    """La alerta principal necesita for, severidad, resumen y descripcion."""
     datos = copy.deepcopy(reglas_validas)
     alerta = _buscar_alerta(datos, validador.ALERTA_SLO)
     if campo == "for":
@@ -166,13 +177,42 @@ def test_alerta_principal_exige_campos_obligatorios(
     elif campo == "severity":
         del alerta["labels"]["severity"]
         esperado = "labels.severity"
-    else:
+    elif campo == "summary":
         del alerta["annotations"]["summary"]
         esperado = "annotations.summary"
+    else:
+        del alerta["annotations"]["description"]
+        esperado = "annotations.description"
 
     errores = validador.validar_reglas(datos)
 
     assert any(esperado in error for error in errores)
+
+
+@pytest.mark.parametrize("duracion", ["5", "5 minutos", "1.5m", "0x"])
+def test_alerta_principal_exige_duracion_prometheus_valida(
+    reglas_validas: dict[str, Any],
+    duracion: str,
+) -> None:
+    """El campo for debe ser una duracion simple de Prometheus."""
+    datos = copy.deepcopy(reglas_validas)
+    alerta = _buscar_alerta(datos, validador.ALERTA_SLO)
+    alerta["for"] = duracion
+
+    errores = validador.validar_reglas(datos)
+
+    assert any("'for'" in error for error in errores)
+
+
+def test_alerta_principal_exige_severidad_conocida(reglas_validas: dict[str, Any]) -> None:
+    """La severidad se limita a critical, warning o info."""
+    datos = copy.deepcopy(reglas_validas)
+    alerta = _buscar_alerta(datos, validador.ALERTA_SLO)
+    alerta["labels"]["severity"] = "notice"
+
+    errores = validador.validar_reglas(datos)
+
+    assert any("labels.severity" in error for error in errores)
 
 
 def test_falta_regla_de_grabacion_del_sli(reglas_validas: dict[str, Any]) -> None:
@@ -215,6 +255,19 @@ def test_alerta_principal_debe_usar_la_regla_de_grabacion(
     assert any("no usa" in error for error in errores)
 
 
+def test_alerta_principal_no_acepta_nombres_de_serie_prefijados(
+    reglas_validas: dict[str, Any],
+) -> None:
+    """Una serie como comparador:sli_comparacion_7d_extra no cuenta como el SLI."""
+    datos = copy.deepcopy(reglas_validas)
+    alerta = _buscar_alerta(datos, validador.ALERTA_SLO)
+    alerta["expr"] = "comparador:sli_comparacion_7d_extra < 0.99"
+
+    errores = validador.validar_reglas(datos)
+
+    assert any("no usa" in error for error in errores)
+
+
 def test_validar_artefactos_rechaza_secreto_en_el_dashboard(
     dashboard_valido: dict[str, Any],
     tmp_path: Path,
@@ -229,6 +282,95 @@ def test_validar_artefactos_rechaza_secreto_en_el_dashboard(
 
     assert any("authorization" in error.lower() for error in errores)
     assert all("abcdef123456" not in error for error in errores)
+
+
+@pytest.mark.parametrize(
+    ("datasource", "esperado", "valor_secreto"),
+    [
+        (
+            {"secureJsonData": {"token": "glsa_secreto_123456"}},
+            "token",
+            "glsa_secreto_123456",
+        ),
+        (
+            {"jsonData": {"httpHeaderName": "Authorization"}},
+            "httpHeaderName",
+            None,
+        ),
+        (
+            {"jsonData": {"basicAuthPassword": "clave-basica-123"}},
+            "basicAuthPassword",
+            "clave-basica-123",
+        ),
+        ({"clientSecret": "cliente-secreto-123"}, "clientSecret", "cliente-secreto-123"),
+        ({"apiKey": "api-key-secreta-123"}, "apiKey", "api-key-secreta-123"),
+    ],
+)
+def test_validar_artefactos_detecta_secretos_en_datasource(
+    dashboard_valido: dict[str, Any],
+    tmp_path: Path,
+    datasource: dict[str, Any],
+    esperado: str,
+    valor_secreto: str | None,
+) -> None:
+    """Un datasource realistico de Grafana no puede colar credenciales conocidas."""
+    datos = copy.deepcopy(dashboard_valido)
+    datos["__inputs"] = [
+        {
+            "name": "DS_PROMETHEUS",
+            "label": "Prometheus",
+            "type": "datasource",
+            "pluginId": "prometheus",
+            "pluginName": "Prometheus",
+            **datasource,
+        }
+    ]
+    ruta = tmp_path / "dashboard.json"
+    ruta.write_text(json.dumps(datos), encoding="utf-8")
+
+    errores = validador.validar_artefactos(ruta, validador.RUTA_REGLAS)
+
+    assert any(
+        error.startswith("Clave ") and esperado.casefold() in error.casefold() for error in errores
+    )
+    if valor_secreto is not None:
+        assert all(valor_secreto not in error for error in errores)
+
+
+def test_validar_artefactos_detecta_claves_sensibles_en_reglas(
+    reglas_validas: dict[str, Any],
+    tmp_path: Path,
+) -> None:
+    """El escaneo estructural tambien cubre el YAML de reglas."""
+    datos = copy.deepcopy(reglas_validas)
+    datos["groups"][0]["rules"][0]["password"] = "clave-yaml-123"  # noqa: S105
+    ruta = _guardar_yaml(datos, tmp_path / "reglas.yml")
+
+    errores = validador.validar_artefactos(validador.RUTA_DASHBOARD, ruta)
+
+    assert any(error.startswith("Clave ") and "password" in error for error in errores)
+    assert all("clave-yaml-123" not in error for error in errores)
+
+
+@pytest.mark.parametrize(
+    ("texto", "esperado"),
+    [
+        ('{"token": "valor-secreto-123"}', "token"),
+        ("{'clientSecret': 'valor-secreto-123'}", "secret"),
+        ('{"basicAuthPassword": "valor-secreto-123"}', "password"),
+        ('{"apiKey": "valor-secreto-123"}', "api key"),
+        ('{"httpHeaderName": "Authorization"}', "httpHeaderName"),
+    ],
+)
+def test_escaneo_de_texto_detecta_claves_entrecomilladas(
+    texto: str,
+    esperado: str,
+) -> None:
+    """El escaneo de texto tolera comillas y variantes camelCase de las claves."""
+    errores = validador.validar_texto_sin_secretos(texto, "el dashboard")
+
+    assert any(esperado.casefold() in error.casefold() for error in errores)
+    assert all("valor-secreto-123" not in error for error in errores)
 
 
 def test_validar_artefactos_rechaza_url_de_grafana(

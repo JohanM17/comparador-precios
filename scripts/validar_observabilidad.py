@@ -65,17 +65,66 @@ FRAGMENTOS_SLI = (
     'http_status_code!~"5.."',
 )
 
+CLAVES_SENSIBLES = {
+    "authorization",
+    "accesstoken",
+    "refreshtoken",
+    "idtoken",
+    "token",
+    "password",
+    "passwd",
+    "contrasena",
+    "basicauthpassword",
+    "clientsecret",
+    "secret",
+    "apikey",
+}
+
+SEVERIDADES_VALIDAS = {"critical", "warning", "info"}
+PATRON_DURACION = re.compile(r"^\d+(?:ms|s|m|h|d|w|y)$")
+PATRON_USO_REGLA_SLI = re.compile(rf"(?<![\w:]){re.escape(REGLA_SLI)}(?![\w:])")
+
 PATRONES_SECRETO: tuple[tuple[str, re.Pattern[str]], ...] = (
-    ("authorization", re.compile(r"authorization\s*[:=]", re.IGNORECASE)),
-    ("bearer", re.compile(r"\bbearer\s+[A-Za-z0-9._~+/=-]{8,}", re.IGNORECASE)),
-    ("basic", re.compile(r"\bbasic\s+[A-Za-z0-9+/=]{8,}", re.IGNORECASE)),
+    (
+        "authorization",
+        re.compile(r"""["']?\bauthorization\b["']?\s*[:=]""", re.IGNORECASE),
+    ),
     (
         "token",
-        re.compile(r"\b(?:access[_-]?|refresh[_-]?|id[_-]?)?token\s*[:=]", re.IGNORECASE),
+        re.compile(
+            r"""["']?\b(?:token|access[_-]?token|refresh[_-]?token|id[_-]?token)\b"""
+            r"""["']?\s*[:=]""",
+            re.IGNORECASE,
+        ),
     ),
-    ("password", re.compile(r"\b(?:password|passwd|contrasena)\s*[:=]", re.IGNORECASE)),
-    ("api key", re.compile(r"\bapi[_-]?key\s*[:=]", re.IGNORECASE)),
-    ("secret", re.compile(r"\b(?:client[_-]?)?secret\s*[:=]", re.IGNORECASE)),
+    (
+        "password",
+        re.compile(
+            r"""["']?\b(?:password|passwd|contrasena|basic[_-]?auth[_-]?password)\b"""
+            r"""["']?\s*[:=]""",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "api key",
+        re.compile(r"""["']?\b(?:api[_-]?key|apikey)\b["']?\s*[:=]""", re.IGNORECASE),
+    ),
+    (
+        "secret",
+        re.compile(
+            r"""["']?\b(?:secret|client[_-]?secret)\b["']?\s*[:=]""",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "httpHeaderName authorization",
+        re.compile(
+            r"""["']?http[_-]?header[_-]?name["']?\s*[:=]\s*["']?authorization\b""",
+            re.IGNORECASE,
+        ),
+    ),
+    ("bearer", re.compile(r"\bbearer\s+[A-Za-z0-9._~+/=-]{8,}", re.IGNORECASE)),
+    ("basic", re.compile(r"\bbasic\s+[A-Za-z0-9+/=]{8,}", re.IGNORECASE)),
     ("credenciales en URL", re.compile(r"://[^/\s:@]+:[^/\s@]+@")),
 )
 
@@ -277,12 +326,18 @@ def _validar_alerta(regla: dict[str, Any]) -> list[str]:
     expresion = regla.get("expr")
     if not isinstance(expresion, str) or not expresion.strip():
         errores.append(f"La alerta '{nombre}' no tiene una expresion 'expr'.")
-    if not regla.get("for"):
-        errores.append(f"La alerta '{nombre}' no declara 'for'.")
+
+    duracion = regla.get("for")
+    if not isinstance(duracion, str) or not PATRON_DURACION.match(duracion):
+        errores.append(f"La alerta '{nombre}' no declara un 'for' con duracion Prometheus valida.")
 
     labels = regla.get("labels")
-    if not isinstance(labels, dict) or not labels.get("severity"):
-        errores.append(f"La alerta '{nombre}' no declara labels.severity.")
+    severidad = labels.get("severity") if isinstance(labels, dict) else None
+    if severidad not in SEVERIDADES_VALIDAS:
+        errores.append(
+            f"La alerta '{nombre}' no declara labels.severity valida "
+            f"({', '.join(sorted(SEVERIDADES_VALIDAS))})."
+        )
 
     annotations = regla.get("annotations")
     if not isinstance(annotations, dict):
@@ -333,9 +388,43 @@ def validar_reglas(
     alerta_slo = next((alerta for alerta in alertas if alerta.get("alert") == ALERTA_SLO), None)
     if alerta_slo is None:
         errores.append(f"Falta la alerta principal '{ALERTA_SLO}'.")
-    elif REGLA_SLI not in str(alerta_slo.get("expr", "")):
+    elif not PATRON_USO_REGLA_SLI.search(str(alerta_slo.get("expr", ""))):
         errores.append(f"La alerta principal '{ALERTA_SLO}' no usa '{REGLA_SLI}'.")
 
+    return errores
+
+
+def _normalizar_clave(clave: str) -> str:
+    """Normaliza una clave y quita separadores, tildes y diferencias de caso."""
+    return re.sub(r"[^a-z0-9]", "", normalizar_texto(clave))
+
+
+def validar_claves_sensibles(datos: Any, nombre_artefacto: str) -> list[str]:
+    """Recorre diccionarios y listas buscando claves de credenciales conocidas.
+
+    Los mensajes solo nombran la clave detectada, nunca su valor.
+    """
+    errores: list[str] = []
+    if isinstance(datos, dict):
+        for clave, valor in datos.items():
+            if not isinstance(clave, str):
+                continue
+            normalizada = _normalizar_clave(clave)
+            if normalizada in CLAVES_SENSIBLES:
+                errores.append(f"Clave sensible '{clave}' detectada en {nombre_artefacto}.")
+            if (
+                normalizada == "httpheadername"
+                and isinstance(valor, str)
+                and valor.strip().casefold() == "authorization"
+            ):
+                errores.append(
+                    "Clave 'httpHeaderName' con valor Authorization detectada en "
+                    f"{nombre_artefacto}."
+                )
+            errores.extend(validar_claves_sensibles(valor, nombre_artefacto))
+    elif isinstance(datos, list):
+        for elemento in datos:
+            errores.extend(validar_claves_sensibles(elemento, nombre_artefacto))
     return errores
 
 
@@ -379,11 +468,13 @@ def validar_artefactos(ruta_dashboard: Path, ruta_reglas: Path) -> list[str]:
 
     if dashboard is not None:
         errores.extend(validar_dashboard(dashboard))
+        errores.extend(validar_claves_sensibles(dashboard, "el dashboard"))
         errores.extend(validar_texto_sin_secretos(texto_dashboard, "el dashboard"))
 
     if reglas is not None:
         expresion_sli = extraer_expresion_sli(dashboard) if dashboard is not None else None
         errores.extend(validar_reglas(reglas, expresion_sli))
+        errores.extend(validar_claves_sensibles(reglas, "las reglas"))
         errores.extend(validar_texto_sin_secretos(texto_reglas, "las reglas"))
         errores.extend(validar_sin_urls_grafana(texto_reglas, "las reglas"))
 
