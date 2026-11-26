@@ -105,9 +105,9 @@
   - **Archivos**: `scripts/semilla.py` o `scripts/semilla_historial.py`, `backend/tests/integracion/test_historial_precios.py`, `supabase/seed/` si aplica
   - **Hecho cuando…**: existen series demo con `es_demo = true` en al menos 3 establecimientos; ejecutar dos veces no duplica; el aviso de demostración se activa.
 
-- [ ] **T-119** [US-A2] | **Certificar EC-08 con integración, E2E y axe**
+- [x] **T-119** [US-A2] | **Certificar EC-08 con integración, E2E y axe**
   - **Funcional verificado**: `test_historial_precios.py` 13/13 contra PostgreSQL; E2E (19/19) y axe ya estaban certificados. Semilla de historial: 5 pasan, 1 skip opt-in.
-  - **Pendiente de rendimiento**: p95 local contra pooler remoto = **1208.57 ms** (criterio 500 ms); la consulta usa el índice y ejecuta en 0.014 ms. Falta medir con el backend desplegado en `us-east-2` o reducir las consultas secuenciales. Informe: `docs/calidad/informe_ec08.md`.
+  - **Rendimiento verificado**: p95 = **272.40 ms** con 100 puntos contra el backend desplegado en Render Ohio (criterio 500 ms). La medición local contra el pooler remoto (1208.57 ms) queda como referencia. Informe: `docs/calidad/informe_ec08.md`.
   - **Depende de**: T-114, T-117, T-118
   - **Resp.**: **C + D**
   - **Archivos**: `backend/tests/integracion/test_historial_precios.py`, `frontend/tests/e2e/historial_precios.spec.ts`, `docs/calidad/trazabilidad.csv`
