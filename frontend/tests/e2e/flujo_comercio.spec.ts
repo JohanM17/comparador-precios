@@ -1,10 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { TIENDA_A, configurarMocksNucleo } from "./mocks_nucleo";
+import { PROD_ID, TIENDA_A, configurarMocksNucleo } from "./mocks_nucleo";
 
 /** Criterio de T-67: veinte precios en modo rápido en menos de un minuto. */
 const PRECIOS_A_CORREGIR = 20;
 const LIMITE_SEGUNDOS = 60;
+const TEMAS = ["claro", "oscuro"] as const;
 
 async function ingresar(page: Page, correo: string): Promise<void> {
   await page.goto("/ingresar", { waitUntil: "networkidle" });
@@ -351,33 +352,49 @@ test.describe("Panel de comercio en S6 (T-67)", () => {
     await expect(page.getByRole("button", { name: "Rechazar" })).toBeVisible();
   });
 
-  test("el panel de comercio no tiene violaciones axe críticas o serias", async ({ page }) => {
-    await configurarMocksNucleo(page, {
-      rol: "comercio",
-      autorizadoInicial: true,
-      presentacionesComercio: 8,
-      preciosOficialesComercio: 8,
-    });
-    await ingresar(page, "comercio@armenia.co");
-    await page.goto("/gestion", { waitUntil: "networkidle" });
+  for (const tema of TEMAS) {
+    test(`el panel de comercio en modo ${tema} no tiene violaciones axe críticas o serias`, async ({
+      page,
+    }) => {
+      await page.addInitScript((valor) => {
+        try {
+          window.localStorage.setItem("tema", valor);
+        } catch {
+          // Sin almacenamiento disponible la pagina cae al tema del sistema.
+        }
+      }, tema);
+      await configurarMocksNucleo(page, {
+        rol: "comercio",
+        autorizadoInicial: true,
+        presentacionesComercio: 8,
+        preciosOficialesComercio: 8,
+      });
+      await ingresar(page, "comercio@armenia.co");
+      await page.goto("/gestion", { waitUntil: "networkidle" });
 
-    const contenido: readonly { readonly pestana: string; readonly espera: RegExp }[] = [
-      { pestana: "Precios", espera: /Modo rápido/ },
-      { pestana: "Promociones", espera: /Publicar una promoción/ },
-      { pestana: "Mi comercio", espera: /Mis establecimientos/ },
-    ];
-    for (const { pestana, espera } of contenido) {
-      await page.getByRole("tab", { name: pestana, exact: true }).click();
-      await expect(page.getByRole("tab", { name: pestana, exact: true })).toHaveAttribute(
-        "aria-selected",
-        "true"
+      const esOscuro = await page.evaluate(() =>
+        document.documentElement.classList.contains("dark")
       );
-      // Se espera el contenido propio de la pestaña antes de analizar: axe no
-      // debe escanear el panel vacio del cambio de pestaña.
-      await expect(page.getByText(espera).first()).toBeVisible();
-      await analizarAxe(page, `pestaña ${pestana}`);
-    }
-  });
+      expect(esOscuro, `El tema ${tema} no quedo aplicado`).toBe(tema === "oscuro");
+
+      const contenido: readonly { readonly pestana: string; readonly espera: RegExp }[] = [
+        { pestana: "Precios", espera: /Modo rápido/ },
+        { pestana: "Promociones", espera: /Publicar una promoción/ },
+        { pestana: "Mi comercio", espera: /Mis establecimientos/ },
+      ];
+      for (const { pestana, espera } of contenido) {
+        await page.getByRole("tab", { name: pestana, exact: true }).click();
+        await expect(page.getByRole("tab", { name: pestana, exact: true })).toHaveAttribute(
+          "aria-selected",
+          "true"
+        );
+        // Se espera el contenido propio de la pestaña antes de analizar: axe no
+        // debe escanear el panel vacio del cambio de pestaña.
+        await expect(page.getByText(espera).first()).toBeVisible();
+        await analizarAxe(page, `pestaña ${pestana} (modo ${tema})`);
+      }
+    });
+  }
 
   test("la pestaña de reclamos de comercio no tiene violaciones axe como moderador", async ({
     page,
@@ -392,6 +409,121 @@ test.describe("Panel de comercio en S6 (T-67)", () => {
     ).toBeVisible();
     await expect(page.getByText("don_jose · 3001234567")).toBeVisible();
     await analizarAxe(page, "pestaña Reclamos de comercio");
+  });
+});
+
+test.describe("Disputa de precio en la cola de moderación (D-01)", () => {
+  test("muestra ambos precios y solo las decisiones que el backend acepta", async ({ page }) => {
+    let decisionEnviada: unknown;
+    await configurarMocksNucleo(page, {
+      rol: "moderador",
+      autorizadoInicial: true,
+      casoModeracion: "disputa_precio",
+      alResolverCaso: (cuerpo) => {
+        decisionEnviada = cuerpo;
+      },
+    });
+    await ingresar(page, "moderador@armenia.co");
+    await page.goto("/gestion", { waitUntil: "networkidle" });
+
+    const filtro = page.locator("#filtro-tipo-caso");
+    await expect(filtro.locator('option[value="disputa_precio"]')).toHaveText(
+      "Disputa de precio"
+    );
+    await expect(filtro.locator('option[value="verificacion_comercio"]')).toHaveText(
+      "Verificación de comercio"
+    );
+    await filtro.selectOption("disputa_precio");
+
+    await page.getByRole("button", { name: "Revisar" }).click();
+    await expect(page.locator('[data-prueba="detalle-disputa"]')).toBeVisible();
+    await expect(page.locator('[data-prueba="precio-oficial-disputa"]')).toContainText("$3.700");
+    await expect(page.locator('[data-prueba="precio-comunidad-disputa"]')).toContainText(
+      "$3.000"
+    );
+    await expect(page.getByText(/Diferencia: 18,9 %/)).toBeVisible();
+    await expect(page.getByText(/4 reportes · 3 fuentes/)).toBeVisible();
+
+    const opciones = page.locator("#decision-caso option");
+    await expect(opciones).toHaveText([
+      "Dar la razón al comercio (confirmar)",
+      "Dar la razón a la comunidad (descartar)",
+    ]);
+    await expect(page.getByText(/sancionar/i)).toHaveCount(0);
+
+    await page.selectOption("#decision-caso", "confirmar");
+    await page.fill("#nota-caso", "Contraste verificado en góndola");
+    await page.getByRole("button", { name: "Guardar resolución" }).click();
+
+    await expect(page.getByText(/resuelto: gana el comercio/)).toBeVisible();
+    expect(decisionEnviada).toEqual({
+      decision: "confirmar",
+      nota: "Contraste verificado en góndola",
+      sancion: null,
+    });
+  });
+
+  for (const tema of TEMAS) {
+    test(`el panel de disputa en modo ${tema} no tiene violaciones axe críticas o serias`, async ({
+      page,
+    }) => {
+      await page.addInitScript((valor) => {
+        try {
+          window.localStorage.setItem("tema", valor);
+        } catch {
+          // Sin almacenamiento disponible la pagina cae al tema del sistema.
+        }
+      }, tema);
+      await configurarMocksNucleo(page, {
+        rol: "moderador",
+        autorizadoInicial: true,
+        casoModeracion: "disputa_precio",
+      });
+      await ingresar(page, "moderador@armenia.co");
+      await page.goto("/gestion", { waitUntil: "networkidle" });
+      await page.getByRole("button", { name: "Revisar" }).click();
+      await expect(page.locator('[data-prueba="detalle-disputa"]')).toBeVisible();
+
+      const esOscuro = await page.evaluate(() =>
+        document.documentElement.classList.contains("dark")
+      );
+      expect(esOscuro, `El tema ${tema} no quedo aplicado`).toBe(tema === "oscuro");
+      await analizarAxe(page, `panel de disputa (modo ${tema})`);
+    });
+  }
+});
+
+test.describe("Aviso D-02 de revalidación del precio oficial", () => {
+  test("la ficha de tienda muestra el motivo sin romper el sello oficial", async ({ page }) => {
+    await configurarMocksNucleo(page, {
+      presentacionesComercio: 2,
+      preciosOficialesComercio: 2,
+      revalidacionComercio: true,
+    });
+    await page.goto(`/tienda/${TIENDA_A}`, { waitUntil: "networkidle" });
+
+    await expect(
+      page.getByRole("heading", { name: /Precios vigentes en este establecimiento/ })
+    ).toBeVisible();
+    const avisos = page.locator('[data-prueba="aviso-revalidacion"]');
+    await expect(avisos).toHaveCount(2);
+    await expect(avisos.first()).toContainText(
+      "Precio oficial por revalidar: 45 días sin cambios"
+    );
+    await expect(page.getByText("Precio oficial", { exact: true }).first()).toBeVisible();
+    await analizarAxe(page, "ficha de tienda con aviso D-02");
+  });
+
+  test("el comparador muestra el motivo del precio oficial por revalidar", async ({ page }) => {
+    await configurarMocksNucleo(page, { revalidacionComparacion: true });
+    await page.goto(`/producto/${PROD_ID}`, { waitUntil: "networkidle" });
+
+    await expect(page.getByRole("heading", { name: "Arroz blanco", exact: true })).toBeVisible();
+    const aviso = page.locator('[data-prueba="aviso-revalidacion"]');
+    await expect(aviso).toBeVisible();
+    await expect(aviso).toContainText("Precio oficial por revalidar: 45 días sin cambios");
+    await expect(page.getByText("Precio oficial", { exact: true })).toBeVisible();
+    await analizarAxe(page, "comparador con aviso D-02");
   });
 });
 

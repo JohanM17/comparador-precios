@@ -153,7 +153,15 @@ export default function FichaTienda({
                     className="flex flex-col justify-between gap-4 rounded-xl border border-slate-300 bg-superficie p-4 sm:flex-row sm:items-center"
                   >
                     <div className="space-y-1.5">
-                      <SelloConfianza sello={p.sello} motivoSello={p.motivo_sello ?? null} />
+                      <SelloConfianza
+                        sello={p.sello}
+                        motivoSello={p.motivo_sello ?? null}
+                        avisoRevalidacion={
+                          p.requiere_revalidacion
+                            ? p.motivo_sello || "Precio oficial por revalidar"
+                            : null
+                        }
+                      />
                       <div>
                         <Link
                           href={`/producto/${p.producto_id}`}

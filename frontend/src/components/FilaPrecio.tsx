@@ -102,7 +102,15 @@ export default function FilaPrecio({
       </div>
 
       <div className="col-start-2 col-end-4 mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <SelloConfianza sello={item.sello} motivoSello={item.motivo_sello ?? null} />
+        <SelloConfianza
+          sello={item.sello}
+          motivoSello={item.motivo_sello ?? null}
+          avisoRevalidacion={
+            item.requiere_revalidacion
+              ? item.motivo_sello || "Precio oficial por revalidar"
+              : null
+          }
+        />
         <span className="text-[12.5px] text-slate-500">
           {presentacion.etiqueta}
           {presentacion.marca ? ` (${presentacion.marca})` : ""}

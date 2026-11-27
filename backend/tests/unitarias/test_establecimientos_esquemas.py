@@ -46,8 +46,22 @@ def test_precio_vigente_resumen_sin_precio_oficial_es_nulo() -> None:
     assert resumen.precio_oficial_cop is None
 
 
+def test_precio_vigente_resumen_expone_la_revalidacion() -> None:
+    """D-02: la ficha publica puede avisar que el precio oficial pide revalidacion."""
+    resumen = PrecioVigenteResumen.model_validate(_datos(requiere_revalidacion=True))
+
+    assert resumen.requiere_revalidacion is True
+
+
 def test_consulta_de_detalle_incluye_precio_oficial() -> None:
     """La consulta de la ficha no puede olvidar la columna que alimenta el DTO."""
     fuente = inspect.getsource(repositorio.obtener_establecimiento_por_id)
 
     assert "pv.precio_oficial_cop" in fuente
+
+
+def test_consulta_de_detalle_incluye_la_revalidacion() -> None:
+    """D-02: la consulta debe traer la columna que dispara el aviso en la ficha."""
+    fuente = inspect.getsource(repositorio.obtener_establecimiento_por_id)
+
+    assert "pv.requiere_revalidacion" in fuente

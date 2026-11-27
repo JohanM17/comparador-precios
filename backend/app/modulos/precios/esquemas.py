@@ -120,6 +120,7 @@ class ItemResultadoComparacion(BaseModel):
     presentacion: PresentacionComparacion
     precio_cop: int
     precio_oficial_cop: int | None = None
+    requiere_revalidacion: bool = False
     precio_por_unidad: PrecioUnidad
     sello: str
     motivo_sello: str | None = None
