@@ -410,6 +410,7 @@ def _fila_comparacion(presentacion_id: UUID, establecimiento_id: UUID) -> Simple
         establecimiento_id=establecimiento_id,
         precio_cop=3200,
         precio_oficial_cop=None,
+        requiere_revalidacion=False,
         precio_por_base=Decimal("6.4"),
         sello="vigente",
         ultimo_reporte_en=datetime.now(UTC),
