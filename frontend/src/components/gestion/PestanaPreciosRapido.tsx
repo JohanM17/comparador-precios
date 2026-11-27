@@ -144,6 +144,8 @@ export default function PestanaPreciosRapido({
 
   const tiendaActual = tiendas.find((tienda) => tienda.id === tiendaId);
   const hayFilasOficiales = filas.some(esPrecioOficial);
+  const hayOficialesReales =
+    (tiendaActual?.n_precios_oficiales ?? 0) > 0 || hayFilasOficiales;
   /*
    * En una tienda sin precios oficiales no hay nada que revalidar: intentarlo
    * responde 409. La primera vez se publican todas las filas comunitarias como
@@ -153,13 +155,17 @@ export default function PestanaPreciosRapido({
    */
   const primeraPublicacion =
     tiendaActual !== undefined &&
-    tiendaActual.n_precios_oficiales === 0 &&
-    !hayFilasOficiales &&
+    !hayOficialesReales &&
     !publicadasEnSesion.includes(tiendaId);
 
   const filasConValor = filas
     .map((fila) => ({ fila, valor: valores[fila.presentacionId] ?? "" }))
     .filter(({ valor }) => valor !== "" && Number(valor) > 0);
+
+  const filasOmitidas = filas.filter((fila) => {
+    const valor = valores[fila.presentacionId] ?? "";
+    return valor === "" || Number(valor) <= 0;
+  });
 
   const cambiados: PrecioOficialEntrada[] = filasConValor
     .filter(({ fila, valor }) => Number(valor) !== precioPrecargado(fila))
@@ -192,6 +198,7 @@ export default function PestanaPreciosRapido({
     if (preciosAEnviar.length === 0) {
       return;
     }
+    const omitidas = filasOmitidas.length;
     setError(null);
     setExito(null);
     setGuardando(true);
@@ -205,15 +212,24 @@ export default function PestanaPreciosRapido({
         motivo: rechazo.motivo,
       }));
       setRechazados(motivos);
-      setPublicadasEnSesion((previas) =>
-        previas.includes(tiendaId) ? previas : [...previas, tiendaId]
-      );
-      setExito(
+      if (res.actualizados > 0) {
+        setPublicadasEnSesion((previas) =>
+          previas.includes(tiendaId) ? previas : [...previas, tiendaId]
+        );
+      }
+      const resumen =
         motivos.length === 0
-          ? `${res.actualizados} ${res.actualizados === 1 ? "precio publicado" : "precios publicados"}.` +
-              " Ninguno quedó fuera."
-          : `${res.actualizados} publicados, ${motivos.length} no entraron.`
-      );
+          ? `${res.actualizados} ${res.actualizados === 1 ? "precio publicado" : "precios publicados"}.`
+          : `${res.actualizados} publicados, ${motivos.length} no entraron.`;
+      const faltantes =
+        omitidas > 0
+          ? ` ${omitidas} ${omitidas === 1 ? "fila quedó" : "filas quedaron"} sin precio y no se ${
+              omitidas === 1 ? "envió" : "enviaron"
+            }.`
+          : motivos.length === 0
+            ? " Ninguno quedó fuera."
+            : "";
+      setExito(resumen + faltantes);
       await cargarPresentaciones(true);
     } catch (err) {
       setError(extraerInfoError(err, "No fue posible publicar los precios."));
@@ -384,6 +400,19 @@ export default function PestanaPreciosRapido({
             })}
           </ul>
 
+          {filasOmitidas.length > 0 && (
+            <p
+              data-prueba="filas-sin-precio"
+              className="max-w-[62ch] text-[12.5px] leading-relaxed text-cereza-600"
+            >
+              {filasOmitidas.length}{" "}
+              {filasOmitidas.length === 1
+                ? "fila quedó sin precio y no se enviará"
+                : "filas quedaron sin precio y no se enviarán"}
+              . Complétalas si quieres publicarlas.
+            </p>
+          )}
+
           <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
             <button
               type="button"
@@ -401,7 +430,7 @@ export default function PestanaPreciosRapido({
                     : `Publicar ${cambiados.length} ${cambiados.length === 1 ? "precio" : "precios"}`}
             </button>
 
-            {!primeraPublicacion && (
+            {hayOficialesReales && (
               <button
                 type="button"
                 onClick={() => void revalidar()}

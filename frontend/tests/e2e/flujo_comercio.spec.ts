@@ -108,6 +108,7 @@ test.describe("Panel de comercio en S6 (T-67)", () => {
       autorizadoInicial: true,
       presentacionesComercio: 2,
       preciosOficialesComercio: 1,
+      selloPreciosOficiales: "en_disputa",
     });
     await ingresar(page, "comercio@armenia.co");
     await page.goto("/gestion", { waitUntil: "networkidle" });
@@ -115,10 +116,14 @@ test.describe("Panel de comercio en S6 (T-67)", () => {
     const campos = page.locator('[data-prueba="lista-precios-rapido"] input');
     await expect(campos).toHaveCount(2);
 
-    // La fila con sello oficial muestra el precio del comercio (3700), no el comunitario (3000).
+    // En disputa el precio vigente es la comunidad (3000), pero el campo debe
+    // precargar el oficial (3700) y rotular la discrepancia.
     await expect(campos.nth(0)).toHaveValue("3700");
     await expect(
-      page.locator('[data-prueba="lista-precios-rapido"]').getByText(/tu precio oficial/)
+      page.locator('[data-prueba="lista-precios-rapido"]').getByText(/oficial en disputa/)
+    ).toBeVisible();
+    await expect(
+      page.locator('[data-prueba="lista-precios-rapido"]').getByText(/comunidad \$3\.000/)
     ).toBeVisible();
 
     // La fila sin precio oficial muestra el comunitario y lo advierte.
@@ -156,6 +161,14 @@ test.describe("Panel de comercio en S6 (T-67)", () => {
     await expect(page.getByRole("button", { name: "Todo sigue igual" })).toHaveCount(0);
     await expect(page.getByText(/Esta tienda aún no tiene precios oficiales/)).toBeVisible();
 
+    // Antes de publicar, «Mi comercio» tambien refleja cero oficiales.
+    await page.getByRole("tab", { name: "Mi comercio" }).click();
+    await expect(page.getByText(/0 precios oficiales/)).toBeVisible();
+    await expect(page.getByText(/Publícalos en la pestaña «Precios»/)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Todo sigue igual" })).toHaveCount(0);
+
+    await page.getByRole("tab", { name: "Precios", exact: true }).click();
+    await expect(page.locator('[data-prueba="lista-precios-rapido"] input')).toHaveCount(5);
     await boton.click();
     await expect(page.getByText("5 precios publicados. Ninguno quedó fuera.")).toBeVisible();
 
@@ -163,10 +176,93 @@ test.describe("Panel de comercio en S6 (T-67)", () => {
     expect(publicado?.precios?.[0]?.precio_cop).toBe(3000);
     expect(revalidaciones).toBe(0);
 
-    // «Mi comercio» tampoco ofrece revalidar una tienda que aun no publico nada.
+    // El mock ahora es stateful: el aviso inicial desaparece y ya hay oficiales
+    // que se pueden revalidar sin recibir un 409.
+    await expect(page.getByText(/Esta tienda aún no tiene precios oficiales/)).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Todo sigue igual" })).toBeVisible();
+    await expect(boton).toContainText("Sin cambios por publicar");
+
     await page.getByRole("tab", { name: "Mi comercio" }).click();
-    await expect(page.getByText(/Publícalos en la pestaña «Precios»/)).toBeVisible();
+    await expect(page.getByText(/5 precios oficiales/)).toBeVisible();
+    await expect(page.getByText(/Publícalos en la pestaña «Precios»/)).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Todo sigue igual" })).toBeVisible();
+  });
+
+  test("si la primera publicación se rechaza entera, no aparece «Todo sigue igual»", async ({
+    page,
+  }) => {
+    let publicaciones = 0;
+    await configurarMocksNucleo(page, {
+      rol: "comercio",
+      autorizadoInicial: true,
+      presentacionesComercio: 3,
+      preciosOficialesComercio: 0,
+      rechazarPrecios: {
+        "pres-0": "La presentacion no existe o esta inactiva.",
+        "pres-1": "La presentacion no existe o esta inactiva.",
+        "pres-2": "La presentacion no existe o esta inactiva.",
+      },
+      alPublicarPrecios: () => {
+        publicaciones += 1;
+      },
+    });
+    await ingresar(page, "comercio@armenia.co");
+    await page.goto("/gestion", { waitUntil: "networkidle" });
+
+    const boton = page.locator('[data-prueba="publicar-precios"]');
+    await expect(boton).toContainText("Publicar precios comunitarios");
     await expect(page.getByRole("button", { name: "Todo sigue igual" })).toHaveCount(0);
+
+    await boton.click();
+    await expect(page.getByText("0 publicados, 3 no entraron.")).toBeVisible();
+    await expect(page.getByRole("alert").filter({ hasText: "3 no entraron" })).toBeVisible();
+
+    // Sin oficiales reales no se ofrece revalidar, y el boton sigue disponible
+    // para reintentar la publicacion completa.
+    await expect(page.getByRole("button", { name: "Todo sigue igual" })).toHaveCount(0);
+    await expect(boton).toBeEnabled();
+    await expect(boton).toContainText("Publicar precios comunitarios");
+    expect(publicaciones).toBe(1);
+
+    await boton.click();
+    expect(publicaciones).toBe(2);
+  });
+
+  test("una fila sin precio se informa y no se publica como si todo hubiera entrado", async ({
+    page,
+  }) => {
+    let publicado: { precios?: { presentacion_id: string }[] } | undefined;
+    await configurarMocksNucleo(page, {
+      rol: "comercio",
+      autorizadoInicial: true,
+      presentacionesComercio: 2,
+      preciosOficialesComercio: 2,
+      alPublicarPrecios: (cuerpo) => {
+        publicado = cuerpo as typeof publicado;
+      },
+    });
+    await ingresar(page, "comercio@armenia.co");
+    await page.goto("/gestion", { waitUntil: "networkidle" });
+
+    const campos = page.locator('[data-prueba="lista-precios-rapido"] input');
+    await campos.nth(1).fill("");
+    await campos.nth(0).focus();
+    await page.keyboard.press("Control+a");
+    await page.keyboard.type("4100");
+
+    await expect(page.locator('[data-prueba="filas-sin-precio"]')).toContainText(
+      "1 fila quedó sin precio"
+    );
+    const boton = page.locator('[data-prueba="publicar-precios"]');
+    await expect(boton).toContainText("Publicar 1 precio");
+    await boton.click();
+
+    await expect(
+      page.getByText("1 precio publicado. 1 fila quedó sin precio y no se envió.")
+    ).toBeVisible();
+    await expect(page.getByText(/Ninguno quedó fuera/)).toHaveCount(0);
+    expect(publicado?.precios).toHaveLength(1);
+    expect(publicado?.precios?.[0]?.presentacion_id).toBe("pres-0");
   });
 
   test("un rechazo conserva el valor tecleado y el motivo visible", async ({ page }) => {

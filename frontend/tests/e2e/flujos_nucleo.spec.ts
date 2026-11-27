@@ -71,7 +71,8 @@ test.describe("Flujos E2E del Nucleo (T-51)", () => {
     expect(claveIdempotenciaRecibida).toMatch(/^[0-9a-f-]{36}$/i);
   });
 
-  test("Flujo 3: Moderador consulta cola y resuelve un caso en /gestion", async ({ page }) => {    let decisionEnviada: unknown;
+  test("Flujo 3: Moderador consulta cola y resuelve un caso en /gestion", async ({ page }) => {
+    let decisionEnviada: unknown;
     await configurarMocksNucleo(page, {
       rol: "moderador",
       autorizadoInicial: true,

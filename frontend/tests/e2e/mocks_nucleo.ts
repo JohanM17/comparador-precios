@@ -80,6 +80,8 @@ interface EstadoMock {
   autorizado: boolean;
   casoResuelto: boolean;
   promocionRevocada: boolean;
+  /** Precios oficiales activos por presentacion; el PUT los actualiza. */
+  preciosOficiales: Record<string, number>;
   readonly rol: "reportante" | "moderador" | "comercio";
   readonly opts: OpcionesMock;
 }
@@ -407,23 +409,28 @@ async function responderCuentaYReportes(route: Route, ruta: string, metodo: stri
 /** Presentaciones sinteticas para medir el modo rapido con un lote realista. */
 export function presentacionesComercioMock(
   cantidad: number,
-  preciosOficiales = 0,
+  preciosOficiales: Readonly<Record<string, number>> = {},
   selloOficial: "oficial" | "en_disputa" = "oficial"
 ): unknown[] {
   return Array.from({ length: cantidad }, (_, i) => {
+    const presentacionId = `pres-${i}`;
     const precioComunidad = 3000 + i * 50;
-    const tieneOficial = i < preciosOficiales;
+    const precioOficial = preciosOficiales[presentacionId];
+    const tieneOficial = precioOficial !== undefined;
+    /*
+     * Sello `oficial`: el precio vigente es el del comercio. Sello `en_disputa`:
+     * el vigente es la comunidad y el oficial viaja al lado. Esta ultima es la
+     * rama donde los dos valores difieren de verdad.
+     */
+    const precioVisible =
+      tieneOficial && selloOficial === "oficial" ? precioOficial : precioComunidad;
     return {
       producto_id: `prod-${i}`,
       producto_nombre: `Producto ${i + 1}`,
-      presentacion_id: `pres-${i}`,
+      presentacion_id: presentacionId,
       presentacion_etiqueta: `Marca ${i + 1} 500 g`,
-      precio_cop: precioComunidad,
-      /*
-       * El precio oficial se separa del comunitario a proposito: si el panel
-       * precargara el comunitario, la prueba lo notaria en el valor del campo.
-       */
-      precio_oficial_cop: tieneOficial ? precioComunidad + 700 : null,
+      precio_cop: precioVisible,
+      precio_oficial_cop: tieneOficial ? precioOficial : null,
       precio_por_base: { valor_cop: 6000 + i * 100, por: "kg" },
       sello: tieneOficial ? selloOficial : "confiable",
       motivo_sello: tieneOficial
@@ -441,14 +448,14 @@ async function responderComercio(
   estado: EstadoMock
 ): Promise<boolean> {
   const cantidad = estado.opts.presentacionesComercio ?? 20;
-  const preciosOficiales = estado.opts.preciosOficialesComercio ?? 0;
+  const totalOficiales = Object.keys(estado.preciosOficiales).length;
 
   if (ruta === "/v1/comercio/establecimientos" && metodo === "GET") {
     await route.fulfill({
       json: [{
         id: TIENDA_A, nombre: "Tienda La Esquina", tipo: "tienda_barrio", barrio: "Centro",
         direccion: "Cra 14 # 18-22", estado_verificacion: "verificado",
-        n_precios_oficiales: preciosOficiales, n_por_revalidar: 0,
+        n_precios_oficiales: totalOficiales, n_por_revalidar: 0,
       }],
     });
     return true;
@@ -462,7 +469,7 @@ async function responderComercio(
         lat: 4.535, lng: -75.675, distancia_m: null, estado_verificacion: "verificado", activo: true,
         precios_vigentes: presentacionesComercioMock(
           cantidad,
-          preciosOficiales,
+          estado.preciosOficiales,
           estado.opts.selloPreciosOficiales ?? "oficial"
         ),
       },
@@ -482,6 +489,11 @@ async function responderComercio(
         presentacion_id: precio.presentacion_id,
         motivo: motivos[precio.presentacion_id] ?? "Precio rechazado en la prueba.",
       }));
+    for (const precio of cuerpo.precios ?? []) {
+      if (!(precio.presentacion_id in motivos)) {
+        estado.preciosOficiales[precio.presentacion_id] = precio.precio_cop;
+      }
+    }
     const actualizados = (cuerpo.precios?.length ?? 0) - rechazados.length;
     await route.fulfill({ json: { actualizados, rechazados } });
     return true;
@@ -489,7 +501,8 @@ async function responderComercio(
 
   if (ruta === `/v1/comercio/establecimientos/${TIENDA_A}/revalidar` && metodo === "POST") {
     estado.opts.alRevalidarPrecios?.();
-    if (preciosOficiales === 0) {
+    const revalidados = Object.keys(estado.preciosOficiales).length;
+    if (revalidados === 0) {
       /*
        * El backend responde 409 cuando no hay precios oficiales que revalidar.
        * El mock no puede fingir doce confirmaciones para una tienda vacia: esa
@@ -508,7 +521,7 @@ async function responderComercio(
       return true;
     }
     await route.fulfill({
-      json: { revalidados: preciosOficiales, revalidado_en: new Date().toISOString() },
+      json: { revalidados, revalidado_en: new Date().toISOString() },
     });
     return true;
   }
@@ -600,10 +613,16 @@ async function responderModeracion(route: Route, ruta: string, metodo: string, e
 }
 
 export async function configurarMocksNucleo(page: Page, opts: OpcionesMock = {}): Promise<void> {
+  const cantidadInicial = opts.presentacionesComercio ?? 20;
+  const preciosOficiales: Record<string, number> = {};
+  for (let i = 0; i < Math.min(opts.preciosOficialesComercio ?? 0, cantidadInicial); i += 1) {
+    preciosOficiales[`pres-${i}`] = 3000 + i * 50 + 700;
+  }
   const estado: EstadoMock = {
     autorizado: opts.autorizadoInicial ?? true,
     casoResuelto: false,
     promocionRevocada: false,
+    preciosOficiales,
     rol: opts.rol ?? "reportante",
     opts,
   };
