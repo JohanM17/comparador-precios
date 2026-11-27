@@ -191,7 +191,7 @@ Como integrante del equipo, quiero un tablero con métricas, trazas y registros 
 - La gráfica se implementa en el frontend con una librería o SVG accesible; la decisión técnica se toma en `plan.md`.
 - Los datos de demostración de 90 días se generan en la semilla o en un script de apoyo, marcados con `es_demo = true`.
 - El equipo acepta que la ventana de evaluación del SLO sea de 7 días para el corte, documentando que en producción podría ampliarse.
-- La numeración de la migración de la ampliación se coordina con `0004_modulo_comercial.sql`; no se edita una migración ya aplicada.
+- La numeración de la migración de la ampliación se coordina con la del módulo comercial, que quedó en `0006_modulo_comercial.sql`; no se edita una migración ya aplicada.
 - El mapeo de «Entregable 5/6» del anexo con la numeración global de `PROYECTO.md` se confirma con la guía del curso (`PA-06`).
 
 ---

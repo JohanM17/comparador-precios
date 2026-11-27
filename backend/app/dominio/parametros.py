@@ -19,6 +19,10 @@ class ParametrosDominio:
     vigencia_vigente_dias: int = 7
     vigencia_antiguo_dias: int = 30
     vigencia_comercio_revalidar_dias: int = 30
+    disputa_min_reportes: int = 3
+    disputa_min_cuentas: int = 2
+    disputa_ventana_horas: int = 48
+    disputa_diferencia_pct: float = 0.10
     anomalia_ventana_dias: int = 14
     anomalia_n_min_referencia: int = 3
     anomalia_n_min_z: int = 5
@@ -66,6 +70,7 @@ class ParametrosDominio:
             "vigencia.vida_media_horas": "vigencia_vida_media_horas",
             "vigencia.vigente_dias": "vigencia_vigente_dias",
             "vigencia.antiguo_dias": "vigencia_antiguo_dias",
+            "vigencia.comercio_revalidar_dias": "vigencia_comercio_revalidar_dias",
             "anomalia.ventana_dias": "anomalia_ventana_dias",
             "anomalia.n_min_referencia": "anomalia_n_min_referencia",
             "anomalia.n_min_z": "anomalia_n_min_z",
@@ -95,4 +100,23 @@ class ParametrosDominio:
         for clave_sql, campo_python in mapeo.items():
             if clave_sql in data:
                 kwargs[campo_python] = data[clave_sql]
+
+        # Los parametros de disputa (D-01) se sembraron agrupados en dos objetos JSON.
+        compuestos = {
+            "disputa.min_reportes_y_cuentas": {
+                "min_reportes": "disputa_min_reportes",
+                "min_cuentas": "disputa_min_cuentas",
+            },
+            "disputa.ventana_y_diferencia": {
+                "ventana_horas": "disputa_ventana_horas",
+                "diferencia_pct": "disputa_diferencia_pct",
+            },
+        }
+        for clave_sql, campos in compuestos.items():
+            bloque = data.get(clave_sql)
+            if isinstance(bloque, dict):
+                for clave_json, campo_python in campos.items():
+                    if clave_json in bloque:
+                        kwargs[campo_python] = bloque[clave_json]
+
         return cls(**kwargs)

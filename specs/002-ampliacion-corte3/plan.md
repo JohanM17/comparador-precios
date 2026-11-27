@@ -24,7 +24,7 @@ El enfoque reutiliza la base de datos y la caché existentes; no introduce un al
 
 **Storage**:
 - PostgreSQL 16 + PostGIS en Supabase; se reutilizan `reporte_precio` (append-only) y `precio_vigente` (proyección).
-- Migración aditiva `0005_historial_precios.sql` con índice para la serie; no se crean tablas nuevas. La numeración es posterior a `0004_modulo_comercial.sql`; la migración de Fase 2 (`supervisor_ia`) pasará a `0006` cuando se implemente.
+- Migración aditiva `0005_historial_precios.sql` con índice para la serie; no se crean tablas nuevas. Se aplicó antes que la del módulo comercial, que tomó `0006_modulo_comercial.sql`; la migración de Fase 2 (`supervisor_ia`) pasará a `0007` cuando se implemente.
 - Telemetría: backend externo OTLP (Grafana Cloud Free o equivalente); no se persiste telemetría en PostgreSQL.
 
 **Testing**:

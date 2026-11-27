@@ -967,7 +967,7 @@ create index idx_precio_vigente_producto on precio_vigente (producto_id, sello, 
 create index idx_caso_moderacion_cola on caso_moderacion (estado, prioridad asc, creado_en asc);
 ```
 
-### 4.4 Migración `0004_modulo_comercial.sql` *(Exclusiva de Etapa 2 — Tarea `T-61`)*
+### 4.4 Migración `0006_modulo_comercial.sql` *(Exclusiva de Etapa 2 — Tarea `T-61`)*
 ```sql
 create type tipo_promocion as enum ('porcentaje', 'precio_especial', 'pague_x_lleve_y');
 
@@ -1454,7 +1454,7 @@ alter table informe_supervisor enable row level security;
 | ID | Tarea | Depende de | Resp. | Archivos a crear / modificar | Hecho cuando… (Criterio verificable) |
 | :--- | :--- | :--- | :---: | :--- | :--- |
 | **T-60** | Redactar Análisis de Impacto y estimación previa de `EC-05` **antes** de programar la Etapa 2 (Entregable 10 — Parte 1). | `T-55` | **A** | `docs/calidad/ec05-estimado.md` | Archivo confirmado en Git antes del commit de `T-61`. |
-| **T-61** | Aplicar migración aditiva `0004_modulo_comercial.sql` (Sección 4.4). | `T-60` | **D** | `supabase/migrations/0004_modulo_comercial.sql` | Aplica sin modificar ni borrar columnas existentes del núcleo. |
+| **T-61** | Aplicar migración aditiva `0006_modulo_comercial.sql` (Sección 4.4). | `T-60` | **D** | `supabase/migrations/0006_modulo_comercial.sql` | Aplica sin modificar ni borrar columnas existentes del núcleo. |
 | **T-62** | Implementar reclamo y verificación de comercios (`D-09`). | `T-61` | **B** | `backend/app/modulos/comercial/*`, `backend/tests/integracion/test_verificacion_comercio.py` | Solo comercios verificados publican precios oficiales o promociones sobre su establecimiento. |
 | **T-63** | Implementar `PUT .../precios` (lote de hasta 200) y botón «Todo sigue igual» (`POST .../revalidar`). | `T-62` | **B** | `backend/app/modulos/comercial/api.py`, `backend/app/modulos/comercial/servicio.py` | Actualizar precio oficial recalcula `precio_vigente` e invalida caché en el acto. |
 | **T-64** | Desarrollar con TDD la estrategia `OficialConContraste` (`D-01`) del puerto `PoliticaPrecioReferencia`. | `T-60`, `T-63` | **A** | `backend/app/puertos/politica_precio.py`, `backend/tests/unitarias/test_oficial_con_contraste.py` | Pasan pruebas de precio oficial, contradicción (`en_disputa`) y aviso de revalidación a los 30 días. |

@@ -33,7 +33,7 @@ Se adopta la alternativa 3:
 - La serie incluye reportes `aceptado` y `dudoso`; los `rechazado` no se presentan como precio histórico válido. Los `dudoso` se muestran con una marca explícita y nunca como `confiable`.
 - El origen se expone como `usuario`, `comercio` o `semilla`; `semilla` se etiqueta como fuente pública/demostración y conserva `es_demo`.
 - La respuesta no incluye `reportante_id`, alias, correo, IP, `huella_red`, `foto_prueba_path`, `lat` ni `lng`.
-- Se añade un índice aditivo para la consulta por producto/establecimiento/fecha, en una migración posterior a `0004_modulo_comercial.sql`.
+- Se añade un índice aditivo para la consulta por producto/establecimiento/fecha, en `0005_historial_precios.sql`. Se aplicó antes que la migración del módulo comercial, que por eso quedó como `0006_modulo_comercial.sql`.
 - No se introduce Event Sourcing ni una tabla de historial separada.
 
 ## Consecuencias

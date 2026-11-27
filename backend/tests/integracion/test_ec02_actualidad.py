@@ -14,8 +14,8 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.adaptadores.cache_dos_niveles import CacheDosNiveles
+from app.compartido.dependencias import obtener_puerto_cache
 from app.main import app
-from app.modulos.precios.api import obtener_puerto_cache
 from app.modulos.precios.servicio import limitador_escritura
 from tests.integracion.ayudantes_ec02 import (
     desactivar_escenario_ec02,

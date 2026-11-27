@@ -35,7 +35,7 @@
 
 - [x] **T-102** [P] | **Crear la migración `0005_historial_precios.sql` con el índice de la serie**
   - **Verificado en BD**: `0005` aplicada en Supabase; el índice `idx_reporte_historial_serie` existe y la prueba de integración pasa (13/13 en `test_historial_precios.py`).
-  - **Depende de**: migración `0004_modulo_comercial.sql` disponible (o coordinación explícita)
+  - **Depende de**: nada del módulo comercial. `0005` solo crea un índice sobre `reporte_precio`, que ya existe desde `0003`.
   - **Resp.**: **D**
   - **Archivos**: `supabase/migrations/0005_historial_precios.sql`, `backend/tests/integracion/test_historial_precios.py` (prueba de índice)
   - **Hecho cuando…**: la migración aplica dos veces sin error; el índice `idx_reporte_historial_serie` existe; no se alteran tablas, columnas ni datos; no se edita una migración aplicada.
@@ -249,7 +249,7 @@ flowchart TD
 - **T-63 (módulo comercial):** debe conservar el historial del precio oficial en `reporte_precio` con `fuente='comercio'` (`ADR-0019`). Sin esto, A2 no puede certificar el origen oficial.
 - **PA-05:** confirmar el endpoint/cuotas de observabilidad antes de T-122.
 - **PA-06:** confirmar el mapeo de entregables antes de T-133/T-134.
-- **Migración 0004:** debe existir antes de aplicar `0005`.
+- **Migración del módulo comercial:** **dependencia descartada.** `0005` solo añade un índice sobre `reporte_precio` y se aplicó sin ella; el módulo comercial quedó en `0006_modulo_comercial.sql`.
 
 ## Resumen
 
