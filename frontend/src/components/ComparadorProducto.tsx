@@ -33,6 +33,7 @@ interface OpcionEstablecimientoHistorial {
 
 export interface ComparadorProductoProps {
   readonly productoId: string;
+  readonly presentacionInicial?: string | null;
 }
 
 /**
@@ -40,8 +41,15 @@ export interface ComparadorProductoProps {
  */
 export default function ComparadorProducto({
   productoId,
+  presentacionInicial = null,
 }: ComparadorProductoProps): React.JSX.Element {
-  const [presentacionId, setPresentacionId] = useState<string>("");
+  const [presentacionId, setPresentacionId] = useState<string>(presentacionInicial ?? "");
+
+  useEffect(() => {
+    if (presentacionInicial) {
+      setPresentacionId(presentacionInicial);
+    }
+  }, [presentacionInicial]);
   const [orden, setOrden] = useState<CriterioOrden>("precio_unitario");
   const [ubicacion, setUbicacion] = useState<CoordenadasMemoria | null>(null);
   const [buscandoGps, setBuscandoGps] = useState(false);

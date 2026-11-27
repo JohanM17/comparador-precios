@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { PROD_ID, configurarMocksNucleo } from "./mocks_nucleo";
+import { PRES_ISABEL, PROD_ATUN, PROD_ID, configurarMocksNucleo } from "./mocks_nucleo";
 
 test.describe("Flujos E2E del Nucleo (T-51)", () => {
   test("Flujo 1: Consumidor busca producto y compara por unidad base en dos bloques con neutralidad", async ({ page }) => {
@@ -25,9 +25,21 @@ test.describe("Flujos E2E del Nucleo (T-51)", () => {
     await page.fill("#buscador-vitrina", "atun isabel");
     await page.getByRole("button", { name: "Buscar" }).click();
 
-    const tarjetaAtun = page.getByRole("link", { name: /Atún en lomitos en aceite/i });
+    const tarjetaAtun = page
+      .getByRole("region", { name: "Catálogo de productos" })
+      .getByRole("link", { name: /Atún en lomitos en aceite/i });
     await expect(tarjetaAtun).toBeVisible();
     await expect(tarjetaAtun).toContainText("Lata 160 g Atún Isabel Aceite");
+
+    const coincidencias = page.getByRole("region", { name: "Presentaciones que coinciden" });
+    const enlaceIsabel = coincidencias.getByRole("link", {
+      name: /Lata 160 g Atún Isabel Aceite/i,
+    });
+    await expect(enlaceIsabel).toBeVisible();
+    await expect(enlaceIsabel).toHaveAttribute(
+      "href",
+      `/producto/${PROD_ATUN}?presentacion=${PRES_ISABEL}`,
+    );
   });
 
   test("Flujo 2: Reportante autoriza Ley 1581, encola reporte offline en IndexedDB y sincroniza", async ({ page, context }) => {
