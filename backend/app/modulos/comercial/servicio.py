@@ -94,6 +94,19 @@ class ServicioComercial:
         )
         return reclamo
 
+    async def listar_solicitudes_pendientes(
+        self,
+        usuario: UsuarioAutenticado,
+        limite: int = 50,
+    ) -> list[dict[str, Any]]:
+        """Cola de reclamos sin resolver. Solo la consume un moderador.
+
+        Sin esta lista un reclamo seria un callejon sin salida: se registra y
+        nadie puede verlo para resolverlo.
+        """
+        del usuario  # El rol ya lo exige la ruta; aqui no se decide permiso.
+        return await repositorio.listar_solicitudes_pendientes(self.sesion, limite)
+
     async def verificar_comercio(
         self,
         solicitud_id: UUID,

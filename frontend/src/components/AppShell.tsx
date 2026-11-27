@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
-import { Plus, Search } from "lucide-react";
+import { Search } from "lucide-react";
+import BotonCaptura from "@/components/BotonCaptura";
 import ToggleTema from "@/components/ToggleTema";
 
 interface AppShellProps {
@@ -15,7 +16,8 @@ interface AppShellProps {
  * color ni sombras, la jerarquia la pone la tipografia.
  *
  * - Barra superior pegajosa con marca, buscador global y accesos.
- * - Boton flotante de captura rapida (min-h-11, objetivo tactil WCAG 2.2 AA).
+ * - Boton flotante de captura rapida, que se oculta solo donde estorbaria
+ *   (ver `BotonCaptura`).
  * - Pie con enlace legal y atribucion obligatoria ODbL.
  */
 export default function AppShell({ children }: AppShellProps): React.JSX.Element {
@@ -79,16 +81,7 @@ export default function AppShell({ children }: AppShellProps): React.JSX.Element
         {children}
       </main>
 
-      <aside aria-label="Accion rapida de captura de precio">
-        <Link
-          href="/reportar"
-          className="fixed bottom-5 right-5 z-50 inline-flex min-h-11 items-center gap-2 rounded-full bg-slate-900 py-3 pl-4 pr-5 text-sm font-medium text-slate-50 shadow-lg shadow-slate-900/15 transition-colors hover:bg-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50"
-          aria-label="Reportar precio de producto"
-        >
-          <Plus className="h-5 w-5" strokeWidth={2} aria-hidden="true" />
-          <span>Reportar precio</span>
-        </Link>
-      </aside>
+      <BotonCaptura />
 
       <footer
         role="contentinfo"

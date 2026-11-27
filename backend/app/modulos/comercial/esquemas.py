@@ -123,6 +123,28 @@ class PromocionRespuesta(BaseModel):
     es_promocion: bool = True
 
 
+class SolicitudVerificacionResumen(BaseModel):
+    """Reclamo pendiente, tal como lo ve un moderador en su cola."""
+
+    id: UUID
+    establecimiento_id: UUID
+    establecimiento_nombre: str
+    establecimiento_barrio: str | None
+    establecimiento_direccion: str | None
+    solicitante_alias: str
+    telefono_contacto: str
+    mensaje: str
+    estado: str
+    creado_en: datetime
+
+
+class ListaSolicitudesRespuesta(BaseModel):
+    """Cola de reclamos de titularidad sin resolver."""
+
+    datos: list[SolicitudVerificacionResumen]
+    total: int
+
+
 class VerificarComercioEntrada(BaseModel):
     """Decision del moderador sobre un reclamo de titularidad."""
 

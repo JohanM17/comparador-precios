@@ -57,7 +57,10 @@ export interface OpcionesHistorialMock {
 }
 
 export interface OpcionesMock {
-  rol?: "reportante" | "moderador";
+  rol?: "reportante" | "moderador" | "comercio";
+  /** Presentaciones que el modo rapido muestra para la tienda del comercio. */
+  presentacionesComercio?: number;
+  alPublicarPrecios?: (cuerpo: unknown) => void;
   autorizadoInicial?: boolean;
   alCrearReporte?: (headers: Record<string, string>, cuerpo: unknown) => void;
   alResolverCaso?: (cuerpo: unknown) => void;
@@ -66,7 +69,7 @@ export interface OpcionesMock {
 interface EstadoMock {
   autorizado: boolean;
   casoResuelto: boolean;
-  readonly rol: "reportante" | "moderador";
+  readonly rol: "reportante" | "moderador" | "comercio";
   readonly opts: OpcionesMock;
 }
 
@@ -370,6 +373,90 @@ async function responderCuentaYReportes(route: Route, ruta: string, metodo: stri
   return false;
 }
 
+/** Presentaciones sinteticas para medir el modo rapido con un lote realista. */
+export function presentacionesComercioMock(cantidad: number): unknown[] {
+  return Array.from({ length: cantidad }, (_, i) => ({
+    producto_id: `prod-${i}`,
+    producto_nombre: `Producto ${i + 1}`,
+    presentacion_id: `pres-${i}`,
+    presentacion_etiqueta: `Marca ${i + 1} 500 g`,
+    precio_cop: 3000 + i * 50,
+    precio_por_base: { valor_cop: 6000 + i * 100, por: "kg" },
+    sello: "confiable",
+    motivo_sello: "3 reportes de 3 fuentes",
+    ultimo_reporte_en: new Date().toISOString(),
+  }));
+}
+
+async function responderComercio(
+  route: Route,
+  ruta: string,
+  metodo: string,
+  estado: EstadoMock
+): Promise<boolean> {
+  const cantidad = estado.opts.presentacionesComercio ?? 20;
+
+  if (ruta === "/v1/comercio/establecimientos" && metodo === "GET") {
+    await route.fulfill({
+      json: [{
+        id: TIENDA_A, nombre: "Tienda La Esquina", tipo: "tienda_barrio", barrio: "Centro",
+        direccion: "Cra 14 # 18-22", estado_verificacion: "verificado",
+        n_precios_oficiales: 0, n_por_revalidar: 0,
+      }],
+    });
+    return true;
+  }
+
+  if (ruta === `/v1/establecimientos/${TIENDA_A}` && metodo === "GET") {
+    await route.fulfill({
+      json: {
+        id: TIENDA_A, nombre: "Tienda La Esquina", tipo: "tienda_barrio", cadena: null,
+        direccion: "Cra 14 # 18-22", barrio: "Centro", municipio: "Armenia", departamento: "Quindío",
+        lat: 4.535, lng: -75.675, distancia_m: null, estado_verificacion: "verificado", activo: true,
+        precios_vigentes: presentacionesComercioMock(cantidad),
+      },
+    });
+    return true;
+  }
+
+  if (ruta === `/v1/comercio/establecimientos/${TIENDA_A}/precios` && metodo === "PUT") {
+    const cuerpo = route.request().postDataJSON() as { precios?: unknown[] };
+    estado.opts.alPublicarPrecios?.(cuerpo);
+    await route.fulfill({
+      json: { actualizados: cuerpo.precios?.length ?? 0, rechazados: [] },
+    });
+    return true;
+  }
+
+  if (ruta === `/v1/comercio/establecimientos/${TIENDA_A}/revalidar` && metodo === "POST") {
+    await route.fulfill({ json: { revalidados: cantidad, revalidado_en: new Date().toISOString() } });
+    return true;
+  }
+
+  if (ruta === `/v1/comercio/establecimientos/${TIENDA_A}/promociones` && metodo === "GET") {
+    await route.fulfill({ json: [] });
+    return true;
+  }
+
+  if (ruta === "/v1/moderacion/comercios" && metodo === "GET") {
+    await route.fulfill({
+      json: {
+        datos: [{
+          id: "sol-e2e-1", establecimiento_id: TIENDA_A,
+          establecimiento_nombre: "Tienda La Esquina", establecimiento_barrio: "Centro",
+          establecimiento_direccion: "Cra 14 # 18-22", solicitante_alias: "don_jose",
+          telefono_contacto: "3001234567", mensaje: "Soy el dueño, atiendo de 7 a 8.",
+          estado: "pendiente", creado_en: new Date().toISOString(),
+        }],
+        total: 1,
+      },
+    });
+    return true;
+  }
+
+  return false;
+}
+
 async function responderModeracion(route: Route, ruta: string, metodo: string, estado: EstadoMock): Promise<boolean> {
   if (ruta === "/v1/moderacion/casos" && metodo === "GET") {
     const lista = estado.casoResuelto ? [] : [{
@@ -415,6 +502,7 @@ export async function configurarMocksNucleo(page: Page, opts: OpcionesMock = {})
     }
     const metodo = req.method();
     if (await responderHistorial(route, ruta)) return;
+    if (await responderComercio(route, ruta, metodo, estado)) return;
     if (await responderPublicos(route, ruta)) return;
     if (await responderCuentaYReportes(route, ruta, metodo, estado)) return;
     if (await responderModeracion(route, ruta, metodo, estado)) return;

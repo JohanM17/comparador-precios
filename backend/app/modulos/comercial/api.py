@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bd import obtener_sesion
@@ -13,6 +13,7 @@ from app.compartido.dependencias import obtener_puerto_cache
 from app.compartido.seguridad import UsuarioAutenticado, requiere_rol, requiere_usuario
 from app.modulos.comercial.esquemas import (
     EstablecimientoComercioResumen,
+    ListaSolicitudesRespuesta,
     PreciosLoteEntrada,
     PreciosLoteRespuesta,
     PromocionEntrada,
@@ -50,6 +51,22 @@ async def reclamar_titularidad(
 ) -> Any:
     """Cualquier cuenta puede reclamar un establecimiento; la decision es de un moderador."""
     return await servicio.reclamar_titularidad(entrada, usuario)
+
+
+@router.get(
+    "/moderacion/comercios",
+    response_model=ListaSolicitudesRespuesta,
+    summary="Cola de reclamos de titularidad sin resolver",
+)
+async def listar_solicitudes_comercio(
+    usuario: Annotated[UsuarioAutenticado, Depends(requiere_rol("moderador", "admin"))],
+    servicio: Annotated[ServicioComercial, Depends(obtener_servicio_comercial)],
+    limite: int = Query(default=50, ge=1, le=200),
+) -> Any:
+    """Sin esta cola un reclamo no tendria quien lo mire: solo se podria resolver
+    quien ya conociera su identificador."""
+    datos = await servicio.listar_solicitudes_pendientes(usuario, limite)
+    return {"datos": datos, "total": len(datos)}
 
 
 @router.post(
