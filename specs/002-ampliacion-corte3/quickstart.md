@@ -11,7 +11,7 @@ Guía ejecutable para validar A2 (historial de precios) y B1 (observabilidad/SLO
 - Acceso al proyecto Supabase y a Upstash definidos en `.env`.
 - Para B1: endpoint OTLP y credenciales de Grafana Cloud (o proveedor equivalente); confirmar `PA-05`.
 - Para el simulacro: `k6` instalado.
-- Migraciones `0001` a `0003` aplicadas; la ampliación requiere `0005_historial_precios.sql` después de `0004_modulo_comercial.sql`.
+- Migraciones `0001` a `0003` aplicadas; la ampliación requiere `0005_historial_precios.sql`, que no depende del módulo comercial (`0006_modulo_comercial.sql`) y puede aplicarse sin él.
 
 ## 2. Preparación
 

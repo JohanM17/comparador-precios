@@ -101,4 +101,19 @@ test.describe("Flujos E2E del Nucleo (T-51)", () => {
       sancion: null,
     });
   });
+
+  test("El botón flotante de captura aparece en la vitrina y se oculta en /gestion", async ({
+    page,
+  }) => {
+    await configurarMocksNucleo(page);
+
+    await page.goto("/", { waitUntil: "networkidle" });
+    const boton = page.getByRole("link", { name: "Reportar precio de producto" });
+    await expect(boton).toBeVisible();
+
+    await page.goto("/gestion", { waitUntil: "networkidle" });
+    await expect(
+      page.getByRole("link", { name: "Reportar precio de producto" })
+    ).toHaveCount(0);
+  });
 });

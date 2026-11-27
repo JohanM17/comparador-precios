@@ -336,6 +336,24 @@ def test_sanitizar_atributos_redacta_ip_y_huella_en_valores() -> None:
     assert resultado == {"detalle": "cliente [REDACTADO_IP] [REDACTADO_HUELLA]"}
 
 
+def test_sanitizar_atributos_bloquea_telefono_y_mensaje_de_reclamo() -> None:
+    """Los datos de contacto de un reclamo de comercio nunca se exportan."""
+    atributos = {
+        "telefono_contacto": "3001234567",
+        "mensaje": "Soy el dueno, atiendo de 7 a 8.",
+        "Telefono_Contacto": "3007654321",
+        "detalle": {"mensaje": "Confirmar por telefono", "estado": "pendiente"},
+        "ruta": "/v1/moderacion/comercios",
+    }
+
+    resultado = telemetria.sanitizar_atributos(atributos)
+
+    assert resultado == {
+        "detalle": {"estado": "pendiente"},
+        "ruta": "/v1/moderacion/comercios",
+    }
+
+
 def test_parsear_headers_otlp_conserva_iguales_y_limpia_espacios() -> None:
     """Parsea cabeceras con valores que contienen iguales y segmentos vacios."""
     valor = "Authorization=Basic abc==, ,X-Entorno = pruebas,,sin-igual,=valor,Clave="
@@ -794,6 +812,89 @@ def test_redactar_texto_sensible_cubre_percent_encoding() -> None:
     assert redactado == (
         "email=[REDACTADO_EMAIL]&orden=lat%3D[REDACTADO_COORD]&lng%3D[REDACTADO_COORD]"
     )
+
+
+def test_redactar_texto_sensible_redacta_telefonos_colombianos() -> None:
+    """Los telefonos moviles y fijos no sobreviven, con o sin +57."""
+    texto = (
+        "telefono=3001234567; contacto +57 310 555 7788; "
+        "fijo (606) 123-4567; mensaje='Llame al 320 444 5566'; "
+        "precio_cop=3050; uuid=57355671-5518-4abc-9159-050bc91cacfc; "
+        "fecha=2026-11-27 uuid2=123e4567-e89b-12d3-a456-426614174000"
+    )
+
+    redactado = redactar_texto_sensible(texto)
+
+    assert "3001234567" not in redactado
+    assert "310 555 7788" not in redactado
+    assert "123-4567" not in redactado
+    assert "320 444 5566" not in redactado
+    assert redactado.count("[REDACTADO_TELEFONO]") == 4
+    # Un patron demasiado amplio romperia precios, fechas, UUID e identificadores.
+    assert "precio_cop=3050" in redactado
+    assert "2026-11-27" in redactado
+    assert "57355671-5518-4abc-9159-050bc91cacfc" in redactado
+    assert "123e4567-e89b-12d3-a456-426614174000" in redactado
+
+
+def test_redactar_texto_sensible_telefonos_percent_encoded() -> None:
+    """Las variantes URL-encoded de telefono tambien se redactan."""
+    texto = (
+        "tel=%2B573001234567; tel2=300%201234567; "
+        "tel3=%2B57%20300%20123%204567; "
+        "uuid=57355671-5518-4abc-9159-050bc91cacfc"
+    )
+
+    redactado = redactar_texto_sensible(texto)
+
+    assert "%2B573001234567" not in redactado
+    assert "300%201234567" not in redactado
+    assert "%2B57%20300%20123%204567" not in redactado
+    assert redactado.count("[REDACTADO_TELEFONO]") == 3
+    assert "57355671-5518-4abc-9159-050bc91cacfc" in redactado
+
+
+def test_redactar_texto_sensible_protege_uuid_percent_encoded() -> None:
+    """Un UUID codificado no se confunde con un telefono."""
+    uuid_encoded = "57355671%2D5518%2D4abc%2D9159%2D050bc91cacfc"
+
+    redactado = redactar_texto_sensible(f"caso={uuid_encoded}")
+
+    assert redactado == f"caso={uuid_encoded}"
+    assert "[REDACTADO_TELEFONO]" not in redactado
+
+
+def test_redactar_texto_sensible_redacta_telefonos_adyacentes_a_guion() -> None:
+    """Un guion separador no impide redactar el telefono."""
+    texto = "telefonos:3001234567-3009998888; contacto=3001234567-casa; tel=%2B57-300-123-4567"
+
+    redactado = redactar_texto_sensible(texto)
+
+    assert "3001234567" not in redactado
+    assert "3009998888" not in redactado
+    assert "300-123-4567" not in redactado
+    assert redactado.count("[REDACTADO_TELEFONO]") == 4
+
+
+def test_filtro_privacidad_redacta_telefono_en_logs() -> None:
+    """El filtro de Ley 1581 tambien sanea el telefono de un reclamo."""
+    filtro = FiltroPrivacidadLey1581()
+    record = logging.LogRecord(
+        "app.comercial",
+        logging.INFO,
+        __file__,
+        10,
+        "reclamo telefono=%s mensaje=%s",
+        ("3001234567", "Llame al 300 123 4567"),
+        None,
+    )
+
+    filtro.filter(record)
+    mensaje = record.getMessage()
+
+    assert "3001234567" not in mensaje
+    assert "300 123 4567" not in mensaje
+    assert mensaje.count("[REDACTADO_TELEFONO]") == 2
 
 
 def test_redactar_texto_sensible_redacta_ip_y_huella_red() -> None:

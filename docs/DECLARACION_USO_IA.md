@@ -32,3 +32,41 @@ Para garantizar que el código generado no contenga alucinaciones, vulnerabilida
 - **Modelos de Lenguaje:** Google Gemini 2.0 / 2.5 Pro a través del entorno Antigravity IDE / agy CLI.
 - **Áreas de Asistencia:** Redacción de borradores de especificación formal, andamiaje de pruebas unitarias, conversión de esquemas OpenAPI a contratos TypeScript y automatización de migraciones SQL.
 - **Áreas Exclusivamente Humanas:** Definición de la política de neutralidad comercial, trabajo de campo y entrevistas a consumidores de Armenia, ponderación de riesgos matemáticos y aprobación final de cada commit en Git.
+
+---
+
+## 5. Corte 3: segunda herramienta (noviembre de 2026)
+Durante el tercer corte se incorporó una segunda herramienta de IA, que se declara con el mismo
+detalle que la primera.
+
+- **Modelo y entorno:** Anthropic Claude (Opus 5) a través de Claude Code.
+
+### 5.1 Áreas de asistencia
+- **Rediseño de la interfaz:** sistema de color y tipografía en `tailwind.config.js` y
+  `globals.css`, y conversión de las siete pantallas al nuevo lenguaje visual, incluida la
+  adaptación de los componentes de historial que llegaron con la ampliación A2.
+- **Módulo comercial (`T-60` a `T-66`):** análisis de impacto previo (`docs/calidad/ec05-estimado.md`),
+  reglas de dominio `contraste.py` y `promocion.py` con sus pruebas escritas primero, migración
+  `0006_modulo_comercial.sql`, las siete rutas del módulo y el puerto `PuertoPromociones` que
+  mantiene la frontera de `EC-06`.
+- **Accesibilidad:** ampliación de la prueba automatizada para cubrir las ocho pantallas en modo
+  claro y oscuro, dieciséis verificaciones con `axe-core`.
+
+### 5.2 Áreas exclusivamente humanas
+- Selección de las opciones `A2` (historial de precios) y `B1` (observabilidad con SLO) entre las
+  siete que ofrece el Anexo 1.
+- Dirección visual del producto, elegida por el equipo tras descartar varias propuestas.
+- Validación de las estimaciones de esfuerzo y de los umbrales de calidad frente a la capacidad
+  real del equipo.
+- Aprobación de cada commit.
+
+### 5.3 Trabajo asistido que se descartó
+Antes de conocer que la ampliación del Anexo 1 ya estaba seleccionada e implementada como
+`A2 + B1`, se redactó con esta misma herramienta un registro previo para las opciones `A1`
+(canasta comparada) y `B2` (entrega continua con controles). Al constatar que el anexo admite
+**una** opción por bloque y que la selección del equipo era otra, ese registro se descartó por
+completo y no se integró al repositorio. Se deja constancia porque la transparencia del
+numeral 1 cubre también el trabajo que no se usó.
+
+Se reitera el compromiso del numeral 1: cada integrante debe estar en capacidad de explicar y
+defender las decisiones registradas en los ADR durante la sustentación.

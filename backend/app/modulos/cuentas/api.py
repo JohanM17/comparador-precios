@@ -7,6 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Response
 
 from app.bd import sesion_transaccional
+from app.compartido.dependencias import obtener_puerto_cache
 from app.compartido.seguridad import (
     UsuarioAutenticado,
     requiere_usuario,
@@ -22,6 +23,8 @@ from app.modulos.cuentas.esquemas import (
 )
 from app.modulos.cuentas.servicio import ServicioCuentas
 from app.puertos.almacenamiento import PuertoAlmacenamientoFotos
+from app.puertos.auth_admin import PuertoAuthAdmin
+from app.puertos.cache import PuertoCache
 
 router = APIRouter(tags=["Cuentas y Privacidad"])
 
@@ -31,14 +34,26 @@ def obtener_puerto_almacenamiento() -> PuertoAlmacenamientoFotos:
     raise NotImplementedError("El puerto de almacenamiento debe ser inyectado por FastAPI.")
 
 
+def obtener_puerto_auth_admin() -> PuertoAuthAdmin:
+    """Proveedor inyectable del cliente admin de Supabase Auth."""
+    raise NotImplementedError("El puerto de auth admin debe ser inyectado por FastAPI.")
+
+
 def obtener_servicio_cuentas(
     puerto_almacenamiento: Annotated[
         PuertoAlmacenamientoFotos, Depends(obtener_puerto_almacenamiento)
     ],
+    puerto_cache: Annotated[PuertoCache, Depends(obtener_puerto_cache)],
+    puerto_auth_admin: Annotated[PuertoAuthAdmin, Depends(obtener_puerto_auth_admin)],
 ) -> ServicioCuentas:
-    """Instancia del servicio de cuentas con sesion y puerto inyectados."""
+    """Instancia del servicio de cuentas con sesion y puertos inyectados."""
     # Nota: la sesion se abre dentro de cada endpoint para garantizar transaccionalidad
-    return ServicioCuentas(sesion=None, puerto_almacenamiento=puerto_almacenamiento)  # type: ignore[arg-type]
+    return ServicioCuentas(
+        sesion=None,  # type: ignore[arg-type]
+        puerto_almacenamiento=puerto_almacenamiento,
+        puerto_cache=puerto_cache,
+        puerto_auth_admin=puerto_auth_admin,
+    )
 
 
 @router.get(
@@ -107,8 +122,21 @@ async def eliminar_cuenta_usuario(
     puerto_almacenamiento: Annotated[
         PuertoAlmacenamientoFotos, Depends(obtener_puerto_almacenamiento)
     ],
+    puerto_cache: Annotated[PuertoCache, Depends(obtener_puerto_cache)],
+    puerto_auth_admin: Annotated[PuertoAuthAdmin, Depends(obtener_puerto_auth_admin)],
 ) -> EliminarCuentaRespuesta:
     """Anonimiza todos los reportes, fotos y da de baja la cuenta (FR-007)."""
     async with sesion_transaccional() as sesion:
-        servicio = ServicioCuentas(sesion=sesion, puerto_almacenamiento=puerto_almacenamiento)
-        return await servicio.eliminar_mi_cuenta(usuario)
+        servicio = ServicioCuentas(
+            sesion=sesion,
+            puerto_almacenamiento=puerto_almacenamiento,
+            puerto_cache=puerto_cache,
+            puerto_auth_admin=puerto_auth_admin,
+        )
+        resultado = await servicio.eliminar_mi_cuenta(usuario)
+
+    # La cache y la credencial de Auth se tocan solo despues del commit. Si la
+    # API externa falla, la baja local ya quedo consumada y se responde 200.
+    await servicio.invalidar_cache_baja()
+    await servicio.eliminar_credencial_auth(usuario.id)
+    return resultado

@@ -128,7 +128,7 @@ export default function PestanaCatalogoTiendas({
       )}
       {error && <EstadoError detalle={error.detalle} codigo={error.codigo} requestId={error.requestId} />}
 
-      <form onSubmit={(e) => void crearProducto(e)} className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <form onSubmit={(e) => void crearProducto(e)} className="space-y-3 rounded-2xl border border-slate-300 bg-superficie p-5">
         <h3 className="text-base font-bold text-slate-900">Nuevo producto</h3>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div>
@@ -148,19 +148,19 @@ export default function PestanaCatalogoTiendas({
             </select>
           </div>
         </div>
-        <button type="submit" className="min-h-11 rounded-xl bg-emerald-700 px-5 text-sm font-semibold text-white hover:bg-emerald-800">
+        <button type="submit" className="min-h-11 rounded-full bg-bosque-800 px-5 text-sm font-semibold text-white hover:bg-bosque-900">
           Crear producto
         </button>
       </form>
 
-      <form onSubmit={(e) => void crearPresentacion(e)} className="space-y-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <form onSubmit={(e) => void crearPresentacion(e)} className="space-y-3 rounded-2xl border border-slate-300 bg-superficie p-5">
         <h3 className="text-base font-bold text-slate-900">Nueva presentación (+ Open Food Facts)</h3>
         <div className="flex flex-wrap items-end gap-2">
           <div className="flex-1 min-w-[200px]">
             <label htmlFor="mod-pres-ean" className="block text-xs font-semibold text-slate-700">Código de barras (opcional)</label>
             <input id="mod-pres-ean" inputMode="numeric" value={presEan} onChange={(e) => setPresEan(e.target.value)} placeholder="7702001001234" className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm" />
           </div>
-          <button type="button" onClick={() => void consultarOff()} disabled={!presEan.trim()} className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-emerald-700 bg-emerald-50 px-4 text-xs font-semibold text-emerald-900 disabled:opacity-50">
+          <button type="button" onClick={() => void consultarOff()} disabled={!presEan.trim()} className="inline-flex min-h-11 items-center gap-1.5 rounded-full border border-emerald-700 bg-emerald-50 px-4 text-xs font-semibold text-emerald-900 disabled:opacity-50">
             <Search className="h-3.5 w-3.5" aria-hidden="true" />
             Consultar Open Food Facts
           </button>
@@ -195,7 +195,7 @@ export default function PestanaCatalogoTiendas({
             </div>
           </div>
         </div>
-        <button type="submit" disabled={!presProdId} className="min-h-11 rounded-xl bg-emerald-700 px-5 text-sm font-semibold text-white hover:bg-emerald-800 disabled:opacity-50">
+        <button type="submit" disabled={!presProdId} className="min-h-11 rounded-full bg-bosque-800 px-5 text-sm font-semibold text-white hover:bg-bosque-900 disabled:opacity-50">
           Crear presentación
         </button>
       </form>

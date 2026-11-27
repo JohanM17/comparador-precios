@@ -967,7 +967,7 @@ create index idx_precio_vigente_producto on precio_vigente (producto_id, sello, 
 create index idx_caso_moderacion_cola on caso_moderacion (estado, prioridad asc, creado_en asc);
 ```
 
-### 4.4 Migración `0004_modulo_comercial.sql` *(Exclusiva de Etapa 2 — Tarea `T-61`)*
+### 4.4 Migración `0006_modulo_comercial.sql` *(Exclusiva de Etapa 2 — Tarea `T-61`)*
 ```sql
 create type tipo_promocion as enum ('porcentaje', 'precio_especial', 'pague_x_lleve_y');
 
@@ -1454,14 +1454,14 @@ alter table informe_supervisor enable row level security;
 | ID | Tarea | Depende de | Resp. | Archivos a crear / modificar | Hecho cuando… (Criterio verificable) |
 | :--- | :--- | :--- | :---: | :--- | :--- |
 | **T-60** | Redactar Análisis de Impacto y estimación previa de `EC-05` **antes** de programar la Etapa 2 (Entregable 10 — Parte 1). | `T-55` | **A** | `docs/calidad/ec05-estimado.md` | Archivo confirmado en Git antes del commit de `T-61`. |
-| **T-61** | Aplicar migración aditiva `0004_modulo_comercial.sql` (Sección 4.4). | `T-60` | **D** | `supabase/migrations/0004_modulo_comercial.sql` | Aplica sin modificar ni borrar columnas existentes del núcleo. |
+| **T-61** | Aplicar migración aditiva `0006_modulo_comercial.sql` (Sección 4.4). | `T-60` | **D** | `supabase/migrations/0006_modulo_comercial.sql` | Aplica sin modificar ni borrar columnas existentes del núcleo. |
 | **T-62** | Implementar reclamo y verificación de comercios (`D-09`). | `T-61` | **B** | `backend/app/modulos/comercial/*`, `backend/tests/integracion/test_verificacion_comercio.py` | Solo comercios verificados publican precios oficiales o promociones sobre su establecimiento. |
 | **T-63** | Implementar `PUT .../precios` (lote de hasta 200) y botón «Todo sigue igual» (`POST .../revalidar`). | `T-62` | **B** | `backend/app/modulos/comercial/api.py`, `backend/app/modulos/comercial/servicio.py` | Actualizar precio oficial recalcula `precio_vigente` e invalida caché en el acto. |
 | **T-64** | Desarrollar con TDD la estrategia `OficialConContraste` (`D-01`) del puerto `PoliticaPrecioReferencia`. | `T-60`, `T-63` | **A** | `backend/app/puertos/politica_precio.py`, `backend/tests/unitarias/test_oficial_con_contraste.py` | Pasan pruebas de precio oficial, contradicción (`en_disputa`) y aviso de revalidación a los 30 días. |
 | **T-65** | Implementar CRUD de promociones comerciales validando Ley 1480 y entrega en el arreglo separado `promociones`. | `T-62` | **B** | `backend/app/modulos/comercial/*`, `backend/tests/integracion/test_promociones_ley1480.py` | Promoción sin condiciones o sin vigencia devuelve `422`; toda promoción sale con `es_promocion = true`. |
 | **T-66** | Implementar flujo de casos `disputa_precio`. | `T-64` | **B** | `backend/app/modulos/comercial/servicio.py`, `backend/app/modulos/moderacion/servicio.py` | La contradicción abre el caso y muestra ambos precios en pantalla. |
 | **T-67** | Agregar pestañas de `Comercio` en `S6 (/gestion)` y sellos `oficial`/`en_disputa` en `S2` y `S3`. | `T-63`, `T-65`, `T-45` | **C** | `frontend/src/app/gestion/page.tsx`, `frontend/tests/e2e/flujo_comercio.spec.ts` | Un comercio actualiza 20 precios en modo rápido en menos de 1 minuto. |
-| **T-68** | Reejecutar pruebas automáticas de `EC-02` (con precio oficial) y `EC-06` (con promociones activas + `import-linter`). | `T-64`, `T-65`, `T-67` | **A** | `backend/tests/integracion/test_ec02_ec06_etapa2.py` | `EC-02 <= 60 s` y `EC-06` al 100 %. |
+| **T-68** | Reejecutar pruebas automáticas de `EC-02` (con precio oficial) y `EC-06` (con promociones activas + `import-linter`). | `T-64`, `T-65`, `T-67` | **A** | `backend/tests/integracion/test_ec02_ec06_etapa2.py`, `supabase/migrations/0007_diferencia_pct_amplia.sql` | **Completada.** `EC-02` con 100 comparaciones sobre precio oficial: p95 de 2,37 s en la peor corrida (límite 60 s). `EC-06`: orden de `resultados` idéntico con y sin promociones, bloque `promociones` separado al 100 %, `lint-imports` 3/3 y contraste 1000/200000 persistido sin overflow. |
 | **T-69** | Medir esfuerzo real vs. estimado de `EC-05` y actualizar Documento de Arquitectura v2 (Entregables 10 y 11). | `T-68` | **A + D** | `docs/calidad/ec05-resultado.md`, `docs/entregable_10_arquitectura_v2.md` | Informe comparativo demostrando 0 rediseños estructurales del núcleo. |
 
 #### Ola 7 (Fase 2 — Plus con IA) y Ola 8 (Evaluación Final y Sustentación)

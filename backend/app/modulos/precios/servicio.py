@@ -31,7 +31,7 @@ from app.modulos.precios.validaciones import (
     validar_limites_usuario,
 )
 from app.puertos.cache import PuertoCache
-from app.puertos.politica_precio import PoliticaPrecioReferencia, SoloUsuarios
+from app.puertos.politica_precio import OficialConContraste, PoliticaPrecioReferencia
 
 limitador_escritura = LimitadorVentanaDeslizante()
 
@@ -61,7 +61,8 @@ class ServicioPrecios:
     ) -> None:
         self.sesion = sesion
         self.cache = puerto_cache
-        self.politica = politica_precio if politica_precio is not None else SoloUsuarios()
+        # Etapa 2: el precio oficial manda salvo contradiccion comunitaria (D-01).
+        self.politica = politica_precio if politica_precio is not None else OficialConContraste()
         self.confianza = servicio_confianza or ServicioConfianza()
 
     async def _aplicar_efectos_post_insercion(

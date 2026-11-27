@@ -1,6 +1,11 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
-import { construirRespuestaHistorial } from "./mocks_nucleo";
+import {
+  PRES_500,
+  TIENDA_A,
+  configurarMocksNucleo,
+  construirRespuestaHistorial,
+} from "./mocks_nucleo";
 
 const PROD_ID = "3b241101-e2bb-4255-8caf-4136c566a962";
 const PRES_ID = "7c9e6679-7425-40de-944b-e07fc1f90ae7";
@@ -208,18 +213,87 @@ async function mockApiBasica(page: Page): Promise<void> {
   });
 }
 
+async function iniciarSesion(page: Page, correo: string): Promise<void> {
+  await page.goto("/ingresar", { waitUntil: "networkidle" });
+  await page.fill("#auth-correo", correo);
+  await page.fill("#auth-clave", "ClaveAccesibilidad123");
+  await page.getByRole("button", { name: "Ingresar" }).click();
+  await expect(page.getByText(/Sesión activa como/i)).toBeVisible();
+}
+
+/** Deja un reporte pendiente en la misma base IndexedDB que usa la cola offline. */
+async function sembrarColaOffline(page: Page): Promise<void> {
+  await page.evaluate(
+    async ({ presentacionId, tiendaId }) => {
+      const solicitud = indexedDB.open("comparador_precios_offline", 1);
+      const db = await new Promise<IDBDatabase>((resolver, rechazar) => {
+        solicitud.onupgradeneeded = () => {
+          const base = solicitud.result;
+          if (!base.objectStoreNames.contains("cola_reportes")) {
+            base.createObjectStore("cola_reportes", { keyPath: "idempotency_key" });
+          }
+        };
+        solicitud.onsuccess = () => resolver(solicitud.result);
+        solicitud.onerror = () => rechazar(solicitud.error);
+      });
+      await new Promise<void>((resolver, rechazar) => {
+        const tx = db.transaction("cola_reportes", "readwrite");
+        tx.objectStore("cola_reportes").put({
+          idempotency_key: "cola-accesibilidad-1",
+          presentacion_id: presentacionId,
+          presentacion_etiqueta: "Arroz Diana 500 g",
+          establecimiento_id: tiendaId,
+          establecimiento_nombre: "Tienda La Esquina",
+          precio_cop: 2600,
+          observado_en: new Date().toISOString(),
+          foto_blob: null,
+          foto_ruta_remota: null,
+          intentos: 0,
+          ultimo_error: null,
+          proximo_intento_en: null,
+          creado_localmente_en: new Date().toISOString(),
+        });
+        tx.oncomplete = () => resolver();
+        tx.onerror = () => rechazar(tx.error);
+        tx.onabort = () => rechazar(tx.error);
+      });
+      db.close();
+    },
+    { presentacionId: PRES_500, tiendaId: TIENDA_A }
+  );
+}
+
+async function analizarAxe(page: Page, contexto: string): Promise<void> {
+  const resultados = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze();
+  const graves = resultados.violations.filter(
+    (v) => v.impact === "critical" || v.impact === "serious"
+  );
+  expect(
+    graves,
+    `Violaciones graves en ${contexto}: ${JSON.stringify(graves, null, 2)}`
+  ).toEqual([]);
+}
+
 const PANTALLAS: readonly { readonly nombre: string; readonly ruta: string }[] = [
   { nombre: "S1 Inicio", ruta: "/" },
   { nombre: "S2 Comparador", ruta: `/producto/${PROD_ID}` },
   { nombre: "S3 Tienda", ruta: `/tienda/${TIENDA_ID}` },
   { nombre: "S4 Reportar", ruta: "/reportar?medicion=1" },
   { nombre: "S5 Ingresar", ruta: "/ingresar" },
-  { nombre: "S6 Gestion", ruta: "/gestion" },
   { nombre: "S7 Legal", ruta: "/legal" },
   { nombre: "Offline", ruta: "/offline" },
 ];
 
 test.describe("PWA y Accesibilidad WCAG 2.2 AA", () => {
+  /*
+   * Las pantallas con varias corridas de axe (S6) rozan el limite por defecto
+   * de 30 s cuando el runner esta cargado. 90 s mantiene 4 workers y evita
+   * timeouts intermitentes en CI.
+   */
+  test.describe.configure({ timeout: 90_000 });
+
   test("El manifiesto PWA existe y cumple configuracion standalone", async ({ request }) => {
     const resp = await request.get("/manifest.webmanifest");
     expect(resp.status()).toBe(200);
@@ -229,28 +303,119 @@ test.describe("PWA y Accesibilidad WCAG 2.2 AA", () => {
     expect(Array.isArray(json.icons)).toBe(true);
   });
 
-  for (const pantalla of PANTALLAS) {
-    test(`${pantalla.nombre} (${pantalla.ruta}) tiene 0 violaciones criticas o serias WCAG 2.2 AA`, async ({
+  /*
+   * La aplicacion ofrece modo claro y oscuro, asi que el contraste se verifica en
+   * los dos. El tema se fija en localStorage antes de cargar la pagina: el script
+   * del <head> lo lee y aplica la clase `dark` antes del primer pintado.
+   */
+  const TEMAS = ["claro", "oscuro"] as const;
+
+  for (const tema of TEMAS) {
+    for (const pantalla of PANTALLAS) {
+      test(`${pantalla.nombre} (${pantalla.ruta}) en modo ${tema} tiene 0 violaciones criticas o serias WCAG 2.2 AA`, async ({
+        page,
+      }) => {
+        await page.addInitScript((valor) => {
+          try {
+            window.localStorage.setItem("tema", valor);
+          } catch {
+            // Sin almacenamiento disponible la pagina cae al tema del sistema.
+          }
+        }, tema);
+        await mockApiBasica(page);
+        await page.goto(pantalla.ruta, { waitUntil: "networkidle" });
+        await page.waitForSelector("main h1", { timeout: 10_000 });
+
+        const esOscuro = await page.evaluate(() =>
+          document.documentElement.classList.contains("dark")
+        );
+        expect(esOscuro, `El tema ${tema} no quedo aplicado en ${pantalla.ruta}`).toBe(
+          tema === "oscuro"
+        );
+
+        const resultados = await new AxeBuilder({ page })
+          .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+          .analyze();
+
+        const graves = resultados.violations.filter(
+          (v) => v.impact === "critical" || v.impact === "serious"
+        );
+
+        expect(
+          graves,
+          `Violaciones graves en ${pantalla.ruta} (modo ${tema}): ${JSON.stringify(graves, null, 2)}`
+        ).toEqual([]);
+      });
+    }
+  }
+
+  /*
+   * /gestion solo muestra las pestanas reales con una sesion valida. El moderador
+   * tiene acceso a la cola de casos, a sus reportes y a los reclamos de comercio;
+   * la cola offline pendiente se siembra en IndexedDB antes de entrar al panel.
+   */
+  for (const tema of TEMAS) {
+    test(`S6 Gestion con sesion y cola offline en modo ${tema} tiene 0 violaciones criticas o serias`, async ({
       page,
     }) => {
-      await mockApiBasica(page);
-      await page.goto(pantalla.ruta, { waitUntil: "networkidle" });
-      await page.waitForSelector("main h1", { timeout: 10_000 });
+      await page.addInitScript((valor) => {
+        try {
+          window.localStorage.setItem("tema", valor);
+        } catch {
+          // Sin almacenamiento disponible la pagina cae al tema del sistema.
+        }
+      }, tema);
+      await configurarMocksNucleo(page, { rol: "moderador", autorizadoInicial: true });
+      await iniciarSesion(page, "moderador@armenia.co");
+      await sembrarColaOffline(page);
 
-      const resultados = await new AxeBuilder({ page })
-        .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
-        .analyze();
-
-      const graves = resultados.violations.filter(
-        (v) => v.impact === "critical" || v.impact === "serious"
+      await page.goto("/gestion", { waitUntil: "networkidle" });
+      await expect(page.getByRole("tab", { name: "Cola de casos" })).toHaveAttribute(
+        "aria-selected",
+        "true"
       );
+      await expect(page.getByRole("button", { name: "Revisar" })).toBeVisible();
+      await analizarAxe(page, `/gestion · Cola de casos (modo ${tema})`);
 
-      expect(
-        graves,
-        `Violaciones graves en ${pantalla.ruta}: ${JSON.stringify(graves, null, 2)}`
-      ).toEqual([]);
+      await page.getByRole("tab", { name: "Mis reportes" }).click();
+      const colaPendiente = page.getByRole("region", {
+        name: "Reportes pendientes en cola offline",
+      });
+      await expect(colaPendiente).toBeVisible();
+      await expect(colaPendiente).toContainText("Sincronizar ahora");
+      await expect(page.getByRole("table")).toContainText("Arroz blanco");
+      await analizarAxe(page, `/gestion · Mis reportes con cola offline (modo ${tema})`);
+
+      await page.getByRole("tab", { name: "Reclamos de comercio" }).click();
+      await expect(
+        page.getByRole("heading", { name: "Reclamos de titularidad" })
+      ).toBeVisible();
+      await expect(page.getByText("don_jose")).toBeVisible();
+      await analizarAxe(page, `/gestion · Reclamos de comercio (modo ${tema})`);
     });
   }
+
+  test("ToggleTema expone aria-pressed y etiqueta dinamica en ambos sentidos", async ({
+    page,
+  }) => {
+    await mockApiBasica(page);
+    await page.goto("/", { waitUntil: "networkidle" });
+
+    const aOscuro = page.getByRole("button", { name: "Cambiar a modo oscuro" });
+    await expect(aOscuro).toHaveAttribute("aria-pressed", "false");
+    await aOscuro.click();
+
+    const aClaro = page.getByRole("button", { name: "Cambiar a modo claro" });
+    await expect(aClaro).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("html")).toHaveClass(/dark/);
+
+    await aClaro.click();
+    await expect(page.getByRole("button", { name: "Cambiar a modo oscuro" })).toHaveAttribute(
+      "aria-pressed",
+      "false"
+    );
+    await expect(page.locator("html")).not.toHaveClass(/dark/);
+  });
 
   test("Navegacion por teclado en S4 (/reportar) alcanza controles y cronometro EC-01", async ({
     page,

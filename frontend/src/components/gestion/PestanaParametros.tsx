@@ -50,7 +50,7 @@ function crearColumnasParametros(
           type="button"
           disabled={guardandoClave === p.clave}
           onClick={() => onGuardar(p)}
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 text-xs font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-bosque-800 px-3.5 text-xs font-semibold text-white hover:bg-bosque-900 disabled:opacity-50"
         >
           <Save className="h-3.5 w-3.5" aria-hidden="true" />
           {guardandoClave === p.clave ? "..." : "Guardar"}
@@ -153,7 +153,7 @@ export default function PestanaParametros({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-300 bg-superficie p-4">
         <p className="text-sm font-semibold text-slate-800">
           Total parámetros activos: {parametros.length}
         </p>

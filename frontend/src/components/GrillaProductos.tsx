@@ -12,7 +12,8 @@ export interface GrillaProductosProps {
 }
 
 /**
- * Cuadricula responsive de tarjetas de productos con paginacion por cursor.
+ * Listado del catalogo con paginacion por cursor. Los renglones se separan con
+ * una linea de un pixel y la ultima linea cierra la lista.
  */
 export default function GrillaProductos({
   productos,
@@ -22,8 +23,8 @@ export default function GrillaProductos({
   onCargarMas,
 }: GrillaProductosProps): React.JSX.Element {
   return (
-    <div className="space-y-8">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div>
+      <div className="border-b border-slate-200">
         {productos.map((producto) => (
           <TarjetaProducto
             key={producto.id}
@@ -38,19 +39,18 @@ export default function GrillaProductos({
       </div>
 
       {siguienteCursor && (
-        <div className="flex justify-center pt-2">
+        <div className="flex justify-center pt-8">
           <button
             type="button"
             onClick={onCargarMas}
             disabled={cargandoMas}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-700 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-slate-300 px-7 py-2.5 text-sm font-medium text-slate-900 transition-colors hover:border-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {cargandoMas && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
-            <span>{cargandoMas ? "Cargando productos..." : "Cargar más productos"}</span>
+            <span>{cargandoMas ? "Cargando productos…" : "Cargar más productos"}</span>
           </button>
         </div>
       )}
     </div>
   );
 }
-

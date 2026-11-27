@@ -409,6 +409,8 @@ def _fila_comparacion(presentacion_id: UUID, establecimiento_id: UUID) -> Simple
         presentacion_id=presentacion_id,
         establecimiento_id=establecimiento_id,
         precio_cop=3200,
+        precio_oficial_cop=None,
+        requiere_revalidacion=False,
         precio_por_base=Decimal("6.4"),
         sello="vigente",
         ultimo_reporte_en=datetime.now(UTC),
@@ -445,8 +447,9 @@ async def test_comparacion_crea_span_sin_coordenadas_ni_pii(
         sesion: Any,
         producto_consultado: UUID,
         presentacion: UUID | None,
-    ) -> tuple[Any, list[Any], list[Any]]:
-        return producto, [], [fila]
+        _instante: datetime,
+    ) -> tuple[Any, list[Any], list[Any], list[Any]]:
+        return producto, [], [fila], []
 
     monkeypatch.setattr(ServicioComparacion, "_consultar_bd", consultar_falsa)
 

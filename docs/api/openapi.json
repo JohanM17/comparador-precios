@@ -835,6 +835,70 @@
         "title": "EstablecimientoActualizarEntrada",
         "type": "object"
       },
+      "EstablecimientoComercioResumen": {
+        "description": "Establecimiento verificado del comercio y el estado de sus precios oficiales.",
+        "properties": {
+          "barrio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barrio"
+          },
+          "direccion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Direccion"
+          },
+          "estado_verificacion": {
+            "title": "Estado Verificacion",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "n_por_revalidar": {
+            "title": "N Por Revalidar",
+            "type": "integer"
+          },
+          "n_precios_oficiales": {
+            "title": "N Precios Oficiales",
+            "type": "integer"
+          },
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "tipo": {
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "nombre",
+          "tipo",
+          "barrio",
+          "direccion",
+          "estado_verificacion",
+          "n_precios_oficiales",
+          "n_por_revalidar"
+        ],
+        "title": "EstablecimientoComercioResumen",
+        "type": "object"
+      },
       "EstablecimientoComparacion": {
         "additionalProperties": false,
         "description": "Detalle del comercio en una fila de comparacion.",
@@ -1363,6 +1427,11 @@
           "presentacion": {
             "$ref": "#/components/schemas/PresentacionComparacion"
           },
+          "requiere_revalidacion": {
+            "default": false,
+            "title": "Requiere Revalidacion",
+            "type": "boolean"
+          },
           "sello": {
             "title": "Sello",
             "type": "string"
@@ -1508,6 +1577,28 @@
           "datos"
         ],
         "title": "ListaProductosRespuesta",
+        "type": "object"
+      },
+      "ListaSolicitudesRespuesta": {
+        "description": "Cola de reclamos de titularidad sin resolver.",
+        "properties": {
+          "datos": {
+            "items": {
+              "$ref": "#/components/schemas/SolicitudVerificacionResumen"
+            },
+            "title": "Datos",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "datos",
+          "total"
+        ],
+        "title": "ListaSolicitudesRespuesta",
         "type": "object"
       },
       "MetaComparacion": {
@@ -1730,6 +1821,48 @@
         "title": "PoliticaTratamientoRespuesta",
         "type": "object"
       },
+      "PrecioOficialEntrada": {
+        "additionalProperties": false,
+        "description": "Precio de gondola que el comercio publica para una presentacion.",
+        "properties": {
+          "precio_cop": {
+            "exclusiveMinimum": 0.0,
+            "title": "Precio Cop",
+            "type": "integer"
+          },
+          "presentacion_id": {
+            "format": "uuid",
+            "title": "Presentacion Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "presentacion_id",
+          "precio_cop"
+        ],
+        "title": "PrecioOficialEntrada",
+        "type": "object"
+      },
+      "PrecioRechazado": {
+        "description": "Precio que no se pudo publicar, con el motivo en lenguaje llano.",
+        "properties": {
+          "motivo": {
+            "title": "Motivo",
+            "type": "string"
+          },
+          "presentacion_id": {
+            "format": "uuid",
+            "title": "Presentacion Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "presentacion_id",
+          "motivo"
+        ],
+        "title": "PrecioRechazado",
+        "type": "object"
+      },
       "PrecioUnidad": {
         "additionalProperties": false,
         "description": "Precio unitario normalizado para comparacion equitativa.",
@@ -1769,6 +1902,17 @@
             "title": "Precio Cop",
             "type": "integer"
           },
+          "precio_oficial_cop": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio Oficial Cop"
+          },
           "precio_por_base": {
             "title": "Precio Por Base",
             "type": "string"
@@ -1791,6 +1935,11 @@
             "title": "Producto Nombre",
             "type": "string"
           },
+          "requiere_revalidacion": {
+            "default": false,
+            "title": "Requiere Revalidacion",
+            "type": "boolean"
+          },
           "sello": {
             "title": "Sello",
             "type": "string"
@@ -1812,6 +1961,48 @@
           "ultimo_reporte_en"
         ],
         "title": "PrecioVigenteResumen",
+        "type": "object"
+      },
+      "PreciosLoteEntrada": {
+        "additionalProperties": false,
+        "description": "Lote de precios oficiales. El modo rapido manda entre 20 y 30 por vez.",
+        "properties": {
+          "precios": {
+            "items": {
+              "$ref": "#/components/schemas/PrecioOficialEntrada"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Precios",
+            "type": "array"
+          }
+        },
+        "required": [
+          "precios"
+        ],
+        "title": "PreciosLoteEntrada",
+        "type": "object"
+      },
+      "PreciosLoteRespuesta": {
+        "description": "Resultado del lote: lo que entro y lo que no, sin ocultar lo segundo.",
+        "properties": {
+          "actualizados": {
+            "title": "Actualizados",
+            "type": "integer"
+          },
+          "rechazados": {
+            "items": {
+              "$ref": "#/components/schemas/PrecioRechazado"
+            },
+            "title": "Rechazados",
+            "type": "array"
+          }
+        },
+        "required": [
+          "actualizados",
+          "rechazados"
+        ],
+        "title": "PreciosLoteRespuesta",
         "type": "object"
       },
       "PresentacionActualizarEntrada": {
@@ -2397,6 +2588,268 @@
         "title": "ProductoResumen",
         "type": "object"
       },
+      "PromocionEntrada": {
+        "additionalProperties": false,
+        "description": "Promocion que publica el comercio, sujeta al articulo 33 de la Ley 1480.",
+        "properties": {
+          "condiciones": {
+            "maxLength": 500,
+            "minLength": 10,
+            "title": "Condiciones",
+            "type": "string"
+          },
+          "hasta_revocar": {
+            "default": false,
+            "title": "Hasta Revocar",
+            "type": "boolean"
+          },
+          "lleve_y": {
+            "anyOf": [
+              {
+                "minimum": 2.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lleve Y"
+          },
+          "pague_x": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pague X"
+          },
+          "porcentaje_descuento": {
+            "anyOf": [
+              {
+                "maximum": 90.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Porcentaje Descuento"
+          },
+          "precio_especial_cop": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio Especial Cop"
+          },
+          "presentacion_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Presentacion Id"
+          },
+          "producto_id": {
+            "format": "uuid",
+            "title": "Producto Id",
+            "type": "string"
+          },
+          "tipo": {
+            "pattern": "^(porcentaje|precio_especial|pague_x_lleve_y)$",
+            "title": "Tipo",
+            "type": "string"
+          },
+          "titulo": {
+            "maxLength": 120,
+            "minLength": 5,
+            "title": "Titulo",
+            "type": "string"
+          },
+          "vigente_desde": {
+            "format": "date-time",
+            "title": "Vigente Desde",
+            "type": "string"
+          },
+          "vigente_hasta": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vigente Hasta"
+          }
+        },
+        "required": [
+          "producto_id",
+          "titulo",
+          "tipo",
+          "condiciones",
+          "vigente_desde"
+        ],
+        "title": "PromocionEntrada",
+        "type": "object"
+      },
+      "PromocionRespuesta": {
+        "description": "Promocion publicada. Viaja siempre marcada como contenido comercial.",
+        "properties": {
+          "activa": {
+            "title": "Activa",
+            "type": "boolean"
+          },
+          "condiciones": {
+            "title": "Condiciones",
+            "type": "string"
+          },
+          "es_promocion": {
+            "default": true,
+            "title": "Es Promocion",
+            "type": "boolean"
+          },
+          "establecimiento_id": {
+            "format": "uuid",
+            "title": "Establecimiento Id",
+            "type": "string"
+          },
+          "hasta_revocar": {
+            "title": "Hasta Revocar",
+            "type": "boolean"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "lleve_y": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lleve Y"
+          },
+          "pague_x": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pague X"
+          },
+          "porcentaje_descuento": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Porcentaje Descuento"
+          },
+          "precio_especial_cop": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio Especial Cop"
+          },
+          "presentacion_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Presentacion Id"
+          },
+          "producto_id": {
+            "format": "uuid",
+            "title": "Producto Id",
+            "type": "string"
+          },
+          "tipo": {
+            "title": "Tipo",
+            "type": "string"
+          },
+          "titulo": {
+            "title": "Titulo",
+            "type": "string"
+          },
+          "vigente": {
+            "title": "Vigente",
+            "type": "boolean"
+          },
+          "vigente_desde": {
+            "format": "date-time",
+            "title": "Vigente Desde",
+            "type": "string"
+          },
+          "vigente_hasta": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vigente Hasta"
+          }
+        },
+        "required": [
+          "id",
+          "establecimiento_id",
+          "producto_id",
+          "presentacion_id",
+          "titulo",
+          "tipo",
+          "porcentaje_descuento",
+          "precio_especial_cop",
+          "pague_x",
+          "lleve_y",
+          "condiciones",
+          "vigente_desde",
+          "vigente_hasta",
+          "hasta_revocar",
+          "activa",
+          "vigente"
+        ],
+        "title": "PromocionRespuesta",
+        "type": "object"
+      },
       "PuntoHistorial": {
         "additionalProperties": false,
         "description": "Punto publico de la serie historica, sin datos personales.",
@@ -2476,6 +2929,68 @@
           "motivo"
         ],
         "title": "RechazarSugerenciaEntrada",
+        "type": "object"
+      },
+      "ReclamoComercioEntrada": {
+        "additionalProperties": false,
+        "description": "Solicitud de un usuario para reclamar la titularidad de un establecimiento (D-09).",
+        "properties": {
+          "establecimiento_id": {
+            "format": "uuid",
+            "title": "Establecimiento Id",
+            "type": "string"
+          },
+          "mensaje": {
+            "maxLength": 500,
+            "minLength": 5,
+            "title": "Mensaje",
+            "type": "string"
+          },
+          "telefono_contacto": {
+            "maxLength": 30,
+            "minLength": 7,
+            "title": "Telefono Contacto",
+            "type": "string"
+          }
+        },
+        "required": [
+          "establecimiento_id",
+          "telefono_contacto",
+          "mensaje"
+        ],
+        "title": "ReclamoComercioEntrada",
+        "type": "object"
+      },
+      "ReclamoComercioRespuesta": {
+        "description": "Acuse del reclamo, que queda en la cola de un moderador humano.",
+        "properties": {
+          "creado_en": {
+            "format": "date-time",
+            "title": "Creado En",
+            "type": "string"
+          },
+          "establecimiento_id": {
+            "format": "uuid",
+            "title": "Establecimiento Id",
+            "type": "string"
+          },
+          "estado": {
+            "title": "Estado",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "establecimiento_id",
+          "estado",
+          "creado_en"
+        ],
+        "title": "ReclamoComercioRespuesta",
         "type": "object"
       },
       "ResolverApelacionEntrada": {
@@ -2672,6 +3187,26 @@
         "title": "RespuestaUsuario",
         "type": "object"
       },
+      "RevalidarRespuesta": {
+        "description": "Resultado de la accion «Todo sigue igual» (D-06).",
+        "properties": {
+          "revalidado_en": {
+            "format": "date-time",
+            "title": "Revalidado En",
+            "type": "string"
+          },
+          "revalidados": {
+            "title": "Revalidados",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "revalidados",
+          "revalidado_en"
+        ],
+        "title": "RevalidarRespuesta",
+        "type": "object"
+      },
       "SancionDirectaEntrada": {
         "additionalProperties": false,
         "properties": {
@@ -2816,6 +3351,82 @@
           "tamano_bytes"
         ],
         "title": "SolicitudUrlSubida",
+        "type": "object"
+      },
+      "SolicitudVerificacionResumen": {
+        "description": "Reclamo pendiente, tal como lo ve un moderador en su cola.",
+        "properties": {
+          "creado_en": {
+            "format": "date-time",
+            "title": "Creado En",
+            "type": "string"
+          },
+          "establecimiento_barrio": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Establecimiento Barrio"
+          },
+          "establecimiento_direccion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Establecimiento Direccion"
+          },
+          "establecimiento_id": {
+            "format": "uuid",
+            "title": "Establecimiento Id",
+            "type": "string"
+          },
+          "establecimiento_nombre": {
+            "title": "Establecimiento Nombre",
+            "type": "string"
+          },
+          "estado": {
+            "title": "Estado",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "mensaje": {
+            "title": "Mensaje",
+            "type": "string"
+          },
+          "solicitante_alias": {
+            "title": "Solicitante Alias",
+            "type": "string"
+          },
+          "telefono_contacto": {
+            "title": "Telefono Contacto",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "establecimiento_id",
+          "establecimiento_nombre",
+          "establecimiento_barrio",
+          "establecimiento_direccion",
+          "solicitante_alias",
+          "telefono_contacto",
+          "mensaje",
+          "estado",
+          "creado_en"
+        ],
+        "title": "SolicitudVerificacionResumen",
         "type": "object"
       },
       "SugerenciaPresentacionEntrada": {
@@ -3012,6 +3623,72 @@
         ],
         "title": "ValidationError",
         "type": "object"
+      },
+      "VerificarComercioEntrada": {
+        "additionalProperties": false,
+        "description": "Decision del moderador sobre un reclamo de titularidad.",
+        "properties": {
+          "aprobar": {
+            "title": "Aprobar",
+            "type": "boolean"
+          },
+          "nota": {
+            "anyOf": [
+              {
+                "maxLength": 1000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nota"
+          }
+        },
+        "required": [
+          "aprobar"
+        ],
+        "title": "VerificarComercioEntrada",
+        "type": "object"
+      },
+      "VerificarComercioRespuesta": {
+        "description": "Resultado de la verificacion de un comercio.",
+        "properties": {
+          "comercio_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comercio Id"
+          },
+          "establecimiento_id": {
+            "format": "uuid",
+            "title": "Establecimiento Id",
+            "type": "string"
+          },
+          "estado": {
+            "title": "Estado",
+            "type": "string"
+          },
+          "solicitud_id": {
+            "format": "uuid",
+            "title": "Solicitud Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "solicitud_id",
+          "establecimiento_id",
+          "estado",
+          "comercio_id"
+        ],
+        "title": "VerificarComercioRespuesta",
+        "type": "object"
       }
     }
   },
@@ -3137,6 +3814,445 @@
         "summary": "Listar categorias de productos",
         "tags": [
           "catalogo"
+        ]
+      }
+    },
+    "/v1/comercio/establecimientos": {
+      "get": {
+        "description": "Incluye cuantos precios oficiales tiene cada uno y cuantos piden revalidacion.",
+        "operationId": "listar_establecimientos_v1_comercio_establecimientos_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EstablecimientoComercioResumen"
+                  },
+                  "title": "Response Listar Establecimientos V1 Comercio Establecimientos Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Listar los establecimientos verificados del comercio",
+        "tags": [
+          "comercial"
+        ]
+      }
+    },
+    "/v1/comercio/establecimientos/{establecimiento_id}/precios": {
+      "put": {
+        "description": "Hasta 200 precios por lote. Recalcula el precio vigente de cada par al instante.",
+        "operationId": "publicar_precios_v1_comercio_establecimientos__establecimiento_id__precios_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "establecimiento_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Establecimiento Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreciosLoteEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreciosLoteRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Publicar o actualizar precios oficiales en lote",
+        "tags": [
+          "comercial"
+        ]
+      }
+    },
+    "/v1/comercio/establecimientos/{establecimiento_id}/promociones": {
+      "get": {
+        "description": "Incluye las revocadas, para que el comercio vea su historial.",
+        "operationId": "listar_promociones_v1_comercio_establecimientos__establecimiento_id__promociones_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "establecimiento_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Establecimiento Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PromocionRespuesta"
+                  },
+                  "title": "Response Listar Promociones V1 Comercio Establecimientos  Establecimiento Id  Promociones Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Listar las promociones del establecimiento",
+        "tags": [
+          "comercial"
+        ]
+      },
+      "post": {
+        "description": "Sin condiciones o sin vigencia declarada se responde 422 (Ley 1480, articulo 33).",
+        "operationId": "crear_promocion_v1_comercio_establecimientos__establecimiento_id__promociones_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "establecimiento_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Establecimiento Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PromocionEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PromocionRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Publicar una promocion",
+        "tags": [
+          "comercial"
+        ]
+      }
+    },
+    "/v1/comercio/establecimientos/{establecimiento_id}/promociones/{promocion_id}": {
+      "delete": {
+        "description": "La promocion queda inactiva y con fecha de revocacion; no se borra la fila.",
+        "operationId": "revocar_promocion_v1_comercio_establecimientos__establecimiento_id__promociones__promocion_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "establecimiento_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Establecimiento Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "promocion_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Promocion Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revocar una promocion",
+        "tags": [
+          "comercial"
+        ]
+      }
+    },
+    "/v1/comercio/establecimientos/{establecimiento_id}/revalidar": {
+      "post": {
+        "description": "Accion «Todo sigue igual»: renueva la fecha sin cambiar ningun valor (D-06).",
+        "operationId": "revalidar_precios_v1_comercio_establecimientos__establecimiento_id__revalidar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "establecimiento_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Establecimiento Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevalidarRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Confirmar que los precios siguen igual",
+        "tags": [
+          "comercial"
+        ]
+      }
+    },
+    "/v1/comercio/reclamos": {
+      "post": {
+        "description": "Cualquier cuenta autorizada puede reclamar; la decision es de un moderador.\n\nEl reclamo guarda telefono de contacto y mensaje, asi que exige autorizacion\nprevia y expresa de tratamiento de datos (Ley 1581, FR-006).",
+        "operationId": "reclamar_titularidad_v1_comercio_reclamos_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReclamoComercioEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReclamoComercioRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reclamar la titularidad de un establecimiento",
+        "tags": [
+          "comercial"
         ]
       }
     },
@@ -4233,6 +5349,138 @@
         "summary": "Consultar producto por codigo de barras en fuentes externas",
         "tags": [
           "moderacion"
+        ]
+      }
+    },
+    "/v1/moderacion/comercios": {
+      "get": {
+        "description": "Sin esta cola un reclamo no tendria quien lo mire: solo se podria resolver\nquien ya conociera su identificador.",
+        "operationId": "listar_solicitudes_comercio_v1_moderacion_comercios_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limite",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limite",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListaSolicitudesRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cola de reclamos de titularidad sin resolver",
+        "tags": [
+          "comercial"
+        ]
+      }
+    },
+    "/v1/moderacion/comercios/{solicitud_id}/verificar": {
+      "post": {
+        "description": "Al aprobar, enlaza el establecimiento con la cuenta y le asigna el rol de comercio.",
+        "operationId": "verificar_comercio_v1_moderacion_comercios__solicitud_id__verificar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "solicitud_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Solicitud Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerificarComercioEntrada"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerificarComercioRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Aprobar o rechazar un reclamo de titularidad",
+        "tags": [
+          "comercial"
         ]
       }
     },

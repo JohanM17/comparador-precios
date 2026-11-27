@@ -85,7 +85,7 @@ export default function FichaTienda({
 
       {!cargando && !error && tienda && (
         <div className="space-y-6">
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <section className="rounded-2xl border border-slate-300 bg-superficie p-6">
             <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
               <div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -123,7 +123,7 @@ export default function FichaTienda({
               <button
                 type="button"
                 onClick={() => setModalAbierto(true)}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-800 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-superficie px-4 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-700"
               >
                 <Flag className="h-4 w-4 text-slate-600" aria-hidden="true" />
                 <span>¿Hay información errónea sobre este negocio?</span>
@@ -150,10 +150,21 @@ export default function FichaTienda({
                 {preciosVisibles.map((p) => (
                   <article
                     key={p.presentacion_id}
-                    className="flex flex-col justify-between gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center"
+                    className="flex flex-col justify-between gap-4 rounded-xl border border-slate-300 bg-superficie p-4 sm:flex-row sm:items-center"
                   >
                     <div className="space-y-1.5">
-                      <SelloConfianza sello={p.sello} motivoSello={p.motivo_sello ?? null} />
+                      <SelloConfianza
+                        sello={p.sello}
+                        motivoSello={p.motivo_sello ?? null}
+                        avisoRevalidacion={
+                          p.sello === "oficial" &&
+                          p.precio_oficial_cop !== null &&
+                          p.precio_oficial_cop !== undefined &&
+                          p.requiere_revalidacion
+                            ? p.motivo_sello || "Precio oficial por revalidar"
+                            : null
+                        }
+                      />
                       <div>
                         <Link
                           href={`/producto/${p.producto_id}`}
@@ -179,7 +190,7 @@ export default function FichaTienda({
                       </p>
                       <Link
                         href={`/reportar?tienda=${tienda.id}&presentacion=${p.presentacion_id}`}
-                        className="inline-flex min-h-10 items-center rounded-xl bg-emerald-700 px-3.5 py-2 text-xs font-semibold text-white hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+                        className="inline-flex min-h-10 items-center rounded-xl bg-bosque-800 px-3.5 py-2 text-xs font-semibold text-white hover:bg-bosque-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
                       >
                         Confirmar / Actualizar
                       </Link>
@@ -193,7 +204,7 @@ export default function FichaTienda({
                       type="button"
                       disabled={pagina <= 1}
                       onClick={() => setPagina((prev) => Math.max(1, prev - 1))}
-                      className="min-h-10 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 disabled:opacity-50"
+                      className="min-h-10 rounded-lg border border-slate-300 bg-superficie px-3 py-1.5 text-xs font-semibold text-slate-800 disabled:opacity-50"
                     >
                       Anterior
                     </button>
@@ -204,7 +215,7 @@ export default function FichaTienda({
                       type="button"
                       disabled={pagina >= totalPaginas}
                       onClick={() => setPagina((prev) => Math.min(totalPaginas, prev + 1))}
-                      className="min-h-10 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 disabled:opacity-50"
+                      className="min-h-10 rounded-lg border border-slate-300 bg-superficie px-3 py-1.5 text-xs font-semibold text-slate-800 disabled:opacity-50"
                     >
                       Siguiente
                     </button>

@@ -55,13 +55,13 @@ function ListaOpcionesTienda({
               }
               className={`flex min-h-11 w-full items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left transition-colors ${
                 activa
-                  ? "border-emerald-700 bg-emerald-700 text-white"
-                  : "border-slate-200 bg-white text-slate-900 hover:bg-slate-50"
+                  ? "border-emerald-700 bg-bosque-800 text-white"
+                  : "border-slate-300 bg-superficie text-slate-900 hover:bg-slate-50"
               }`}
             >
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold">{tienda.nombre}</p>
-                <p className={`truncate text-xs ${activa ? "text-emerald-100" : "text-slate-500"}`}>
+                <p className={`truncate text-xs ${activa ? "text-bosque-100" : "text-slate-500"}`}>
                   {formatearTipoEstablecimiento(tienda.tipo)} · {tienda.direccion}
                 </p>
               </div>
@@ -166,8 +166,8 @@ export default function SelectorTienda({
   }, [reciente, tiendas, valor]);
 
   return (
-    <fieldset className="space-y-2.5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <legend className="px-1 text-sm font-bold text-slate-900">1. ¿En qué tienda estás?</legend>
+    <fieldset className="space-y-2.5 rounded-2xl border border-slate-300 bg-superficie p-4">
+      <legend className="px-1 text-sm font-bold text-slate-900"><span className="cifras mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-bosque-800 text-xs font-bold text-white">1</span>¿En qué tienda estás?</legend>
 
       <div className="flex flex-col gap-2 sm:flex-row">
         <div className="relative flex-1">
@@ -184,7 +184,7 @@ export default function SelectorTienda({
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             placeholder="Buscar tienda, supermercado o barrio..."
-            className="min-h-11 w-full rounded-xl border border-slate-300 bg-slate-50 pl-9 pr-3 text-sm text-slate-900 focus:border-emerald-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
+            className="min-h-11 w-full rounded-xl border border-slate-300 bg-slate-50 pl-9 pr-3 text-sm text-slate-900 focus:border-emerald-700 focus:bg-superficie focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
           />
         </div>
 
@@ -211,7 +211,7 @@ export default function SelectorTienda({
             Seleccionada: {seleccionada.nombre}
           </span>
           {reciente?.id === seleccionada.id && (
-            <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
+            <span className="rounded-full bg-superficie px-2 py-0.5 text-[11px] font-semibold text-emerald-800">
               Reciente (&lt; 2 h)
             </span>
           )}

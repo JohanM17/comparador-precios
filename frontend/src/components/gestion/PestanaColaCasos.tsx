@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Eye } from "lucide-react";
 import { clienteModeracion, type CasoDetalle } from "@/lib/api/clienteModeracion";
+import { etiquetaTipoCaso, TIPOS_CASO_MODERACION } from "@/lib/casosModeracion";
 import { extraerInfoError, formatearFechaBogota, type InfoErrorVisible } from "@/lib/formato";
 import EstadoError from "@/components/EstadoError";
 import TablaGestion, { type ColumnaTablaGestion } from "@/components/TablaGestion";
@@ -19,7 +20,7 @@ function crearColumnasCasos(
       encabezado: "Tipo / Prioridad",
       celda: (c) => (
         <div>
-          <p className="font-semibold text-slate-900">{c.tipo}</p>
+          <p className="font-semibold text-slate-900">{etiquetaTipoCaso(c.tipo)}</p>
           <p className="text-xs text-slate-500">Prioridad P{c.prioridad}</p>
         </div>
       ),
@@ -115,7 +116,7 @@ export default function PestanaColaCasos({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="flex flex-wrap gap-3 rounded-2xl border border-slate-300 bg-superficie p-4">
         <div>
           <label htmlFor="filtro-estado-caso" className="block text-xs font-semibold text-slate-600">Estado</label>
           <select
@@ -145,10 +146,11 @@ export default function PestanaColaCasos({
             className="mt-1 min-h-11 rounded-xl border border-slate-300 px-3 text-sm"
           >
             <option value="">Todos</option>
-            <option value="reporte_dudoso">Reporte dudoso</option>
-            <option value="rafaga">Ráfaga</option>
-            <option value="solicitud_correccion">Solicitud corrección</option>
-            <option value="sugerencia_presentacion">Sugerencia presentación</option>
+            {TIPOS_CASO_MODERACION.map((tipo) => (
+              <option key={tipo.valor} value={tipo.valor}>
+                {tipo.etiqueta}
+              </option>
+            ))}
           </select>
         </div>
       </div>
@@ -163,6 +165,7 @@ export default function PestanaColaCasos({
 
       {casoActivo && (
         <DetalleCasoPanel
+          key={casoActivo.id}
           token={token}
           caso={casoActivo}
           onCerrar={() => setCasoActivo(null)}

@@ -2,13 +2,76 @@
 @import "tailwindcss/components";
 @import "tailwindcss/utilities";
 
-:root {
-  --foreground-rgb: 15, 23, 42;
-  --background-rgb: 248, 250, 252;
+body {
+  color: rgb(var(--c-slate-900));
+  background: rgb(var(--c-slate-50));
 }
 
-body {
-  color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-rgb));
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+/*
+ * Los placeholders son texto de ayuda, no decoracion: slate-500 es el tono mas
+ * claro admitido por el sistema (4.6:1 sobre papel) y la regla global evita que
+ * cada formulario tenga que recordarlo. opacity: 1 anula el atenuado nativo.
+ */
+input::placeholder,
+textarea::placeholder {
+  color: rgb(var(--c-slate-500));
+  opacity: 1;
+}
+
+/*
+ * Cifras alineadas en columna. No se aplica al documento entero: en Schibsted
+ * Grotesk las cifras tabulares ensanchan el punto de miles y la coma, y el texto
+ * corrido queda con huecos.
+ */
+.cifras {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum", "lnum";
+}
+
+/* Rotulo de seccion: versalitas espaciadas, el unico adorno tipografico. */
+.rotulo {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgb(var(--c-slate-500));
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-cuerpo), system-ui, sans-serif;
+  letter-spacing: -0.025em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/*
+ * Grafica del historial (A2). Recharts pinta rejilla, ejes y cursor con
+ * atributos de presentacion, y cualquier regla CSS les gana. Colorearlos aqui
+ * en vez de pasar hexadecimales por props deja los tokens como unica fuente y
+ * hace que el modo oscuro funcione sin leer variables desde JavaScript.
+ */
+.grafica-historial .recharts-cartesian-grid line {
+  stroke: rgb(var(--c-slate-200));
+}
+
+.grafica-historial .recharts-cartesian-axis-line,
+.grafica-historial .recharts-cartesian-axis-tick-line {
+  stroke: rgb(var(--c-slate-300));
+}
+
+.grafica-historial .recharts-cartesian-axis-tick-value,
+.grafica-historial .recharts-label {
+  fill: rgb(var(--c-slate-500));
+}
+
+.grafica-historial .recharts-tooltip-cursor {
+  stroke: rgb(var(--c-slate-400));
 }

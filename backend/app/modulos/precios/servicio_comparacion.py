@@ -29,6 +29,7 @@ from app.modulos.precios.esquemas import (
     RespuestaComparacion,
 )
 from app.puertos.cache import PuertoCache
+from app.puertos.promociones import PromocionesPublicadas, PuertoPromociones
 
 tracer = obtener_tracer("app.modulos.precios.servicio_comparacion")
 meter = obtener_meter("app.modulos.precios.servicio_comparacion")
@@ -111,7 +112,8 @@ def _construir_item_dto(
         establecimiento=est_dto,
         presentacion=pres_dto,
         precio_cop=item.precio_cop,
-        precio_oficial_cop=None,
+        precio_oficial_cop=f.precio_oficial_cop,
+        requiere_revalidacion=bool(f.requiere_revalidacion),
         precio_por_unidad=PrecioUnidad(valor_cop=val_unitario, por=por_unidad),
         sello=item.sello,
         motivo_sello=f.motivo_sello,
@@ -130,16 +132,23 @@ class ServicioComparacion:
         self,
         puerto_cache: PuertoCache,
         sesion: AsyncSession | None = None,
+        puerto_promociones: PuertoPromociones | None = None,
     ) -> None:
         self.sesion = sesion
         self.cache = puerto_cache
+        # Las promociones entran por un puerto: el modulo de precios no puede importar al
+        # modulo comercial, y esa frontera es la que sostiene EC-06.
+        self.promociones = (
+            puerto_promociones if puerto_promociones is not None else PromocionesPublicadas()
+        )
 
     async def _consultar_bd(
         self,
         sesion: AsyncSession,
         producto_id: UUID,
         presentacion_id: UUID | None,
-    ) -> tuple[Any, list[PresentacionComparacion], list[Any]]:
+        instante: datetime,
+    ) -> tuple[Any, list[PresentacionComparacion], list[Any], list[dict[str, Any]]]:
         sql_prod = text("""
             SELECT id, nombre, categoria_id, unidad_base
             FROM public.producto WHERE id = :pid AND activo = true;
@@ -166,6 +175,7 @@ class ServicioComparacion:
                    pv.precio_por_base, pv.cantidad_base, pv.sello::text,
                    pv.motivo_sello, pv.n_reportes_validos, pv.n_fuentes,
                    pv.dispersion, pv.ultimo_reporte_en, pv.reporte_origen_id,
+                   pv.precio_oficial_cop, pv.requiere_revalidacion,
                    e.nombre as est_nombre, e.tipo::text as est_tipo,
                    e.barrio as est_barrio, e.direccion as est_direccion,
                    ST_Y(e.ubicacion::geometry) as est_lat,
@@ -189,7 +199,10 @@ class ServicioComparacion:
                 await sesion.execute(sql_filas, {"pid": producto_id, "pres_id": presentacion_id})
             ).fetchall()
         )
-        return fila_prod, presentaciones_dto, filas
+        # Bloque separado y neutral: se leen aparte y jamas entran en `filas` (ADR-018).
+        promociones = await self.promociones.listar_vigentes(sesion, producto_id, instante)
+
+        return fila_prod, presentaciones_dto, filas, promociones
 
     async def obtener_comparacion(
         self,
@@ -256,13 +269,13 @@ class ServicioComparacion:
 
         inicio_bd = time.perf_counter()
         if self.sesion is not None:
-            fila_prod, presentaciones_dto, filas = await self._consultar_bd(
-                self.sesion, producto_id, presentacion_id
+            fila_prod, presentaciones_dto, filas, promociones = await self._consultar_bd(
+                self.sesion, producto_id, presentacion_id, instante
             )
         else:
             async with sesion_transaccional() as sesion:
-                fila_prod, presentaciones_dto, filas = await self._consultar_bd(
-                    sesion, producto_id, presentacion_id
+                fila_prod, presentaciones_dto, filas, promociones = await self._consultar_bd(
+                    sesion, producto_id, presentacion_id, instante
                 )
         db_ms = (time.perf_counter() - inicio_bd) * 1000.0
 
@@ -301,7 +314,7 @@ class ServicioComparacion:
                     presentaciones=presentaciones_dto,
                 ),
                 resultados=resultados_dto,
-                promociones=[],  # EC-06: Bloque separado neutral
+                promociones=promociones,  # EC-06: bloque separado que no toca el orden
                 meta=MetaComparacion(
                     criterio_orden=orden,
                     texto_neutralidad=(

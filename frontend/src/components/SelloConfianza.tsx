@@ -13,6 +13,11 @@ import type { SelloPrecio } from "@/lib/api/clienteApi";
 export interface SelloConfianzaProps {
   readonly sello: SelloPrecio | string;
   readonly motivoSello: string | null;
+  /**
+   * Aviso D-02 para un precio oficial vencido. Se muestra como texto secundario
+   * junto al sello para no alargar ni cambiar la insignia normal.
+   */
+  readonly avisoRevalidacion?: string | null;
 }
 
 interface ConfiguracionSello {
@@ -22,61 +27,84 @@ interface ConfiguracionSello {
   readonly respaldo: string;
 }
 
+/*
+ * Los sellos son anillos de un pixel sin relleno. No usan el verde esmeralda:
+ * ese color esta reservado para el ahorro, y gastarlo aqui le quitaria el
+ * significado. La confianza se distingue por icono y texto, nunca solo por color.
+ */
 const CONFIG_SELLOS: Readonly<Record<string, ConfiguracionSello>> = {
   confiable: {
-    clases: "bg-emerald-50 text-emerald-900 border-emerald-300",
+    clases: "text-slate-700 ring-slate-300",
     Icono: CheckCircle2,
     etiquetaFija: "Confiable",
     respaldo: "Confiable",
   },
   oficial: {
-    clases: "bg-blue-50 text-blue-900 border-blue-300",
+    clases: "text-blue-600 ring-blue-200",
     Icono: BadgeCheck,
     etiquetaFija: "Precio oficial",
     respaldo: "Precio oficial",
   },
   pocos_datos: {
-    clases: "bg-amber-50 text-amber-900 border-amber-300",
+    clases: "text-oro-700 ring-oro-300",
     Icono: HelpCircle,
     etiquetaFija: "Pocos datos: ayúdanos a confirmarlo",
     respaldo: "Pocos datos: ayúdanos a confirmarlo",
   },
   en_disputa: {
-    clases: "bg-orange-50 text-orange-950 border-orange-400",
+    clases: "text-cereza-600 ring-cereza-200",
     Icono: Scale,
     etiquetaFija: "En disputa: comercio vs. usuarios",
     respaldo: "En disputa: comercio vs. usuarios",
   },
   desactualizado: {
-    clases: "bg-slate-100 text-slate-700 border-slate-300",
+    clases: "text-slate-500 ring-slate-300",
     Icono: Clock,
     respaldo: "Precio desactualizado",
   },
   dudoso: {
-    clases: "bg-red-50 text-red-900 border-red-300",
+    clases: "text-cereza-600 ring-cereza-200",
     Icono: AlertTriangle,
     respaldo: "En revisión",
   },
 };
 
 /**
- * Insignia accesible de confiabilidad (WCAG 2.2 AA: icono + texto + borde).
+ * Insignia accesible de confiabilidad (WCAG 2.2 AA: icono + texto + anillo, nunca solo color).
  */
 export default function SelloConfianza({
   sello,
   motivoSello,
+  avisoRevalidacion,
 }: SelloConfianzaProps): React.JSX.Element {
   const config = CONFIG_SELLOS[sello] ?? CONFIG_SELLOS.dudoso;
   const { clases, Icono, etiquetaFija, respaldo } = config;
   const texto = etiquetaFija ?? (motivoSello || respaldo);
+  /*
+   * El aviso D-02 describe la obsolescencia del precio oficial. En una fila
+   * `en_disputa` el motivo pertenece a la contradiccion, no al comercio, y el
+   * precio visible es el comunitario: mostrarlo ahi seria enganoso. La guarda
+   * vive tambien aqui para que ningun llamador pueda saltarsela.
+   */
+  const mostrarAviso = sello === "oficial" && Boolean(avisoRevalidacion);
 
   return (
-    <output
-      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${clases}`}
-    >
-      <Icono className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
-      <span>{texto}</span>
-    </output>
+    <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+      <output
+        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[12px] font-medium ring-1 ring-inset ${clases}`}
+      >
+        <Icono className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+        <span>{texto}</span>
+      </output>
+      {mostrarAviso && (
+        <span
+          data-prueba="aviso-revalidacion"
+          className="inline-flex items-center gap-1 text-[12.5px] font-medium text-oro-700"
+        >
+          <Clock className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+          {avisoRevalidacion}
+        </span>
+      )}
+    </span>
   );
 }
-

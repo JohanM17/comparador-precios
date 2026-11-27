@@ -8,7 +8,12 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.compartido.auditoria import registrar_auditoria
-from app.compartido.errores import NoEncontradoError, ProhibidoError
+from app.compartido.errores import (
+    ConflictoError,
+    NoAutenticadoError,
+    NoEncontradoError,
+    ProhibidoError,
+)
 from app.compartido.seguridad import UsuarioAutenticado
 from app.modulos.moderacion import repositorio_auditoria, repositorio_casos, repositorio_sanciones
 from app.modulos.moderacion.esquemas_casos import (
@@ -56,9 +61,11 @@ class ServicioSancionesAuditoria:
             nuevo_estado = "bloqueada"
         else:
             nuevo_estado = "advertencia"
-        await repositorio_sanciones.actualizar_estado_perfil_bd(
+        actualizado = await repositorio_sanciones.actualizar_estado_perfil_bd(
             self.sesion, entrada.usuario_id, nuevo_estado, hasta
         )
+        if not actualizado:
+            raise ConflictoError("La cuenta fue eliminada; no se puede sancionar.")
         await registrar_auditoria(
             self.sesion,
             actor_id=moderador.id,
@@ -79,6 +86,8 @@ class ServicioSancionesAuditoria:
     async def registrar_apelacion(
         self, sancion_id: UUID, entrada: ApelacionSancionEntrada, usuario: UsuarioAutenticado
     ) -> None:
+        if usuario.estado == "eliminada":
+            raise NoAutenticadoError("La cuenta fue eliminada y no puede apelar sanciones.")
         sancion = await repositorio_sanciones.obtener_sancion_por_id_bd(self.sesion, sancion_id)
         if not sancion:
             raise NoEncontradoError(f"Sancion {sancion_id} no encontrada")
@@ -99,9 +108,11 @@ class ServicioSancionesAuditoria:
 
         await repositorio_sanciones.resolver_apelacion_bd(self.sesion, sancion_id, entrada.aprobar)
         if entrada.aprobar and sancion["tipo"] in ("suspension", "bloqueo"):
-            await repositorio_sanciones.actualizar_estado_perfil_bd(
+            reactivada = await repositorio_sanciones.actualizar_estado_perfil_bd(
                 self.sesion, sancion["usuario_id"], "activa", None
             )
+            if not reactivada:
+                raise ConflictoError("La cuenta fue eliminada; la apelacion no puede reactivarla.")
 
         await registrar_auditoria(
             self.sesion,

@@ -68,6 +68,8 @@ _CLAVES_PROHIBIDAS = frozenset(
         "reportante_id",
         "alias",
         "email",
+        "telefono_contacto",
+        "mensaje",
         "ip",
         "client_ip",
         "ip_address",

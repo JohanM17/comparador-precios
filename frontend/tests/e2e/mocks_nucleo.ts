@@ -6,6 +6,7 @@ export const PRES_1000 = "8d0f7780-8536-51ef-a55c-f18fd2fa1bf8";
 export const TIENDA_A = "11111111-2222-3333-4444-555555555555";
 export const TIENDA_B = "22222222-3333-4444-5555-666666666666";
 export const CASO_ID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+export const CASO_DISPUTA_ID = "dddddddd-1111-4222-8333-444444444444";
 
 export type OrigenHistorialMock = "usuario" | "comercio" | "semilla";
 export type EstadoHistorialMock = "aceptado" | "dudoso";
@@ -56,8 +57,33 @@ export interface OpcionesHistorialMock {
   readonly hasta?: string;
 }
 
+export type EscenarioComparacion =
+  | "normal"
+  | "oficial_revalidacion"
+  | "en_disputa_revalidacion"
+  | "comunidad_revalidacion";
+
 export interface OpcionesMock {
-  rol?: "reportante" | "moderador";
+  rol?: "reportante" | "moderador" | "comercio";
+  /** Presentaciones que el modo rapido muestra para la tienda del comercio. */
+  presentacionesComercio?: number;
+  /** Cuantas de esas presentaciones tienen precio oficial publicado. */
+  preciosOficialesComercio?: number;
+  /** Sello simulado para las filas con precio oficial. */
+  selloPreciosOficiales?: "oficial" | "en_disputa";
+  /** La ficha de tienda trae precios oficiales que piden revalidacion (D-02). */
+  revalidacionComercio?: boolean;
+  /** Escenario del comparador para probar los avisos D-02 y sus guardas. */
+  escenarioComparacion?: EscenarioComparacion;
+  /** Tipo del unico caso que aparece en la cola de moderacion. */
+  casoModeracion?: "reporte_dudoso" | "disputa_precio";
+  /** Motivos de rechazo indexados por presentacion_id (pres-0, pres-1, ...). */
+  rechazarPrecios?: Readonly<Record<string, string>>;
+  alPublicarPrecios?: (cuerpo: unknown) => void;
+  alRevalidarPrecios?: () => void;
+  /** La tienda tiene una promocion activa que se puede revocar con 204. */
+  promocionesComercio?: boolean;
+  alRevocarPromocion?: () => void;
   autorizadoInicial?: boolean;
   alCrearReporte?: (headers: Record<string, string>, cuerpo: unknown) => void;
   alResolverCaso?: (cuerpo: unknown) => void;
@@ -66,12 +92,52 @@ export interface OpcionesMock {
 interface EstadoMock {
   autorizado: boolean;
   casoResuelto: boolean;
-  readonly rol: "reportante" | "moderador";
+  promocionRevocada: boolean;
+  /** Precios oficiales activos por presentacion; el PUT los actualiza. */
+  preciosOficiales: Record<string, number>;
+  readonly rol: "reportante" | "moderador" | "comercio";
   readonly opts: OpcionesMock;
 }
 
-function construirComparacion(): unknown {
+function construirComparacion(escenario: EscenarioComparacion = "normal"): unknown {
   const ahora = new Date().toISOString();
+  const base = {
+    establecimiento: { id: TIENDA_A, nombre: "Tienda La Esquina", tipo: "tienda_barrio", barrio: "Centro", direccion: "Cra 14 # 18-22", distancia_m: 420 },
+    presentacion: { id: PRES_1000, etiqueta: "Arroz Diana 1 kg", marca: "Diana", cantidad_base: 1000 },
+    precio_por_unidad: { valor_cop: 5000, por: "kg" },
+    ultimo_reporte_en: ahora,
+    con_foto_prueba: false,
+    es_bloque_secundario: false,
+  };
+  const primerResultado =
+    escenario === "oficial_revalidacion"
+      ? {
+          ...base,
+          precio_cop: 5000, precio_oficial_cop: 5000, requiere_revalidacion: true,
+          sello: "oficial", motivo_sello: "Precio oficial por revalidar: 45 días sin cambios",
+          n_reportes_validos: 0, n_fuentes: 0,
+        }
+      : escenario === "en_disputa_revalidacion"
+        ? {
+            ...base,
+            precio_cop: 3000, precio_oficial_cop: 3700, requiere_revalidacion: true,
+            sello: "en_disputa",
+            motivo_sello: "La comunidad reporta un precio distinto al oficial de $3.700",
+            n_reportes_validos: 4, n_fuentes: 3,
+          }
+        : escenario === "comunidad_revalidacion"
+          ? {
+              ...base,
+              precio_cop: 5000, precio_oficial_cop: null, requiere_revalidacion: true,
+              sello: "confiable", motivo_sello: "3 reportes de 3 fuentes",
+              n_reportes_validos: 4, n_fuentes: 3,
+            }
+          : {
+              ...base,
+              precio_cop: 5000, precio_oficial_cop: null, requiere_revalidacion: false,
+              sello: "confiable", motivo_sello: null,
+              n_reportes_validos: 4, n_fuentes: 3, con_foto_prueba: true,
+            };
   return {
     datos: {
       producto: {
@@ -82,12 +148,7 @@ function construirComparacion(): unknown {
         ],
       },
       resultados: [
-        {
-          establecimiento: { id: TIENDA_A, nombre: "Tienda La Esquina", tipo: "tienda_barrio", barrio: "Centro", direccion: "Cra 14 # 18-22", distancia_m: 420 },
-          presentacion: { id: PRES_1000, etiqueta: "Arroz Diana 1 kg", marca: "Diana", cantidad_base: 1000 },
-          precio_cop: 5000, precio_oficial_cop: null, precio_por_unidad: { valor_cop: 5000, por: "kg" },
-          sello: "confiable", motivo_sello: null, n_reportes_validos: 4, n_fuentes: 3, ultimo_reporte_en: ahora, con_foto_prueba: true, es_bloque_secundario: false,
-        },
+        primerResultado,
         {
           establecimiento: { id: TIENDA_B, nombre: "Supermercado Central", tipo: "supermercado", barrio: "Norte", direccion: "Av Bolivar 10-20", distancia_m: 980 },
           presentacion: { id: PRES_500, etiqueta: "Arroz Diana 500 g", marca: "Diana", cantidad_base: 500 },
@@ -302,7 +363,11 @@ async function responderHistorial(route: Route, ruta: string): Promise<boolean> 
   return true;
 }
 
-async function responderPublicos(route: Route, ruta: string): Promise<boolean> {
+async function responderPublicos(
+  route: Route,
+  ruta: string,
+  opts: OpcionesMock
+): Promise<boolean> {
   const mapaPublicos: Record<string, unknown> = {
     "/v1/categorias": [{ id: 1, nombre: "Granos, arroz y pastas", padre_id: null, orden: 1 }],
     "/v1/productos": {
@@ -319,7 +384,7 @@ async function responderPublicos(route: Route, ruta: string): Promise<boolean> {
         unidad: "g", multiplicador: 1, cantidad_base: "500.000", etiqueta: "Arroz Diana 500 g", activa: true,
       }],
     },
-    [`/v1/productos/${PROD_ID}/comparacion`]: construirComparacion(),
+    [`/v1/productos/${PROD_ID}/comparacion`]: construirComparacion(opts.escenarioComparacion),
     "/v1/establecimientos": {
       datos: [{
         id: TIENDA_A, nombre: "Tienda La Esquina", tipo: "tienda_barrio", cadena: null,
@@ -356,6 +421,26 @@ async function responderCuentaYReportes(route: Route, ruta: string, metodo: stri
     });
     return true;
   }
+  if (ruta === "/v1/mis-reportes" && metodo === "GET") {
+    await route.fulfill({
+      json: {
+        datos: [{
+          id: "rep-propio-e2e-1",
+          producto_nombre: "Arroz blanco",
+          presentacion_etiqueta: "Arroz Diana 500 g",
+          establecimiento_nombre: "Tienda La Esquina",
+          precio_cop: 2600,
+          estado_visible: "recibido",
+          observado_en: new Date().toISOString(),
+          creado_en: new Date().toISOString(),
+        }],
+        pagina: 1,
+        limite: 20,
+        total: 1,
+      },
+    });
+    return true;
+  }
   if (ruta === "/v1/mi-cuenta/autorizacion" && metodo === "POST") {
     estado.autorizado = true;
     await route.fulfill({ status: 201, json: { usuario_id: "user-e2e-1", alias: "vecino_armenia", version_politica: "1.0", aceptada_en: new Date().toISOString(), mensaje: "OK" } });
@@ -370,38 +455,252 @@ async function responderCuentaYReportes(route: Route, ruta: string, metodo: stri
   return false;
 }
 
-async function responderModeracion(route: Route, ruta: string, metodo: string, estado: EstadoMock): Promise<boolean> {
-  if (ruta === "/v1/moderacion/casos" && metodo === "GET") {
-    const lista = estado.casoResuelto ? [] : [{
-      id: CASO_ID, tipo: "reporte_dudoso", referencia_tabla: "reporte_precio", referencia_id: "rep-99",
-      detalle: { senales: ["z_score_alto"] }, prioridad: 2, estado: "abierto", creado_en: new Date().toISOString(),
-    }];
-    await route.fulfill({ json: { datos: lista, total: lista.length } });
+/** Presentaciones sinteticas para medir el modo rapido con un lote realista. */
+export function presentacionesComercioMock(
+  cantidad: number,
+  preciosOficiales: Readonly<Record<string, number>> = {},
+  selloOficial: "oficial" | "en_disputa" = "oficial",
+  revalidacion = false
+): unknown[] {
+  return Array.from({ length: cantidad }, (_, i) => {
+    const presentacionId = `pres-${i}`;
+    const precioComunidad = 3000 + i * 50;
+    const precioOficial = preciosOficiales[presentacionId];
+    const tieneOficial = precioOficial !== undefined;
+    /*
+     * Sello `oficial`: el precio vigente es el del comercio. Sello `en_disputa`:
+     * el vigente es la comunidad y el oficial viaja al lado. Esta ultima es la
+     * rama donde los dos valores difieren de verdad.
+     */
+    const precioVisible =
+      tieneOficial && selloOficial === "oficial" ? precioOficial : precioComunidad;
+    return {
+      producto_id: `prod-${i}`,
+      producto_nombre: `Producto ${i + 1}`,
+      presentacion_id: presentacionId,
+      presentacion_etiqueta: `Marca ${i + 1} 500 g`,
+      precio_cop: precioVisible,
+      precio_oficial_cop: tieneOficial ? precioOficial : null,
+      precio_por_base: { valor_cop: 6000 + i * 100, por: "kg" },
+      sello: tieneOficial ? selloOficial : "confiable",
+      requiere_revalidacion: tieneOficial && revalidacion,
+      motivo_sello: tieneOficial
+        ? selloOficial === "en_disputa"
+          ? "La comunidad reporta un precio distinto al oficial"
+          : revalidacion
+            ? "Precio oficial por revalidar: 45 días sin cambios"
+            : "Precio publicado por el comercio"
+        : "3 reportes de 3 fuentes",
+      ultimo_reporte_en: new Date().toISOString(),
+    };
+  });
+}
+
+async function responderComercio(
+  route: Route,
+  ruta: string,
+  metodo: string,
+  estado: EstadoMock
+): Promise<boolean> {
+  const cantidad = estado.opts.presentacionesComercio ?? 20;
+  const totalOficiales = Object.keys(estado.preciosOficiales).length;
+
+  if (ruta === "/v1/comercio/establecimientos" && metodo === "GET") {
+    await route.fulfill({
+      json: [{
+        id: TIENDA_A, nombre: "Tienda La Esquina", tipo: "tienda_barrio", barrio: "Centro",
+        direccion: "Cra 14 # 18-22", estado_verificacion: "verificado",
+        n_precios_oficiales: totalOficiales, n_por_revalidar: 0,
+      }],
+    });
     return true;
   }
-  if (ruta === `/v1/moderacion/casos/${CASO_ID}` && metodo === "GET") {
+
+  if (ruta === `/v1/establecimientos/${TIENDA_A}` && metodo === "GET") {
     await route.fulfill({
       json: {
-        id: CASO_ID, tipo: "reporte_dudoso", referencia_tabla: "reporte_precio", referencia_id: "rep-99",
-        detalle: { senales: ["z_score_alto"] }, prioridad: 2, estado: "abierto", creado_en: new Date().toISOString(),
-        referencia_datos: { precio_cop: 15000, producto: "Arroz blanco" },
+        id: TIENDA_A, nombre: "Tienda La Esquina", tipo: "tienda_barrio", cadena: null,
+        direccion: "Cra 14 # 18-22", barrio: "Centro", municipio: "Armenia", departamento: "Quindío",
+        lat: 4.535, lng: -75.675, distancia_m: null, estado_verificacion: "verificado", activo: true,
+        precios_vigentes: presentacionesComercioMock(
+          cantidad,
+          estado.preciosOficiales,
+          estado.opts.selloPreciosOficiales ?? "oficial",
+          estado.opts.revalidacionComercio ?? false
+        ),
       },
     });
     return true;
   }
-  if (ruta === `/v1/moderacion/casos/${CASO_ID}/resolver` && metodo === "POST") {
+
+  if (ruta === `/v1/comercio/establecimientos/${TIENDA_A}/precios` && metodo === "PUT") {
+    const cuerpo = route.request().postDataJSON() as {
+      precios?: { presentacion_id: string; precio_cop: number }[];
+    };
+    estado.opts.alPublicarPrecios?.(cuerpo);
+    const motivos = estado.opts.rechazarPrecios ?? {};
+    const rechazados = (cuerpo.precios ?? [])
+      .filter((precio) => precio.presentacion_id in motivos)
+      .map((precio) => ({
+        presentacion_id: precio.presentacion_id,
+        motivo: motivos[precio.presentacion_id] ?? "Precio rechazado en la prueba.",
+      }));
+    for (const precio of cuerpo.precios ?? []) {
+      if (!(precio.presentacion_id in motivos)) {
+        estado.preciosOficiales[precio.presentacion_id] = precio.precio_cop;
+      }
+    }
+    const actualizados = (cuerpo.precios?.length ?? 0) - rechazados.length;
+    await route.fulfill({ json: { actualizados, rechazados } });
+    return true;
+  }
+
+  if (ruta === `/v1/comercio/establecimientos/${TIENDA_A}/revalidar` && metodo === "POST") {
+    estado.opts.alRevalidarPrecios?.();
+    const revalidados = Object.keys(estado.preciosOficiales).length;
+    if (revalidados === 0) {
+      /*
+       * El backend responde 409 cuando no hay precios oficiales que revalidar.
+       * El mock no puede fingir doce confirmaciones para una tienda vacia: esa
+       * mentira fue la que oculto el bloqueo de la primera publicacion.
+       */
+      await route.fulfill({
+        status: 409,
+        json: {
+          type: "https://comparador.armenia.gov.co/errores/conflicto",
+          title: "Conflicto De Recursos",
+          status: 409,
+          detail: "No hay precios oficiales que revalidar.",
+          codigo: "CONFLICTO",
+        },
+      });
+      return true;
+    }
+    await route.fulfill({
+      json: { revalidados, revalidado_en: new Date().toISOString() },
+    });
+    return true;
+  }
+
+  if (ruta === `/v1/comercio/establecimientos/${TIENDA_A}/promociones` && metodo === "GET") {
+    const mostrar = Boolean(estado.opts.promocionesComercio) && !estado.promocionRevocada;
+    await route.fulfill({
+      json: mostrar
+        ? [{
+            id: "promo-e2e-1",
+            establecimiento_id: TIENDA_A,
+            producto_id: PROD_ID,
+            presentacion_id: null,
+            titulo: "Pague 2 lleve 3 en arroz",
+            tipo: "pague_x_lleve_y",
+            porcentaje_descuento: null,
+            precio_especial_cop: null,
+            pague_x: 2,
+            lleve_y: 3,
+            condiciones: "Valido todos los viernes en la tienda.",
+            vigente_desde: new Date().toISOString(),
+            vigente_hasta: null,
+            hasta_revocar: true,
+            activa: true,
+            vigente: true,
+            es_promocion: true,
+          }]
+        : [],
+    });
+    return true;
+  }
+
+  if (
+    ruta === `/v1/comercio/establecimientos/${TIENDA_A}/promociones/promo-e2e-1` &&
+    metodo === "DELETE"
+  ) {
+    estado.promocionRevocada = true;
+    estado.opts.alRevocarPromocion?.();
+    // Sin cuerpo: la ruta responde 204 y `solicitarApi` debe tolerarlo.
+    await route.fulfill({ status: 204 });
+    return true;
+  }
+
+  if (ruta === "/v1/moderacion/comercios" && metodo === "GET") {
+    await route.fulfill({
+      json: {
+        datos: [{
+          id: "sol-e2e-1", establecimiento_id: TIENDA_A,
+          establecimiento_nombre: "Tienda La Esquina", establecimiento_barrio: "Centro",
+          establecimiento_direccion: "Cra 14 # 18-22", solicitante_alias: "don_jose",
+          telefono_contacto: "3001234567", mensaje: "Soy el dueño, atiendo de 7 a 8.",
+          estado: "pendiente", creado_en: new Date().toISOString(),
+        }],
+        total: 1,
+      },
+    });
+    return true;
+  }
+
+  return false;
+}
+
+async function responderModeracion(route: Route, ruta: string, metodo: string, estado: EstadoMock): Promise<boolean> {
+  const esDisputa = estado.opts.casoModeracion === "disputa_precio";
+  const idCaso = esDisputa ? CASO_DISPUTA_ID : CASO_ID;
+  const tipoCaso = esDisputa ? "disputa_precio" : "reporte_dudoso";
+  const referenciaTabla = esDisputa ? "presentacion" : "reporte_precio";
+  const referenciaId = esDisputa ? PRES_1000 : "rep-99";
+  const detalle = esDisputa
+    ? {
+        presentacion_id: PRES_1000,
+        establecimiento_id: TIENDA_A,
+        producto_id: PROD_ID,
+        precio_oficial_cop: 3700,
+        precio_comunidad_cop: 3000,
+        diferencia_pct: 0.1892,
+        n_reportes_validos: 4,
+        n_fuentes: 3,
+        sello: "en_disputa",
+      }
+    : { senales: ["z_score_alto"] };
+
+  if (ruta === "/v1/moderacion/casos" && metodo === "GET") {
+    const lista = estado.casoResuelto ? [] : [{
+      id: idCaso, tipo: tipoCaso, referencia_tabla: referenciaTabla, referencia_id: referenciaId,
+      detalle, prioridad: 2, estado: "abierto", creado_en: new Date().toISOString(),
+    }];
+    await route.fulfill({ json: { datos: lista, total: lista.length } });
+    return true;
+  }
+  if (ruta === `/v1/moderacion/casos/${idCaso}` && metodo === "GET") {
+    await route.fulfill({
+      json: {
+        id: idCaso, tipo: tipoCaso, referencia_tabla: referenciaTabla, referencia_id: referenciaId,
+        detalle, prioridad: 2, estado: "abierto", creado_en: new Date().toISOString(),
+        referencia_datos: esDisputa
+          ? { precio_cop: 3000, producto: "Arroz blanco", establecimiento: "Tienda La Esquina" }
+          : { precio_cop: 15000, producto: "Arroz blanco" },
+      },
+    });
+    return true;
+  }
+  if (ruta === `/v1/moderacion/casos/${idCaso}/resolver` && metodo === "POST") {
+    const cuerpo = route.request().postDataJSON() as { decision?: string };
     estado.casoResuelto = true;
-    estado.opts.alResolverCaso?.(route.request().postDataJSON());
-    await route.fulfill({ json: { id: CASO_ID, tipo: "reporte_dudoso", estado: "resuelto", decision: "confirmar", prioridad: 2, creado_en: new Date().toISOString() } });
+    estado.opts.alResolverCaso?.(cuerpo);
+    await route.fulfill({ json: { id: idCaso, tipo: tipoCaso, estado: "resuelto", decision: cuerpo.decision ?? "confirmar", prioridad: 2, creado_en: new Date().toISOString() } });
     return true;
   }
   return false;
 }
 
 export async function configurarMocksNucleo(page: Page, opts: OpcionesMock = {}): Promise<void> {
+  const cantidadInicial = opts.presentacionesComercio ?? 20;
+  const preciosOficiales: Record<string, number> = {};
+  for (let i = 0; i < Math.min(opts.preciosOficialesComercio ?? 0, cantidadInicial); i += 1) {
+    preciosOficiales[`pres-${i}`] = 3000 + i * 50 + 700;
+  }
   const estado: EstadoMock = {
     autorizado: opts.autorizadoInicial ?? true,
     casoResuelto: false,
+    promocionRevocada: false,
+    preciosOficiales,
     rol: opts.rol ?? "reportante",
     opts,
   };
@@ -415,7 +714,8 @@ export async function configurarMocksNucleo(page: Page, opts: OpcionesMock = {})
     }
     const metodo = req.method();
     if (await responderHistorial(route, ruta)) return;
-    if (await responderPublicos(route, ruta)) return;
+    if (await responderComercio(route, ruta, metodo, estado)) return;
+    if (await responderPublicos(route, ruta, estado.opts)) return;
     if (await responderCuentaYReportes(route, ruta, metodo, estado)) return;
     if (await responderModeracion(route, ruta, metodo, estado)) return;
     await route.fulfill({ status: 404, json: { detail: `Ruta no mockeada: ${ruta}` } });

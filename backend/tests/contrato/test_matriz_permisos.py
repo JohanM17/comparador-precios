@@ -8,12 +8,14 @@ from uuid import uuid4
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
 
 from app.adaptadores.cache_dos_niveles import CacheDosNiveles
+from app.bd import sesion_transaccional
+from app.compartido.dependencias import obtener_puerto_cache
 from app.config import obtener_configuracion
 from app.main import app
 from app.modulos.fotos.api import limitador_fotos
-from app.modulos.precios.api import obtener_puerto_cache
 from app.modulos.precios.servicio import limitador_escritura
 from tests.contrato.ayudantes_rbac import (
     ROLES_RBAC,
@@ -204,6 +206,82 @@ async def test_matriz_moderacion(clave_rol: str, estado_esp: int, codigo_esp: st
             assert r.status_code == estado_esp, f"{clave_rol} en {ruta} -> {r.text}"
             if codigo_esp:
                 assert r.json()["codigo"] == codigo_esp
+
+
+async def _crear_establecimiento_reclamable() -> str:
+    """Crea un establecimiento sin dueno para probar el reclamo de forma aislada."""
+    sufijo = uuid4().hex[:8]
+    async with sesion_transaccional() as sesion:
+        return str(
+            (
+                await sesion.execute(
+                    text("""
+                        INSERT INTO public.establecimiento
+                            (nombre, tipo, direccion, ubicacion)
+                        VALUES (
+                            :nombre, 'tienda_barrio', :direccion,
+                            ST_SetSRID(ST_MakePoint(-75.6811, 4.5339), 4326)::geography
+                        )
+                        RETURNING id;
+                    """),
+                    {
+                        "nombre": f"Reclamo RBAC {sufijo}",
+                        "direccion": f"Calle RBAC {sufijo}",
+                    },
+                )
+            ).scalar_one()
+        )
+
+
+async def _borrar_establecimiento_reclamable(establecimiento_id: str) -> None:
+    async with sesion_transaccional() as sesion:
+        await sesion.execute(
+            text("""
+                DELETE FROM public.solicitud_verificacion_comercio
+                WHERE establecimiento_id = :id;
+            """),
+            {"id": establecimiento_id},
+        )
+        await sesion.execute(
+            text("DELETE FROM public.establecimiento WHERE id = :id;"),
+            {"id": establecimiento_id},
+        )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("clave_rol", "estado_esp", "codigo_esp"),
+    [
+        ("anonimo", 401, "NO_AUTENTICADO"),
+        ("sin_autorizar", 403, "AUTORIZACION_REQUERIDA"),
+        ("reportante_activa", 201, None),
+        ("moderador_activa", 201, None),
+        ("suspendida", 403, "CUENTA_SUSPENDIDA"),
+        ("bloqueada", 403, "CUENTA_SUSPENDIDA"),
+    ],
+)
+async def test_matriz_reclamo_comercio(
+    clave_rol: str, estado_esp: int, codigo_esp: str | None
+) -> None:
+    """Celda 9: reclamar titularidad exige autorizacion de datos (Ley 1581)."""
+    est_id = await _crear_establecimiento_reclamable()
+    try:
+        headers = await headers_para_rol(clave_rol)
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as cli:
+            r = await cli.post(
+                "/v1/comercio/reclamos",
+                headers=headers,
+                json={
+                    "establecimiento_id": est_id,
+                    "telefono_contacto": "3001234567",
+                    "mensaje": "Soy el dueno y quiero publicar precios oficiales",
+                },
+            )
+        assert r.status_code == estado_esp, r.text
+        if codigo_esp:
+            assert r.json()["codigo"] == codigo_esp
+    finally:
+        await _borrar_establecimiento_reclamable(est_id)
 
 
 @pytest.mark.asyncio
