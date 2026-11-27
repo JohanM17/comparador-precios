@@ -417,6 +417,38 @@ test.describe("PWA y Accesibilidad WCAG 2.2 AA", () => {
     await expect(page.locator("html")).not.toHaveClass(/dark/);
   });
 
+  test("Los selects nativos mantienen contraste en tema oscuro", async ({ page }) => {
+    await configurarMocksNucleo(page);
+    await page.goto(`/producto/${PROD_ID}`, { waitUntil: "networkidle" });
+    await page.waitForSelector("#filtro-presentacion");
+    await page.getByRole("button", { name: "Cambiar a modo oscuro" }).click();
+    await expect(page.locator("html")).toHaveClass(/dark/);
+
+    const colores = await page
+      .locator("#filtro-presentacion option")
+      .first()
+      .evaluate((option) => {
+        const estilo = getComputedStyle(option);
+        return { color: estilo.color, backgroundColor: estilo.backgroundColor };
+      });
+
+    const aRgb = (valor: string): [number, number, number] => {
+      const partes = (valor.match(/\d+/g) ?? ["0", "0", "0"]).map(Number);
+      return [partes[0] ?? 0, partes[1] ?? 0, partes[2] ?? 0];
+    };
+    const luminancia = ([r, g, b]: [number, number, number]): number => {
+      const canal = (v: number): number => {
+        const s = v / 255;
+        return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+      };
+      return 0.2126 * canal(r) + 0.7152 * canal(g) + 0.0722 * canal(b);
+    };
+    const l1 = luminancia(aRgb(colores.color));
+    const l2 = luminancia(aRgb(colores.backgroundColor));
+    const contraste = (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+    expect(contraste).toBeGreaterThanOrEqual(4.5);
+  });
+
   test("Navegacion por teclado en S4 (/reportar) alcanza controles y cronometro EC-01", async ({
     page,
   }) => {

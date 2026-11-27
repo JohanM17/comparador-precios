@@ -75,3 +75,23 @@ h3 {
 .grafica-historial .recharts-tooltip-cursor {
   stroke: rgb(var(--c-slate-400));
 }
+
+/*
+ * Selects nativos: el popup de opciones no hereda de forma fiable el color del
+ * <select>. En modo oscuro el navegador puede pintar fondo claro con texto
+ * claro y las opciones se ven en blanco hasta el hover. Forzamos fondo y texto
+ * legibles en ambos temas; el valor seleccionado tambien recibe el color claro.
+ */
+select option {
+  background-color: rgb(var(--c-superficie));
+  color: rgb(var(--c-slate-900));
+}
+
+.dark select {
+  color: rgb(var(--c-slate-900));
+}
+
+.dark select option {
+  background-color: rgb(var(--c-superficie));
+  color: rgb(var(--c-slate-900));
+}
