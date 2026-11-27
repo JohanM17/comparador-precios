@@ -836,6 +836,28 @@ def test_redactar_texto_sensible_telefonos_percent_encoded() -> None:
     assert "57355671-5518-4abc-9159-050bc91cacfc" in redactado
 
 
+def test_redactar_texto_sensible_protege_uuid_percent_encoded() -> None:
+    """Un UUID codificado no se confunde con un telefono."""
+    uuid_encoded = "57355671%2D5518%2D4abc%2D9159%2D050bc91cacfc"
+
+    redactado = redactar_texto_sensible(f"caso={uuid_encoded}")
+
+    assert redactado == f"caso={uuid_encoded}"
+    assert "[REDACTADO_TELEFONO]" not in redactado
+
+
+def test_redactar_texto_sensible_redacta_telefonos_adyacentes_a_guion() -> None:
+    """Un guion separador no impide redactar el telefono."""
+    texto = "telefonos:3001234567-3009998888; contacto=3001234567-casa; tel=%2B57-300-123-4567"
+
+    redactado = redactar_texto_sensible(texto)
+
+    assert "3001234567" not in redactado
+    assert "3009998888" not in redactado
+    assert "300-123-4567" not in redactado
+    assert redactado.count("[REDACTADO_TELEFONO]") == 4
+
+
 def test_filtro_privacidad_redacta_telefono_en_logs() -> None:
     """El filtro de Ley 1581 tambien sanea el telefono de un reclamo."""
     filtro = FiltroPrivacidadLey1581()

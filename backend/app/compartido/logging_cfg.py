@@ -23,13 +23,22 @@ _PATRON_COORDENADAS_CODIFICADAS = re.compile(
     r"(lat|lng|latitude|longitude)%3D[-+]?(\d*\.\d+|\d+)", re.IGNORECASE
 )
 _PATRON_TELEFONO_CO = re.compile(
-    r"(?<![\w-])(?:\+?57[\s.-]?)?(?:\(?(?:3\d{2}|60\d)\)?[\s.-]?)\d{3}[\s.-]?\d{4}"
-    r"(?![\w-])"
+    r"(?<!\w)(?:\+?57[\s.-]?)?(?:\(?(?:3\d{2}|60\d)\)?[\s.-]?)\d{3}[\s.-]?\d{4}(?!\w)"
 )
 _PATRON_TELEFONO_CO_CODIFICADO = re.compile(
-    r"(?<![\w-])(?:%2B|\+)?(?:57)?(?:%20|%2D|%2E|\s)?"
-    r"(?:\(?(?:3\d{2}|60\d)\)?)(?:%20|%2D|%2E|\s)?\d{3}"
-    r"(?:%20|%2D|%2E|\s)?\d{4}(?![\w-])",
+    r"(?<!\w)(?:%2B|\+)?(?:57)?(?:%20|%2D|%2E|\s|\.|-)?"
+    r"(?:\(?(?:3\d{2}|60\d)\)?)(?:%20|%2D|%2E|\s|\.|-)?\d{3}"
+    r"(?:%20|%2D|%2E|\s|\.|-)?\d{4}(?!\w)",
+    re.IGNORECASE,
+)
+# Los UUID no son PII y se usan para trazar casos y reportes. Se protegen antes de
+# redactar telefonos para que un UUID con forma de numero no se corrompa.
+_PATRON_UUID = re.compile(
+    r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b",
+    re.IGNORECASE,
+)
+_PATRON_UUID_CODIFICADO = re.compile(
+    r"\b[0-9a-f]{8}(?:%2D[0-9a-f]{4}){3}%2D[0-9a-f]{12}\b",
     re.IGNORECASE,
 )
 _PATRON_BEARER = re.compile(r"Bearer\s+[-a-z0-9._~+/]+=*", re.IGNORECASE)
@@ -61,14 +70,23 @@ def redactar_texto_sensible(texto: str) -> str:
 
     Cubre las variantes percent-encoded de correos y coordenadas. Los telefonos
     colombianos (moviles `3XX`, fijos `60X`, con o sin `+57` y separadores, tambien
-    en variantes percent-encoded) se sustituyen por `[REDACTADO_TELEFONO]`. Las
-    direcciones IPv4 y el loopback IPv6
-    se sustituyen por `[REDACTADO_IP]`; las huellas de red etiquetadas o con 64
-    caracteres hexadecimales se sustituyen por `[REDACTADO_HUELLA]`.
+    en variantes percent-encoded) se sustituyen por `[REDACTADO_TELEFONO]`. Los
+    UUID se protegen para no confundirlos con telefonos. Las direcciones IPv4 y el
+    loopback IPv6 se sustituyen por `[REDACTADO_IP]`; las huellas de red etiquetadas
+    o con 64 caracteres hexadecimales se sustituyen por `[REDACTADO_HUELLA]`.
     """
     if not texto:
         return texto
-    redactado = _PATRON_EMAIL.sub("[REDACTADO_EMAIL]", texto)
+
+    uuids_protegidos: list[str] = []
+
+    def _proteger_uuid(coincidencia: re.Match[str]) -> str:
+        uuids_protegidos.append(coincidencia.group(0))
+        return f"__uuid_protegido_{len(uuids_protegidos) - 1}__"
+
+    redactado = _PATRON_UUID.sub(_proteger_uuid, texto)
+    redactado = _PATRON_UUID_CODIFICADO.sub(_proteger_uuid, redactado)
+    redactado = _PATRON_EMAIL.sub("[REDACTADO_EMAIL]", redactado)
     redactado = _PATRON_EMAIL_CODIFICADO.sub("[REDACTADO_EMAIL]", redactado)
     redactado = _PATRON_COORDENADAS.sub(r"\1=[REDACTADO_COORD]", redactado)
     redactado = _PATRON_COORDENADAS_CODIFICADAS.sub(r"\1%3D[REDACTADO_COORD]", redactado)
@@ -79,6 +97,9 @@ def redactar_texto_sensible(texto: str) -> str:
     redactado = _PATRON_IPV6_LOCAL.sub("[REDACTADO_IP]", redactado)
     redactado = _PATRON_HUELLA_RED.sub("[REDACTADO_HUELLA]", redactado)
     redactado = _PATRON_HUELLA_HEX.sub("[REDACTADO_HUELLA]", redactado)
+
+    for indice, uuid_original in enumerate(uuids_protegidos):
+        redactado = redactado.replace(f"__uuid_protegido_{indice}__", uuid_original)
     return redactado
 
 
