@@ -159,12 +159,13 @@
   - **Hecho cuando…**: el runbook explica tablero, SLO, alerta, simulacro, diagnóstico, muestreo, retención y reversión; las variables están documentadas; no hay secretos.
   - **Nota**: runbook alineado con el logging real; validación del colector, retención y disparo de alerta quedan para T-126.
 
-- [ ] **T-126** [US-B1] | **Certificar EC-11 con el simulacro y la evidencia**
+- [x] **T-126** [US-B1] | **Certificar EC-11 con el simulacro y la evidencia**
   - **Depende de**: T-122, T-123, T-125
   - **Resp.**: **B + D**
-  - **Archivos**: `docs/calidad/informe_ec11.md` (nuevo), capturas/enlaces en el repositorio
+  - **Archivos**: `docs/calidad/informe_ec11.md`, `docs/calidad/evidencia/ec11/`
   - **Hecho cuando…**: alerta ≤ 5 min; traza identifica el componente; tablero muestra SLO/presupuesto; evidencia reproducible; 0 PII; p95 de comparación no se degrada.
-  - **BLOQUEADA — pendiente de entorno**: requiere `.env`, colector OTLP/Grafana, reglas cargadas, `k6` y un producto real del seed. La plantilla reproducible está en `docs/calidad/informe_ec11.md`; no se ha ejecutado ni certificado.
+  - **Certificado**: staging con `SIMULAR_LATENCIA_MS=3000`; k6 200 VUs/3 min, 5.934 iteraciones, 0 % errores, p95 6.79 s; SLI staging 0 y presupuesto 100 %; alerta `ComparadorSLOComparacionIncumplidoStaging` en **Firing**; traza de 4.80 s en `GET /v1/productos/{id}/comparacion`; producción con SLI 0.9981 y p95 de comparación 179.64 ms. Evidencia en `docs/calidad/evidencia/ec11/`.
+  - **Pendiente opcional**: capturas de SLI/presupuesto y tablero; contact point de notificación; restaurar staging a `SIMULAR_LATENCIA_MS=0` o suspenderlo.
 
 ---
 
