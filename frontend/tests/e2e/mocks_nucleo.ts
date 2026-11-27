@@ -1,7 +1,9 @@
 import type { Page, Route } from "@playwright/test";
 
 export const PROD_ID = "3b241101-e2bb-4255-8caf-4136c566a962";
+export const PROD_ATUN = "aaaaaaaa-1111-4222-8333-555555555555";
 export const PRES_500 = "7c9e6679-7425-40de-944b-e07fc1f90ae7";
+export const PRES_ISABEL = "bbbbbbbb-1111-4222-8333-666666666666";
 export const PRES_1000 = "8d0f7780-8536-51ef-a55c-f18fd2fa1bf8";
 export const TIENDA_A = "11111111-2222-3333-4444-555555555555";
 export const TIENDA_B = "22222222-3333-4444-5555-666666666666";
@@ -369,19 +371,51 @@ async function responderPublicos(
   opts: OpcionesMock
 ): Promise<boolean> {
   const mapaPublicos: Record<string, unknown> = {
-    "/v1/categorias": [{ id: 1, nombre: "Granos, arroz y pastas", padre_id: null, orden: 1 }],
+    "/v1/categorias": [
+      { id: 1, nombre: "Granos, arroz y pastas", padre_id: null, orden: 1 },
+      { id: 7, nombre: "Enlatados y conservas", padre_id: null, orden: 7 },
+    ],
     "/v1/productos": {
       datos: [{
         id: PROD_ID, nombre: "Arroz blanco", categoria_id: 1, unidad_base: "g",
         unidad_visualizacion: "kg", precio_desde_por_unidad_cop: 5000, n_tiendas_con_precio: 2, imagen_url: null,
+        presentaciones: [{
+          id: PRES_500, producto_id: PROD_ID, marca: "Diana", valor_cantidad: "500",
+          unidad: "g", multiplicador: 1, cantidad_base: "500.000", etiqueta: "Arroz Diana 500 g",
+          codigo_barras: null, activa: true,
+        }],
+      }, {
+        id: PROD_ATUN, nombre: "Atún en lomitos en aceite", categoria_id: 7, unidad_base: "g",
+        unidad_visualizacion: "kg", precio_desde_por_unidad_cop: 15625, n_tiendas_con_precio: 8, imagen_url: null,
+        presentaciones: [{
+          id: PRES_ISABEL, producto_id: PROD_ATUN, marca: "Isabel", valor_cantidad: "160",
+          unidad: "g", multiplicador: 1, cantidad_base: "160.000",
+          etiqueta: "Lata 160 g Atún Isabel Aceite", codigo_barras: null, activa: true,
+        }, {
+          id: "cccccccc-1111-4222-8333-777777777777", producto_id: PROD_ATUN, marca: "Van Camp's",
+          valor_cantidad: "184", unidad: "g", multiplicador: 1, cantidad_base: "184.000",
+          etiqueta: "Lata 184 g Atún Van Camps Aceite", codigo_barras: null, activa: true,
+        }],
       }],
-      siguiente_cursor: null, total_estimado: 1,
+      siguiente_cursor: null, total_estimado: 2,
     },
     [`/v1/productos/${PROD_ID}`]: {
       id: PROD_ID, nombre: "Arroz blanco", categoria_id: 1, unidad_base: "g", unidad_visualizacion: "kg", activo: true,
       presentaciones: [{
         id: PRES_500, producto_id: PROD_ID, marca: "Diana", valor_cantidad: "500",
         unidad: "g", multiplicador: 1, cantidad_base: "500.000", etiqueta: "Arroz Diana 500 g", activa: true,
+      }],
+    },
+    [`/v1/productos/${PROD_ATUN}`]: {
+      id: PROD_ATUN, nombre: "Atún en lomitos en aceite", categoria_id: 7, unidad_base: "g", unidad_visualizacion: "kg", activo: true,
+      presentaciones: [{
+        id: PRES_ISABEL, producto_id: PROD_ATUN, marca: "Isabel", valor_cantidad: "160",
+        unidad: "g", multiplicador: 1, cantidad_base: "160.000",
+        etiqueta: "Lata 160 g Atún Isabel Aceite", codigo_barras: null, activa: true,
+      }, {
+        id: "cccccccc-1111-4222-8333-777777777777", producto_id: PROD_ATUN, marca: "Van Camp's",
+        valor_cantidad: "184", unidad: "g", multiplicador: 1, cantidad_base: "184.000",
+        etiqueta: "Lata 184 g Atún Van Camps Aceite", codigo_barras: null, activa: true,
       }],
     },
     [`/v1/productos/${PROD_ID}/comparacion`]: construirComparacion(opts.escenarioComparacion),

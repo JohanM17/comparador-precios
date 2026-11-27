@@ -19,6 +19,17 @@ test.describe("Flujos E2E del Nucleo (T-51)", () => {
     await expect(page.getByRole("heading", { name: /Promoción — Contenido comercial que no altera el ranking/i })).toBeVisible();
   });
 
+  test("Flujo catálogo: la búsqueda por marca muestra la presentación coincidente", async ({ page }) => {
+    await configurarMocksNucleo(page);
+    await page.goto("/", { waitUntil: "networkidle" });
+    await page.fill("#buscador-vitrina", "atun isabel");
+    await page.getByRole("button", { name: "Buscar" }).click();
+
+    const tarjetaAtun = page.getByRole("link", { name: /Atún en lomitos en aceite/i });
+    await expect(tarjetaAtun).toBeVisible();
+    await expect(tarjetaAtun).toContainText("Lata 160 g Atún Isabel Aceite");
+  });
+
   test("Flujo 2: Reportante autoriza Ley 1581, encola reporte offline en IndexedDB y sincroniza", async ({ page, context }) => {
     let claveIdempotenciaRecibida: string | undefined;
     await configurarMocksNucleo(page, {
