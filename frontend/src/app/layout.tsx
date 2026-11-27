@@ -56,8 +56,12 @@ export const viewport: Viewport = {
   maximumScale: 5,
 };
 
-/** Fija el tema antes del primer pintado para evitar el parpadeo claro a oscuro. */
-const SCRIPT_TEMA = `try{var t=localStorage.getItem("tema");var o=t?t==="oscuro":window.matchMedia("(prefers-color-scheme: dark)").matches;if(o)document.documentElement.classList.add("dark")}catch(e){}`;
+/**
+ * Fija el tema antes del primer pintado para evitar el parpadeo claro a oscuro.
+ * La lectura de localStorage y la consulta del sistema van en try/catch
+ * separados: si el almacenamiento esta bloqueado, igual se respeta al sistema.
+ */
+const SCRIPT_TEMA = `(function(){var t=null;try{t=localStorage.getItem("tema")}catch(e){}var o=false;if(t){o=t==="oscuro"}else{try{o=window.matchMedia("(prefers-color-scheme: dark)").matches}catch(e){}}if(o){document.documentElement.classList.add("dark")}})();`;
 
 interface RootLayoutProps {
   readonly children: React.ReactNode;

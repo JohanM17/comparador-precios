@@ -359,6 +359,26 @@ async function responderCuentaYReportes(route: Route, ruta: string, metodo: stri
     });
     return true;
   }
+  if (ruta === "/v1/mis-reportes" && metodo === "GET") {
+    await route.fulfill({
+      json: {
+        datos: [{
+          id: "rep-propio-e2e-1",
+          producto_nombre: "Arroz blanco",
+          presentacion_etiqueta: "Arroz Diana 500 g",
+          establecimiento_nombre: "Tienda La Esquina",
+          precio_cop: 2600,
+          estado_visible: "recibido",
+          observado_en: new Date().toISOString(),
+          creado_en: new Date().toISOString(),
+        }],
+        pagina: 1,
+        limite: 20,
+        total: 1,
+      },
+    });
+    return true;
+  }
   if (ruta === "/v1/mi-cuenta/autorizacion" && metodo === "POST") {
     estado.autorizado = true;
     await route.fulfill({ status: 201, json: { usuario_id: "user-e2e-1", alias: "vecino_armenia", version_politica: "1.0", aceptada_en: new Date().toISOString(), mensaje: "OK" } });

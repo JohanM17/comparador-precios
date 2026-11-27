@@ -54,7 +54,7 @@ export default function AppShell({ children }: AppShellProps): React.JSX.Element
                 type="search"
                 autoComplete="off"
                 placeholder="Buscar arroz, leche, aceite…"
-                className="w-full border-0 border-b border-slate-300 bg-transparent py-1.5 pl-6 pr-2 text-sm text-slate-900 placeholder-slate-500 transition-colors focus:border-slate-900 focus:outline-none focus:ring-0"
+                className="w-full border-0 border-b border-slate-300 bg-transparent py-1.5 pl-6 pr-2 text-sm text-slate-900 placeholder-slate-500 transition-colors focus:border-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
               />
             </form>
           </div>

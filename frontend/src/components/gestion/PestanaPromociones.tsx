@@ -165,7 +165,7 @@ export default function PestanaPromociones({
             id="tienda-promos"
             value={tiendaId}
             onChange={(ev) => setTiendaId(ev.target.value)}
-            className="mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-0"
+            className="mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
           >
             {tiendas.map((t) => (
               <option key={t.id} value={t.id}>
@@ -253,7 +253,7 @@ export default function PestanaPromociones({
                 required
                 value={productoId}
                 onChange={(ev) => setProductoId(ev.target.value)}
-                className="mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-0"
+                className="mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
               >
                 {productos.map((p) => (
                   <option key={p.id} value={p.id}>
@@ -271,7 +271,7 @@ export default function PestanaPromociones({
                 id="promo-tipo"
                 value={tipo}
                 onChange={(ev) => setTipo(ev.target.value as TipoPromocion)}
-                className="mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-0"
+                className="mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
               >
                 {TIPOS.map((t) => (
                   <option key={t.valor} value={t.valor}>
@@ -293,7 +293,7 @@ export default function PestanaPromociones({
               maxLength={120}
               value={titulo}
               onChange={(ev) => setTitulo(ev.target.value)}
-              className="mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-0"
+              className="mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
             />
           </div>
 
@@ -310,7 +310,7 @@ export default function PestanaPromociones({
                 required
                 value={porcentaje}
                 onChange={(ev) => setPorcentaje(ev.target.value)}
-                className="cifras mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-0"
+                className="cifras mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
               />
             </div>
           )}
@@ -327,7 +327,7 @@ export default function PestanaPromociones({
                 required
                 value={precioEspecial}
                 onChange={(ev) => setPrecioEspecial(ev.target.value)}
-                className="cifras mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-0"
+                className="cifras mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
               />
             </div>
           )}
@@ -345,7 +345,7 @@ export default function PestanaPromociones({
                   required
                   value={pagueX}
                   onChange={(ev) => setPagueX(ev.target.value)}
-                  className="cifras mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-0"
+                  className="cifras mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
                 />
               </div>
               <div>
@@ -359,7 +359,7 @@ export default function PestanaPromociones({
                   required
                   value={lleveY}
                   onChange={(ev) => setLleveY(ev.target.value)}
-                  className="cifras mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-0"
+                  className="cifras mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
                 />
               </div>
             </div>
@@ -378,7 +378,7 @@ export default function PestanaPromociones({
               value={condiciones}
               onChange={(ev) => setCondiciones(ev.target.value)}
               placeholder="Válido solo los viernes, máximo 3 unidades por persona…"
-              className="mt-1 w-full resize-y border-0 border-b border-slate-300 bg-transparent px-0 py-2 text-[15px] text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:outline-none focus:ring-0"
+              className="mt-1 w-full resize-y border-0 border-b border-slate-300 bg-transparent px-0 py-2 text-[15px] text-slate-900 placeholder:text-slate-500 focus:border-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
             />
           </div>
 
@@ -393,7 +393,7 @@ export default function PestanaPromociones({
                 required
                 value={desde}
                 onChange={(ev) => setDesde(ev.target.value)}
-                className="cifras mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-0"
+                className="cifras mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
               />
             </div>
             <div>
@@ -406,7 +406,7 @@ export default function PestanaPromociones({
                 disabled={hastaRevocar}
                 value={hasta}
                 onChange={(ev) => setHasta(ev.target.value)}
-                className="cifras mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-0 disabled:opacity-50"
+                className="cifras mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 disabled:opacity-50"
               />
             </div>
           </div>
@@ -424,7 +424,7 @@ export default function PestanaPromociones({
           <button
             type="submit"
             disabled={enviando}
-            className="inline-flex min-h-11 items-center justify-center rounded-full bg-brasa-600 px-5 text-[13.5px] font-medium text-slate-50 transition-colors hover:bg-brasa-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:opacity-50"
+            className="inline-flex min-h-11 items-center justify-center rounded-full bg-brasa-600 px-5 text-[13.5px] font-medium text-white transition-colors hover:bg-brasa-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:opacity-50"
           >
             {enviando ? "Publicando…" : "Publicar promoción"}
           </button>

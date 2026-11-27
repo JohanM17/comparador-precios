@@ -144,7 +144,7 @@ export default function PestanaReclamosComercio({
                     setNotas((previas) => ({ ...previas, [s.id]: ev.target.value }))
                   }
                   placeholder="Llamé al número y confirmó el nombre del local"
-                  className="mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[14.5px] text-slate-900 placeholder:text-slate-400 focus:border-slate-900 focus:outline-none focus:ring-0"
+                  className="mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[14.5px] text-slate-900 placeholder:text-slate-500 focus:border-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
                 />
               </div>
 
@@ -153,7 +153,7 @@ export default function PestanaReclamosComercio({
                   type="button"
                   disabled={procesando === s.id}
                   onClick={() => void decidir(s, true)}
-                  className="inline-flex min-h-11 items-center justify-center rounded-full bg-brasa-600 px-5 text-[13.5px] font-medium text-slate-50 transition-colors hover:bg-brasa-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:opacity-50"
+                  className="inline-flex min-h-11 items-center justify-center rounded-full bg-brasa-600 px-5 text-[13.5px] font-medium text-white transition-colors hover:bg-brasa-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:opacity-50"
                 >
                   {procesando === s.id ? "Procesando…" : "Aprobar"}
                 </button>

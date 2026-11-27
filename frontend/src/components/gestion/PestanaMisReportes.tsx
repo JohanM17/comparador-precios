@@ -145,7 +145,7 @@ export default function PestanaMisReportes({
               type="button"
               onClick={() => void sincronizarAhora()}
               disabled={sincronizando}
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-[#78350f] px-3.5 text-xs font-semibold text-white hover:bg-[#451a03] disabled:opacity-50"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-oro-700 px-3.5 text-xs font-semibold text-oro-50 hover:bg-oro-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50 disabled:opacity-50"
             >
               <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
               {sincronizando ? "Sincronizando..." : "Sincronizar ahora"}
@@ -153,7 +153,7 @@ export default function PestanaMisReportes({
           </div>
           <ul className="mt-3 space-y-1.5 text-xs text-amber-950">
             {pendientesLocales.map((item) => (
-              <li key={item.idempotency_key} className="rounded-lg bg-white/80 px-3 py-2">
+              <li key={item.idempotency_key} className="rounded-lg bg-superficie/80 px-3 py-2">
                 <strong>{formatearPesos(item.precio_cop)}</strong> ·{" "}
                 {item.presentacion_etiqueta ?? item.presentacion_id} en{" "}
                 {item.establecimiento_nombre ?? item.establecimiento_id} (intentos: {item.intentos})

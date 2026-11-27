@@ -147,7 +147,7 @@ export default function VitrinaInicio(): React.JSX.Element {
               value={terminoInput}
               onChange={(e) => setTerminoInput(e.target.value)}
               placeholder="Ej. arroz 1/2 kilo, leche, aceite…"
-              className="min-h-11 w-full border-0 bg-transparent py-2 pl-7 pr-8 text-[17px] text-slate-900 placeholder-slate-500 focus:outline-none focus:ring-0"
+              className="min-h-11 w-full border-0 bg-transparent py-2 pl-7 pr-8 text-[17px] text-slate-900 placeholder-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
             />
             {terminoInput && (
               <button
@@ -196,7 +196,7 @@ export default function VitrinaInicio(): React.JSX.Element {
 
       <div className="pb-4">
         <section aria-label="Catálogo de productos">
-          <p className="rotulo mb-4">Catálogo</p>
+          <h2 className="rotulo mb-4">Catálogo</h2>
 
           {cargando && <Cargando filas={6} etiqueta="Cargando productos de la canasta…" />}
 
