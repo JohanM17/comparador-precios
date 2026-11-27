@@ -18,6 +18,7 @@ import {
   registrarSincronizacionAutomatica,
   sincronizarColaReportes,
 } from "@/lib/offline/colaReportes";
+import { generarUuidV4 } from "@/lib/identificadores";
 import CampoPrecio from "@/components/CampoPrecio";
 import EstadoError from "@/components/EstadoError";
 import SelectorPresentacion from "@/components/SelectorPresentacion";
@@ -107,7 +108,7 @@ export default function FormularioReportar(): React.JSX.Element {
       if (tiendaMeta) guardarTiendaReciente(tiendaMeta);
       if (presentacionMeta) guardarPresentacionReciente(presentacionMeta);
       await encolarReporteOffline({
-        idempotency_key: crypto.randomUUID(),
+        idempotency_key: generarUuidV4(),
         presentacion_id: presentacionId,
         presentacion_etiqueta: presentacionMeta?.etiqueta,
         establecimiento_id: tiendaId,
@@ -146,6 +147,13 @@ export default function FormularioReportar(): React.JSX.Element {
         return;
       }
       cerrarEnvio(resumen.pendientes === 0 ? "Precio registrado y sincronizado correctamente." : "Guardado en cola local: se reintentará automáticamente.");
+    } catch {
+      // Antes un fallo de IndexedDB/crypto dejaba la promesa rechazada sin
+      // feedback. El usuario veia "no paso nada". El detalle tecnico no se
+      // muestra para no filtrar datos del dispositivo.
+      setErrorMsg(
+        "No pudimos guardar el reporte en este dispositivo. Revisa el almacenamiento y vuelve a intentar."
+      );
     } finally {
       setEnviando(false);
     }
