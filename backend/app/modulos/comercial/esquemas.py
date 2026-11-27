@@ -51,7 +51,10 @@ class PrecioOficialEntrada(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     presentacion_id: UUID
-    precio_cop: int = Field(gt=0, le=2_000_000)
+    # El maximo y el minimo viven en config_parametro; el esquema solo descarta
+    # valores no positivos. El rango de negocio se valida en publicar_precios
+    # para que un item invalido no tumbe el lote completo.
+    precio_cop: int = Field(gt=0)
 
 
 class PreciosLoteEntrada(BaseModel):

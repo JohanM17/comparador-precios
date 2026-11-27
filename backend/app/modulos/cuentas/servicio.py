@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 from uuid import UUID
 
@@ -31,6 +32,10 @@ from app.modulos.cuentas.repositorio import (
     verificar_alias_disponible,
 )
 from app.puertos.almacenamiento import PuertoAlmacenamientoFotos
+from app.puertos.auth_admin import PuertoAuthAdmin
+from app.puertos.cache import PuertoCache
+
+_logger = logging.getLogger("app")
 
 VERSION_POLITICA_VIGENTE = "1.0"
 MSG_AUTORIZACION_REQUERIDA = (
@@ -49,10 +54,15 @@ class ServicioCuentas:
         self,
         sesion: AsyncSession,
         puerto_almacenamiento: PuertoAlmacenamientoFotos | None = None,
+        puerto_cache: PuertoCache | None = None,
+        puerto_auth_admin: PuertoAuthAdmin | None = None,
     ) -> None:
         self.sesion = sesion
         self.puerto_almacenamiento = puerto_almacenamiento
+        self.puerto_cache = puerto_cache
+        self.puerto_auth_admin = puerto_auth_admin
         self.cfg = obtener_configuracion()
+        self._productos_afectados_baja: list[UUID] = []
 
     def obtener_politica_tratamiento(self) -> PoliticaTratamientoRespuesta:
         """Retorna la version vigente y texto oficial de politica de tratamiento de datos."""
@@ -175,6 +185,8 @@ class ServicioCuentas:
 
         antes = {"alias": perfil["alias"]}
         perfil_act = await actualizar_alias_bd(self.sesion, usuario.id, entrada.alias)
+        if perfil_act is None:
+            raise ConflictoError("La cuenta ya no esta activa; no se puede actualizar el alias.")
 
         await registrar_auditoria(
             self.sesion,
@@ -201,11 +213,19 @@ class ServicioCuentas:
         )
 
     async def eliminar_mi_cuenta(self, usuario: UsuarioAutenticado) -> EliminarCuentaRespuesta:
-        """Anonimiza reportes, fotos, revoca autorizaciones y marca perfil como eliminada."""
+        """Anonimiza reportes, fotos, datos comerciales y revoca autorizaciones."""
         perfil = await self._exigir_perfil_autorizado(usuario.id)
 
-        perfil_anon, rutas_fotos = await anonimizar_y_dar_de_baja_cuenta(self.sesion, usuario.id)
+        (
+            perfil_anon,
+            rutas_fotos,
+            resumen_comercial,
+            productos_afectados,
+        ) = await anonimizar_y_dar_de_baja_cuenta(self.sesion, usuario.id)
+        self._productos_afectados_baja = productos_afectados
 
+        # La auditoria es inmutable y la consulta cualquier auditor: no puede
+        # conservar el alias anterior ni telefonos o mensajes de reclamos.
         await registrar_auditoria(
             self.sesion,
             actor_id=usuario.id,
@@ -213,8 +233,8 @@ class ServicioCuentas:
             accion="eliminar_cuenta_anonimizar",
             entidad="perfil",
             entidad_id=str(usuario.id),
-            antes=perfil,
-            despues=perfil_anon,
+            antes={"estado": perfil["estado"]},
+            despues={**perfil_anon, **resumen_comercial},
         )
 
         if self.puerto_almacenamiento and rutas_fotos:
@@ -228,3 +248,41 @@ class ServicioCuentas:
             usuario_id=usuario.id,
             estado="eliminada",
         )
+
+    async def invalidar_cache_baja(self) -> None:
+        """Invalida la cache de los productos afectados, solo despues del commit.
+
+        Se separa de `eliminar_mi_cuenta` para que una comparacion concurrente no
+        pueda repoblar la cache con la proyeccion anterior antes del commit.
+        """
+        if self.puerto_cache is None:
+            return
+        for producto_id in self._productos_afectados_baja:
+            try:
+                await self.puerto_cache.invalidar_producto(producto_id)
+            except Exception:  # noqa: S110
+                _logger.warning(
+                    "No se pudo invalidar la cache de un producto tras eliminar la cuenta."
+                )
+
+    async def eliminar_credencial_auth(self, usuario_id: UUID) -> bool:
+        """Elimina la credencial de Supabase Auth despues del commit, sin romper la baja.
+
+        La operacion es best-effort: si el puerto no esta configurado o la API
+        externa falla, la cuenta ya quedo anonimizada en PostgreSQL y se registra
+        solo un warning generico, sin PII.
+        """
+        if self.puerto_auth_admin is None:
+            return False
+        try:
+            eliminada = await self.puerto_auth_admin.eliminar_usuario(usuario_id)
+        except Exception:
+            _logger.warning(
+                "No se pudo eliminar la credencial de autenticacion tras eliminar la cuenta."
+            )
+            return False
+        if not eliminada:
+            _logger.warning(
+                "No se pudo eliminar la credencial de autenticacion tras eliminar la cuenta."
+            )
+        return eliminada
