@@ -42,8 +42,9 @@ Sobre tablas existentes hace una sola cosa: añadir tres columnas anulables a `p
 ### 2.2 Firma del puerto — cero
 
 El protocolo `PoliticaPrecioReferencia` llegó sin tocar. `SoloUsuarios`, la implementación de
-Etapa 1, conserva su comportamiento y sigue siendo la que se usa por omisión. Lo que se añadió es
-una segunda implementación, `OficialConContraste`, que el servicio recibe por constructor.
+Etapa 1, conserva su comportamiento y sigue disponible para pruebas y para reproducir el
+comportamiento histórico del núcleo. La política que usan por omisión los servicios de
+producción es `OficialConContraste`, que el servicio recibe por constructor.
 
 Comparando la superficie pública del archivo antes y después, no desapareció ni se renombró nada:
 solo aparecen la clase nueva y los lectores privados que ambas implementaciones comparten.
@@ -161,17 +162,14 @@ de aplicación.
 
 ## 6. Lo que este documento no afirma
 
-- **Solo se verificaron las lecturas.** La comparación, el historial y el catálogo responden
-  contra la base migrada, y las rutas comerciales rechazan correctamente a quien no se
-  identifica. La **escritura** en las columnas y tablas nuevas no se ha ejercitado contra la base.
-- **No hay pruebas de integración ejecutadas** sobre el esquema comercial. La suite de
-  `backend/tests/integracion` no aísla sus escrituras en transacciones revertidas, así que
-  correrla contra la base compartida dejaría datos. Por eso `T-68` queda pendiente y se resolverá
-  con una base aislada o con transacciones revertidas, no con Docker local: el proyecto no usa
-  contenedores en la máquina de desarrollo.
-- **La política por omisión no cambió.** `ServicioPrecios`, `servicio_casos` y el trabajo de
-  reconstrucción siguen usando `SoloUsuarios`. `OficialConContraste` solo es la implementación
-  por omisión dentro del servicio comercial, que es donde corresponde.
+- **Las escrituras nuevas ya se ejercitaron en una base aislada.** `T-68` ejecuta la API y la
+  política `OficialConContraste` contra `comparador_pruebas`: publica un precio oficial, proyecta
+  `precio_vigente`, crea promociones vigentes y persiste un contraste de 1000/200000 tras la
+  migración `0007`, que amplía `diferencia_pct` a `numeric(14,4)`. La base compartida no recibe
+  estos datos.
+- **La política por omisión cambió en la Etapa 2.** `ServicioPrecios`, `servicio_casos` y el
+  trabajo de reconstrucción usan `OficialConContraste`. `SoloUsuarios` queda como implementación
+  explícita para pruebas y para conservar el comportamiento histórico del núcleo.
 - **EC-05 mide modificabilidad, no corrección funcional.** Que el módulo entre sin rediseñar el
-  núcleo no dice que sus reglas sean las correctas; eso lo dicen las pruebas de dominio y, cuando
-  existan, las de integración.
+  núcleo no dice que sus reglas sean las correctas; eso lo dicen las pruebas de dominio y las de
+  integración de `T-68`.
