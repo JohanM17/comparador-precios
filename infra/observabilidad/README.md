@@ -137,7 +137,8 @@ Notas sobre las etiquetas:
 - `http_status_code` es el código HTTP (`200`, `500`, etc.).
 - `http_target` es la ruta plantilla de baja cardinalidad que exporta la
   instrumentación ASGI actual (`route.path_format`), por ejemplo
-  `/v1/productos/{id}/comparacion`; **no** es la URL concreta con el UUID. Las
+  `/productos/{id}/comparacion` (sin el prefijo `/v1`; el endpoint público es
+  `/v1/productos/{id}/comparacion`); **no** es la URL concreta con el UUID. Las
   consultas HTTP del tablero usan esta etiqueta.
 - `http_route` pertenece a las convenciones semánticas nuevas de HTTP y no está
   activada por defecto en la instrumentación instalada. Si se activa, se

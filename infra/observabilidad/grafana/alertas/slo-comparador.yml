@@ -12,11 +12,11 @@ groups:
       # 1000 ms y 2500 ms, y excluye las respuestas 5xx del numerador.
       - record: comparador:sli_comparacion_7d
         expr: >-
-          (sum(rate(http_server_duration_milliseconds_bucket{service_name="comparador-precios-backend", http_target="/v1/productos/{id}/comparacion", le="1000", http_status_code!~"5.."}[7d]))
+          (sum(rate(http_server_duration_milliseconds_bucket{service_name="comparador-precios-backend", http_target="/productos/{id}/comparacion", le="1000", http_status_code!~"5.."}[7d]))
           + (2000 - 1000) / (2500 - 1000)
-          * (sum(rate(http_server_duration_milliseconds_bucket{service_name="comparador-precios-backend", http_target="/v1/productos/{id}/comparacion", le="2500", http_status_code!~"5.."}[7d]))
-          - sum(rate(http_server_duration_milliseconds_bucket{service_name="comparador-precios-backend", http_target="/v1/productos/{id}/comparacion", le="1000", http_status_code!~"5.."}[7d]))))
-          / sum(rate(http_server_duration_milliseconds_count{service_name="comparador-precios-backend", http_target="/v1/productos/{id}/comparacion"}[7d]))
+          * (sum(rate(http_server_duration_milliseconds_bucket{service_name="comparador-precios-backend", http_target="/productos/{id}/comparacion", le="2500", http_status_code!~"5.."}[7d]))
+          - sum(rate(http_server_duration_milliseconds_bucket{service_name="comparador-precios-backend", http_target="/productos/{id}/comparacion", le="1000", http_status_code!~"5.."}[7d]))))
+          / sum(rate(http_server_duration_milliseconds_count{service_name="comparador-precios-backend", http_target="/productos/{id}/comparacion"}[7d]))
 
       - alert: ComparadorSLOComparacionIncumplido
         expr: comparador:sli_comparacion_7d < 0.99
