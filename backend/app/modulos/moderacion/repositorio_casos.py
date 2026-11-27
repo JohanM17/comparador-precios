@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from typing import Any
 from uuid import UUID
@@ -142,6 +143,29 @@ _SQL_PRECIO_OFICIAL_DEL_PAR = text("""
     FOR UPDATE OF po;
 """)
 
+_SQL_ACTUALIZAR_DETALLE_DISPUTA = text("""
+    UPDATE public.caso_moderacion
+    SET detalle = CAST(:detalle AS jsonb)
+    WHERE id = :id
+      AND estado IN ('abierto', 'en_revision');
+""")
+
+
+async def actualizar_detalle_disputa_bd(
+    sesion: AsyncSession,
+    caso_id: UUID,
+    detalle: dict[str, Any],
+) -> None:
+    """Refresca el detalle del caso sin resolverlo, para que el moderador reintente.
+
+    Solo aplica a casos abiertos o en revision; uno ya resuelto no se reescribe.
+    """
+    await sesion.execute(
+        _SQL_ACTUALIZAR_DETALLE_DISPUTA,
+        {"id": caso_id, "detalle": json.dumps(detalle, ensure_ascii=False)},
+    )
+
+
 _SQL_REVALIDAR_OFICIAL_PAR = text("""
     UPDATE public.precio_oficial
     SET revalidado_en = :ahora
@@ -186,6 +210,21 @@ _SQL_DESACTIVAR_OFICIAL_PAR = text("""
       AND establecimiento_id = :est_id
     RETURNING producto_id;
 """)
+
+
+async def obtener_precio_oficial_para_resolver_bd(
+    sesion: AsyncSession,
+    presentacion_id: UUID,
+    establecimiento_id: UUID,
+) -> dict[str, Any] | None:
+    """Oficial activo del par, bloqueado hasta que termine la resolucion."""
+    fila = (
+        await sesion.execute(
+            _SQL_PRECIO_OFICIAL_DEL_PAR,
+            {"pres_id": presentacion_id, "est_id": establecimiento_id},
+        )
+    ).first()
+    return dict(fila._mapping) if fila is not None else None
 
 
 async def confirmar_disputa_precio_bd(

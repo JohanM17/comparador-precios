@@ -801,7 +801,8 @@ def test_redactar_texto_sensible_redacta_telefonos_colombianos() -> None:
     texto = (
         "telefono=3001234567; contacto +57 310 555 7788; "
         "fijo (606) 123-4567; mensaje='Llame al 320 444 5566'; "
-        "fecha=2026-11-27 uuid=123e4567-e89b-12d3-a456-426614174000"
+        "precio_cop=3050; uuid=57355671-5518-4abc-9159-050bc91cacfc; "
+        "fecha=2026-11-27 uuid2=123e4567-e89b-12d3-a456-426614174000"
     )
 
     redactado = redactar_texto_sensible(texto)
@@ -811,9 +812,28 @@ def test_redactar_texto_sensible_redacta_telefonos_colombianos() -> None:
     assert "123-4567" not in redactado
     assert "320 444 5566" not in redactado
     assert redactado.count("[REDACTADO_TELEFONO]") == 4
-    # Un patron demasiado amplio romperia fechas e identificadores legitimos.
+    # Un patron demasiado amplio romperia precios, fechas, UUID e identificadores.
+    assert "precio_cop=3050" in redactado
     assert "2026-11-27" in redactado
+    assert "57355671-5518-4abc-9159-050bc91cacfc" in redactado
     assert "123e4567-e89b-12d3-a456-426614174000" in redactado
+
+
+def test_redactar_texto_sensible_telefonos_percent_encoded() -> None:
+    """Las variantes URL-encoded de telefono tambien se redactan."""
+    texto = (
+        "tel=%2B573001234567; tel2=300%201234567; "
+        "tel3=%2B57%20300%20123%204567; "
+        "uuid=57355671-5518-4abc-9159-050bc91cacfc"
+    )
+
+    redactado = redactar_texto_sensible(texto)
+
+    assert "%2B573001234567" not in redactado
+    assert "300%201234567" not in redactado
+    assert "%2B57%20300%20123%204567" not in redactado
+    assert redactado.count("[REDACTADO_TELEFONO]") == 3
+    assert "57355671-5518-4abc-9159-050bc91cacfc" in redactado
 
 
 def test_filtro_privacidad_redacta_telefono_en_logs() -> None:

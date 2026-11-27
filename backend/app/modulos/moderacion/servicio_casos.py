@@ -216,12 +216,16 @@ class ServicioCasosModeracion:
                 "El caso de disputa no tiene las referencias o el precio oficial esperado."
             )
 
+        if isinstance(precio_raw, bool) or (
+            isinstance(precio_raw, float) and not precio_raw.is_integer()
+        ):
+            raise ValidacionError("El precio oficial esperado del caso no es un entero valido.")
         try:
             pres_id = UUID(str(pres_raw))
             est_id = UUID(str(est_raw))
             prod_id = UUID(str(detalle["producto_id"])) if detalle.get("producto_id") else None
             precio_esperado = int(precio_raw)
-        except (TypeError, ValueError) as exc:
+        except (TypeError, ValueError, OverflowError) as exc:
             raise ValidacionError("El caso de disputa tiene referencias malformadas.") from exc
 
         if precio_esperado <= 0:
@@ -241,6 +245,23 @@ class ServicioCasosModeracion:
 
         return pres_id, est_id, prod_id, precio_esperado
 
+    @staticmethod
+    def _detalle_disputa_refrescado(
+        caso: dict[str, Any],
+        precio_actual: int,
+        ahora: datetime,
+    ) -> dict[str, Any]:
+        """Copia el detalle y actualiza solo la version del precio oficial."""
+        detalle = caso.get("detalle") or {}
+        if isinstance(detalle, str):
+            detalle = json.loads(detalle)
+        actualizado = dict(detalle)
+        anterior = actualizado.get("precio_oficial_cop")
+        actualizado["precio_oficial_cop"] = precio_actual
+        actualizado["precio_oficial_anterior_cop"] = anterior
+        actualizado["detalle_actualizado_en"] = ahora.isoformat()
+        return actualizado
+
     async def _resolver_disputa_precio(
         self,
         caso: dict[str, Any],
@@ -255,6 +276,11 @@ class ServicioCasosModeracion:
         - `descartar`: gana la comunidad; se apaga el oficial y se recalcula sin el.
         - `sancionar`: no aplica, porque no hay un unico reporte que sancionar.
 
+        Si el comercio cambio el precio, se refresca el detalle y se responde 409 una
+        sola vez para que el moderador reintente con el valor actual. Si el oficial ya
+        no esta activo, `descartar` cierra el caso con la comunidad; `confirmar` no
+        tiene nada que confirmar y sugiere descartar.
+
         No se modifican filas historicas. Si mas adelante vuelve a haber una
         contradiccion, se abrira un caso nuevo (el anterior ya esta resuelto).
         """
@@ -265,27 +291,64 @@ class ServicioCasosModeracion:
             )
 
         pres_id, est_id, prod_id, precio_esperado = self._referencias_disputa(caso)
+        oficial = await repositorio_casos.obtener_precio_oficial_para_resolver_bd(
+            self.sesion, pres_id, est_id
+        )
         producto_id: UUID | None
-        mensaje_version = (
-            "El precio oficial cambio o ya no esta activo desde que se abrio el caso; "
-            "recargue el caso antes de resolver."
+        mensaje_carrera = (
+            "El precio oficial cambio mientras se resolvia el caso; vuelva a abrir el caso."
         )
 
+        if oficial is not None and int(oficial["precio_cop"]) != precio_esperado:
+            precio_actual = int(oficial["precio_cop"])
+            detalle = self._detalle_disputa_refrescado(caso, precio_actual, ahora)
+            await repositorio_casos.actualizar_detalle_disputa_bd(self.sesion, caso["id"], detalle)
+            await registrar_auditoria(
+                self.sesion,
+                mod.id,
+                mod.rol,
+                "refrescar_detalle_disputa",
+                "caso_moderacion",
+                str(caso["id"]),
+                {"precio_oficial_cop": precio_esperado},
+                {
+                    "precio_oficial_cop": precio_actual,
+                    "precio_oficial_anterior_cop": precio_esperado,
+                    "detalle_actualizado_en": detalle["detalle_actualizado_en"],
+                },
+            )
+            # El 409 viaja como excepcion. Sin commit explicito, el cierre de la
+            # transaccion desharia el refresco y la auditoria antes de responder.
+            await self.sesion.commit()
+            raise ConflictoError(
+                "El precio oficial cambio desde que se abrio el caso. "
+                "El detalle se actualizo; recargue el caso y vuelva a decidir."
+            )
+
         if entrada.decision == "confirmar":
+            if oficial is None:
+                raise ConflictoError(
+                    "Ya no hay un precio oficial activo que confirmar. "
+                    "Use 'descartar' si la comunidad debe ganar el caso."
+                )
             confirmado = await repositorio_casos.confirmar_disputa_precio_bd(
                 self.sesion, pres_id, est_id, ahora, precio_esperado
             )
             if confirmado is None:
-                raise ConflictoError(mensaje_version)
+                raise ConflictoError(mensaje_carrera)
             producto_id = confirmado or prod_id
             precio_ganador = "oficial"
         elif entrada.decision == "descartar":
-            desactivado = await repositorio_casos.desactivar_precio_oficial_bd(
-                self.sesion, pres_id, est_id, precio_esperado
-            )
-            if desactivado is None:
-                raise ConflictoError(mensaje_version)
-            producto_id = desactivado or prod_id
+            if oficial is None:
+                # La comunidad ya gano: no hay nada que apagar ni refrescar.
+                producto_id = prod_id
+            else:
+                desactivado = await repositorio_casos.desactivar_precio_oficial_bd(
+                    self.sesion, pres_id, est_id, precio_esperado
+                )
+                if desactivado is None:
+                    raise ConflictoError(mensaje_carrera)
+                producto_id = desactivado or prod_id
             await self.politica.recalcular_par(self.sesion, pres_id, est_id, ahora, params)
             precio_ganador = "comunidad"
         else:  # pragma: no cover - Literal de Pydantic ya limita las decisiones

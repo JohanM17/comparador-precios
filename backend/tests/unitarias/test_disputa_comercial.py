@@ -130,7 +130,9 @@ class SesionResolucionFalsa:
         self.upserts: list[dict[str, Any]] = []
         self.desactivaciones: list[dict[str, Any]] = []
         self.casos_actualizados: list[dict[str, Any]] = []
+        self.detalles_actualizados: list[dict[str, Any]] = []
         self.auditorias: list[dict[str, Any]] = []
+        self.commits = 0
         # Proyeccion previa con conteos comunitarios que deben sobrevivir a confirmar.
         self.precio_vigente: dict[str, Any] = {
             "producto_id": PRODUCTO,
@@ -152,6 +154,9 @@ class SesionResolucionFalsa:
     async def flush(self) -> None:
         return None
 
+    async def commit(self) -> None:
+        self.commits += 1
+
     async def execute(self, sentencia: Any, parametros: Any = None) -> ResultadoConsulta:
         sql = " ".join(str(sentencia).lower().split())
         if sql.startswith("select po.precio_cop, po.precio_por_base"):
@@ -163,6 +168,12 @@ class SesionResolucionFalsa:
                     precio_por_base=Decimal("3.050000"),
                     producto_id=PRODUCTO,
                     cantidad_base=Decimal("1000.000"),
+                    _mapping={
+                        "precio_cop": self.precio_oficial_cop,
+                        "precio_por_base": Decimal("3.050000"),
+                        "producto_id": PRODUCTO,
+                        "cantidad_base": Decimal("1000.000"),
+                    },
                 )
             )
         if sql.startswith("update public.precio_oficial set revalidado_en"):
@@ -192,6 +203,9 @@ class SesionResolucionFalsa:
             self.desactivaciones.append(parametros)
             self.precio_oficial_activo = False
             return ResultadoConsulta(fila=SimpleNamespace(producto_id=PRODUCTO))
+        if sql.startswith("update public.caso_moderacion set detalle"):
+            self.detalles_actualizados.append(parametros)
+            return ResultadoConsulta()
         if sql.startswith("update public.caso_moderacion"):
             self.casos_actualizados.append(parametros)
             return ResultadoConsulta()
@@ -305,8 +319,15 @@ def _parchear_repositorio(
     async def parametros(sesion: Any) -> ParametrosDominio:
         return ParametrosDominio()
 
+    actualizar_real = repositorio_casos.actualizar_detalle_disputa_bd
+
+    async def actualizar_detalle(sesion: Any, caso_id: UUID, detalle: dict[str, Any]) -> None:
+        await actualizar_real(sesion, caso_id, detalle)
+        caso["detalle"] = dict(detalle)
+
     monkeypatch.setattr(repositorio_casos, "obtener_caso_para_resolver_bd", obtener_para_resolver)
     monkeypatch.setattr(repositorio_casos, "obtener_caso_por_id_bd", obtener_por_id)
+    monkeypatch.setattr(repositorio_casos, "actualizar_detalle_disputa_bd", actualizar_detalle)
     monkeypatch.setattr(servicio_casos_modulo, "obtener_parametros_dominio", parametros)
 
 
@@ -551,11 +572,10 @@ async def test_descartar_disputa_deja_ganar_a_la_comunidad(
     assert despues["precio_ganador"] == "comunidad"
 
 
-@pytest.mark.parametrize("decision", ["confirmar", "descartar"])
-async def test_precio_cambiado_durante_el_caso_devuelve_409(
-    monkeypatch: pytest.MonkeyPatch, decision: str
+async def test_confirmar_refresca_detalle_y_segundo_intento_resuelve(
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Si el comercio cambio el precio, la decision se toma sobre un dato obsoleto."""
+    """Si el precio cambio, el primer intento refresca el caso y el segundo resuelve."""
     sesion = SesionResolucionFalsa(precio_oficial_cop=3100)
     caso = _caso_disputa()
     _parchear_repositorio(monkeypatch, caso)
@@ -565,24 +585,96 @@ async def test_precio_cambiado_durante_el_caso_devuelve_409(
         cache=CacheFalsa(),  # type: ignore[arg-type]
         politica=PoliticaFalsa(),  # type: ignore[arg-type]
     )
-    entrada = ResolverCasoEntrada(decision=decision, nota="Precio revisado en gondola")  # type: ignore[arg-type]
+    entrada = ResolverCasoEntrada(decision="confirmar", nota="Precio revisado en gondola")
 
     with pytest.raises(ConflictoError) as exc:
         await servicio.resolver_caso(CASO_ID, entrada, MODERADOR)
 
     assert exc.value.status == 409
-    assert "precio oficial cambio" in exc.value.detalle
+    assert "detalle se actualizo" in exc.value.detalle
+    assert sesion.commits == 1
+    assert len(sesion.detalles_actualizados) == 1
+    refrescado = json.loads(sesion.detalles_actualizados[0]["detalle"])
+    assert refrescado["precio_oficial_cop"] == 3100
+    assert refrescado["precio_oficial_anterior_cop"] == 3050
+    assert datetime.fromisoformat(refrescado["detalle_actualizado_en"]).tzinfo is not None
+    assert caso["detalle"]["precio_oficial_cop"] == 3100
+    assert [a["accion"] for a in sesion.auditorias] == ["refrescar_detalle_disputa"]
     assert sesion.revalidaciones == []
-    assert sesion.desactivaciones == []
-    assert sesion.upserts == []
     assert sesion.casos_actualizados == []
-    assert sesion.auditorias == []
+
+    await servicio.resolver_caso(CASO_ID, entrada, MODERADOR)
+
+    assert sesion.casos_actualizados[-1]["decision"] == "confirmar"
+    assert len(sesion.revalidaciones) == 1
+    assert sesion.precio_vigente["sello"] == "oficial"
+    assert sesion.precio_vigente["precio_oficial_cop"] == 3100
 
 
-async def test_precio_oficial_inactivo_durante_el_caso_devuelve_409(
+async def test_descartar_refresca_detalle_y_segundo_intento_resuelve(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Un oficial ya apagado no puede confirmarse ni descartarse otra vez."""
+    """Descartar con precio cambiado refresca y solo resuelve en el segundo intento."""
+    sesion = SesionResolucionFalsa(precio_oficial_cop=3100)
+    caso = _caso_disputa()
+    _parchear_repositorio(monkeypatch, caso)
+    politica = PoliticaFalsa()
+
+    servicio = ServicioCasosModeracion(
+        sesion=sesion,  # type: ignore[arg-type]
+        cache=CacheFalsa(),  # type: ignore[arg-type]
+        politica=politica,  # type: ignore[arg-type]
+    )
+    entrada = ResolverCasoEntrada(decision="descartar", nota="La comunidad tiene razon")
+
+    with pytest.raises(ConflictoError) as exc:
+        await servicio.resolver_caso(CASO_ID, entrada, MODERADOR)
+
+    assert exc.value.status == 409
+    assert sesion.commits == 1
+    assert sesion.desactivaciones == []
+    assert politica.llamadas == []
+    assert sesion.casos_actualizados == []
+    assert caso["detalle"]["precio_oficial_cop"] == 3100
+
+    await servicio.resolver_caso(CASO_ID, entrada, MODERADOR)
+
+    assert sesion.desactivaciones[0]["pres_id"] == PRESENTACION
+    assert politica.llamadas == [(PRESENTACION, ESTABLECIMIENTO)]
+    assert sesion.casos_actualizados[-1]["decision"] == "descartar"
+
+
+async def test_descartar_con_oficial_inactivo_resuelve_sin_409(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Si el oficial ya esta apagado, la comunidad gano: descartar cierra el caso."""
+    sesion = SesionResolucionFalsa(precio_oficial_activo=False)
+    caso = _caso_disputa()
+    _parchear_repositorio(monkeypatch, caso)
+    politica = PoliticaFalsa()
+    cache = CacheFalsa()
+
+    servicio = ServicioCasosModeracion(
+        sesion=sesion,  # type: ignore[arg-type]
+        cache=cache,  # type: ignore[arg-type]
+        politica=politica,  # type: ignore[arg-type]
+    )
+    entrada = ResolverCasoEntrada(decision="descartar", nota="La comunidad tiene razon")
+
+    await servicio.resolver_caso(CASO_ID, entrada, MODERADOR)
+
+    assert sesion.desactivaciones == []
+    assert sesion.detalles_actualizados == []
+    assert politica.llamadas == [(PRESENTACION, ESTABLECIMIENTO)]
+    assert cache.invalidados == [PRODUCTO]
+    assert sesion.casos_actualizados[0]["decision"] == "descartar"
+    assert sesion.auditorias[-1]["accion"] == "resolver_caso_descartar"
+
+
+async def test_confirmar_con_oficial_inactivo_devuelve_409_y_sugiere_descartar(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Sin oficial activo no hay nada que confirmar; el caso sigue abierto."""
     sesion = SesionResolucionFalsa(precio_oficial_activo=False)
     caso = _caso_disputa()
     _parchear_repositorio(monkeypatch, caso)
@@ -598,8 +690,11 @@ async def test_precio_oficial_inactivo_durante_el_caso_devuelve_409(
         await servicio.resolver_caso(CASO_ID, entrada, MODERADOR)
 
     assert exc.value.status == 409
+    assert "Use 'descartar'" in exc.value.detalle
+    assert sesion.commits == 0
     assert sesion.casos_actualizados == []
     assert sesion.auditorias == []
+    assert caso["detalle"]["precio_oficial_cop"] == 3050
 
 
 async def test_doble_resolucion_del_mismo_caso_devuelve_409(
@@ -652,6 +747,9 @@ def test_corte_durable_solo_considera_confirmaciones() -> None:
         {"establecimiento_id": "no-es-uuid"},
         {"precio_oficial_cop": "no-es-numero"},
         {"precio_oficial_cop": 0},
+        {"precio_oficial_cop": True},
+        {"precio_oficial_cop": 3050.5},
+        {"precio_oficial_cop": 1e400},
         {"presentacion_id": str(UUID(int=999))},
     ],
 )

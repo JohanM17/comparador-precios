@@ -328,8 +328,8 @@ async def test_confirmar_es_durable_y_solo_reportes_posteriores_reabren() -> Non
 
 
 @pytest.mark.asyncio
-async def test_precio_cambiado_durante_el_caso_no_se_resuelve() -> None:
-    """Si el comercio cambio el precio, la resolucion responde 409 y el caso sigue abierto."""
+async def test_precio_cambiado_refresca_el_caso_y_el_segundo_intento_resuelve() -> None:
+    """El 409 deja el detalle actualizado para que el moderador pueda reintentar."""
     ctx = await _crear_contexto()
     pres = ctx["presentacion_id"]
     est = ctx["establecimiento_id"]
@@ -348,28 +348,135 @@ async def test_precio_cambiado_durante_el_caso_no_se_resuelve() -> None:
             {"pres": pres, "est": est},
         )
 
-    with pytest.raises(ConflictoError):
+    with pytest.raises(ConflictoError) as exc:
         await _resolver(caso["id"], "confirmar", ctx["moderador_id"], CacheNula())
+    assert "detalle se actualizo" in exc.value.detalle
 
     assert await _caso_abierto(pres, est) is not None
     async with sesion_transaccional() as sesion:
-        precio = (
+        detalle = (
             await sesion.execute(
-                text("""
-                    SELECT precio_cop FROM public.precio_oficial
-                    WHERE presentacion_id = :pres AND establecimiento_id = :est;
-                """),
-                {"pres": pres, "est": est},
+                text("SELECT detalle FROM public.caso_moderacion WHERE id = :id;"),
+                {"id": caso["id"]},
             )
         ).scalar_one()
-        sello = (
+        auditoria = (
             await sesion.execute(
                 text("""
-                    SELECT sello::text FROM public.precio_vigente
+                    SELECT count(*) FROM public.auditoria
+                    WHERE accion = 'refrescar_detalle_disputa' AND entidad_id = :id;
+                """),
+                {"id": str(caso["id"])},
+            )
+        ).scalar_one()
+    assert detalle["precio_oficial_cop"] == 3100
+    assert detalle["precio_oficial_anterior_cop"] == 3050
+    assert detalle["detalle_actualizado_en"]
+    assert auditoria == 1
+
+    # El detalle ya coincide: la misma decision ahora resuelve el caso.
+    await _resolver(caso["id"], "confirmar", ctx["moderador_id"], CacheNula())
+
+    async with sesion_transaccional() as sesion:
+        resuelto = (
+            await sesion.execute(
+                text("""
+                    SELECT estado::text, decision::text
+                    FROM public.caso_moderacion WHERE id = :id;
+                """),
+                {"id": caso["id"]},
+            )
+        ).first()
+        vigente = (
+            await sesion.execute(
+                text("""
+                    SELECT precio_cop, sello::text FROM public.precio_vigente
                     WHERE presentacion_id = :pres AND establecimiento_id = :est;
                 """),
                 {"pres": pres, "est": est},
             )
-        ).scalar()
-    assert precio == 3100
-    assert sello == "en_disputa"
+        ).first()
+    assert resuelto is not None
+    assert resuelto.estado == "resuelto"
+    assert resuelto.decision == "confirmar"
+    assert vigente is not None
+    assert vigente.precio_cop == 3100
+    assert vigente.sello == "oficial"
+
+
+@pytest.mark.asyncio
+async def test_descartar_con_oficial_inactivo_resuelve_el_caso() -> None:
+    """Sin oficial activo la comunidad ya gano: descartar no debe responder 409."""
+    ctx = await _crear_contexto()
+    pres = ctx["presentacion_id"]
+    est = ctx["establecimiento_id"]
+    async with sesion_transaccional() as sesion:
+        await OficialConContraste().recalcular_par(sesion, pres, est, ctx["ahora"])
+    caso = await _caso_abierto(pres, est)
+    assert caso is not None
+
+    async with sesion_transaccional() as sesion:
+        await sesion.execute(
+            text("""
+                UPDATE public.precio_oficial
+                SET activo = false
+                WHERE presentacion_id = :pres AND establecimiento_id = :est;
+            """),
+            {"pres": pres, "est": est},
+        )
+
+    await _resolver(caso["id"], "descartar", ctx["moderador_id"], CacheNula())
+
+    async with sesion_transaccional() as sesion:
+        resuelto = (
+            await sesion.execute(
+                text("""
+                    SELECT estado::text, decision::text
+                    FROM public.caso_moderacion WHERE id = :id;
+                """),
+                {"id": caso["id"]},
+            )
+        ).first()
+        vigente = (
+            await sesion.execute(
+                text("""
+                    SELECT precio_cop, sello::text FROM public.precio_vigente
+                    WHERE presentacion_id = :pres AND establecimiento_id = :est;
+                """),
+                {"pres": pres, "est": est},
+            )
+        ).first()
+    assert resuelto is not None
+    assert resuelto.estado == "resuelto"
+    assert resuelto.decision == "descartar"
+    assert vigente is not None
+    assert vigente.precio_cop == 2600
+    assert vigente.sello != "en_disputa"
+
+
+@pytest.mark.asyncio
+async def test_confirmar_con_oficial_inactivo_sigue_siendo_409() -> None:
+    """Sin oficial activo no hay nada que confirmar y el caso permanece abierto."""
+    ctx = await _crear_contexto()
+    pres = ctx["presentacion_id"]
+    est = ctx["establecimiento_id"]
+    async with sesion_transaccional() as sesion:
+        await OficialConContraste().recalcular_par(sesion, pres, est, ctx["ahora"])
+    caso = await _caso_abierto(pres, est)
+    assert caso is not None
+
+    async with sesion_transaccional() as sesion:
+        await sesion.execute(
+            text("""
+                UPDATE public.precio_oficial
+                SET activo = false
+                WHERE presentacion_id = :pres AND establecimiento_id = :est;
+            """),
+            {"pres": pres, "est": est},
+        )
+
+    with pytest.raises(ConflictoError) as exc:
+        await _resolver(caso["id"], "confirmar", ctx["moderador_id"], CacheNula())
+    assert "Use 'descartar'" in exc.value.detalle
+
+    assert await _caso_abierto(pres, est) is not None
