@@ -12,11 +12,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.bd import obtener_sesion
 from app.compartido.dependencias import obtener_puerto_cache
 from app.compartido.errores import NoAutenticadoError
-from app.compartido.parametros import obtener_parametros_dominio
 from app.config import obtener_configuracion
 from app.dominio.reputacion import calcular_reputacion_bayesiana
 from app.puertos.cache import PuertoCache
-from app.puertos.politica_precio import SoloUsuarios
+from app.puertos.politica_precio import OficialConContraste, reconstruir_precio_vigente
 
 router = APIRouter(prefix="/internal/jobs", tags=["Jobs Internos"], include_in_schema=False)
 
@@ -70,26 +69,15 @@ async def job_reconstruir_precio_vigente(
     sesion: Annotated[AsyncSession, Depends(obtener_sesion)],
     cache: Annotated[PuertoCache, Depends(obtener_puerto_cache)],
 ) -> dict[str, int]:
+    """Reconstruye con la politica de Etapa 2, incluidos pares con solo precio oficial."""
     ahora = datetime.now(UTC)
-    params = await obtener_parametros_dominio(sesion)
-    limite = ahora - timedelta(days=params.vigencia_antiguo_dias)
-
-    sql_pares = text("""
-        SELECT DISTINCT presentacion_id, establecimiento_id
-        FROM public.reporte_precio
-        WHERE observado_en >= :limite
-          AND es_demo = false;
-    """)
-    pares = (await sesion.execute(sql_pares, {"limite": limite})).fetchall()
-    politica = SoloUsuarios()
-    for p in pares:
-        await politica.recalcular_par(
-            sesion, p.presentacion_id, p.establecimiento_id, ahora, params
-        )
+    reconstruidos = await reconstruir_precio_vigente(
+        sesion, ahora=ahora, politica=OficialConContraste()
+    )
 
     await cache.limpiar()
     await sesion.flush()
-    return {"reconstruidos": len(pares)}
+    return {"reconstruidos": reconstruidos}
 
 
 @router.post("/limpiar_huellas", summary="Anonimizacion de huella_red segun Ley 1581")

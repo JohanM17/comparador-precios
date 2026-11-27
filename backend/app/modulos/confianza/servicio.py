@@ -46,6 +46,7 @@ class ServicioConfianza:
               AND observado_en >= :limite AND estado = 'aceptado'
               AND (reportante_id IS NULL OR reportante_id <> :uid)
               AND es_demo = :es_demo
+              AND fuente <> 'comercio'
             ORDER BY observado_en DESC;
         """)
         filas_n1 = (
@@ -71,6 +72,7 @@ class ServicioConfianza:
               AND rp.observado_en >= :limite AND rp.estado = 'aceptado'
               AND (rp.reportante_id IS NULL OR rp.reportante_id <> :uid)
               AND rp.es_demo = :es_demo
+              AND rp.fuente <> 'comercio'
             ORDER BY rp.observado_en DESC;
         """)
         filas_n2 = (
@@ -96,6 +98,7 @@ class ServicioConfianza:
               AND rp.observado_en >= :limite AND rp.estado = 'aceptado'
               AND (rp.reportante_id IS NULL OR rp.reportante_id <> :uid)
               AND rp.es_demo = :es_demo
+              AND rp.fuente <> 'comercio'
             ORDER BY rp.observado_en DESC;
         """)
         filas_n3 = (

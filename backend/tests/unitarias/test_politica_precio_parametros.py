@@ -23,6 +23,7 @@ from app.dominio.sello import ResultadoSelloYPrecio
 from app.puertos.politica_precio import (
     _SQL_DELETE_PV,
     _SQL_DELETE_PV_PAR,
+    _SQL_PARES_RECALCULO,
     _SQL_PRECIO_OFICIAL_PAR,
     _SQL_REPORTES_PAR,
     _SQL_UPSERT_PV,
@@ -36,6 +37,11 @@ _PARAMETRO = re.compile(r"(?<!:):(\w+)")
 def _parametros(sentencia: TextClause) -> set[str]:
     """Nombres de los parametros declarados en una sentencia de texto."""
     return set(_PARAMETRO.findall(str(sentencia)))
+
+
+def _sql_compacto(sentencia: TextClause) -> str:
+    """Normaliza espacios y mayusculas para comparar fragmentos del SQL."""
+    return " ".join(str(sentencia).lower().split())
 
 
 def _resultado_ejemplo() -> ResultadoSelloYPrecio:
@@ -88,3 +94,19 @@ def test_las_sentencias_auxiliares_declaran_los_parametros_esperados() -> None:
     assert _parametros(_SQL_DELETE_PV_PAR) == {"p", "e"}
     assert _parametros(_SQL_REPORTES_PAR) == {"pres_id", "est_id", "limite"}
     assert _parametros(_SQL_PRECIO_OFICIAL_PAR) == {"pres_id", "est_id"}
+    assert _parametros(_SQL_PARES_RECALCULO) == {"limite"}
+
+
+def test_las_consultas_comunitarias_excluyen_el_historial_oficial() -> None:
+    """La fila `fuente='comercio'` de ADR-0019 no puede contar como voto comunitario."""
+    assert "fuente <> 'comercio'" in _sql_compacto(_SQL_REPORTES_PAR)
+    assert "fuente <> 'comercio'" in _sql_compacto(_SQL_PARES_RECALCULO)
+
+
+def test_los_pares_de_reconstruccion_incluyen_el_precio_oficial_activo() -> None:
+    """Reconstruir no puede olvidar un par que solo tiene precio del comercio."""
+    sql = _sql_compacto(_SQL_PARES_RECALCULO)
+
+    assert "union" in sql
+    assert "from public.precio_oficial" in sql
+    assert "where activo = true" in sql

@@ -114,6 +114,7 @@ _SQL_REPORTES_PAR = text("""
       AND observado_en >= :limite
       AND estado IN ('aceptado', 'dudoso')
       AND es_demo = false
+      AND fuente <> 'comercio'
     ORDER BY observado_en DESC;
 """)
 
@@ -125,6 +126,34 @@ _SQL_PRECIO_OFICIAL_PAR = text("""
       AND po.establecimiento_id = :est_id
       AND po.activo = true;
 """)
+
+_SQL_PARES_RECALCULO = text("""
+    SELECT presentacion_id, establecimiento_id
+    FROM public.reporte_precio
+    WHERE observado_en >= :limite
+      AND estado IN ('aceptado', 'dudoso')
+      AND es_demo = false
+      AND fuente <> 'comercio'
+    UNION
+    SELECT presentacion_id, establecimiento_id
+    FROM public.precio_oficial
+    WHERE activo = true;
+""")
+
+
+async def listar_pares_para_recalculo(
+    sesion: AsyncSession,
+    limite_inferior: datetime,
+) -> list[tuple[UUID, UUID]]:
+    """Pares con comunidad vigente o precio oficial activo, sin duplicados.
+
+    El historial oficial (`fuente='comercio'`) no es un voto comunitario y por eso
+    no alimenta la evaluacion de reportes. Los pares con solo precio oficial si
+    entran: el comercio manda aunque la comunidad no haya reportado (D-01). El
+    `UNION` evita recalcular dos veces un par que tiene ambas fuentes.
+    """
+    filas = (await sesion.execute(_SQL_PARES_RECALCULO, {"limite": limite_inferior})).fetchall()
+    return [(f.presentacion_id, f.establecimiento_id) for f in filas]
 
 
 async def _leer_candidatos(
@@ -190,7 +219,12 @@ async def _leer_precio_oficial(
 
 
 class SoloUsuarios:
-    """Politica de la Etapa 1: Calcula el precio vigente con reportes de usuarios y semilla."""
+    """Politica de la Etapa 1: calcula el precio vigente con reportes de usuarios y semilla.
+
+    En Etapa 2 solo se inyecta de forma explicita para pruebas o para conservar el
+    comportamiento historico del nucleo. La politica de produccion es
+    `OficialConContraste` (D-01).
+    """
 
     async def recalcular_par(
         self,
@@ -361,20 +395,30 @@ async def _reconstruir_con_politica_personalizada(
     instante: datetime,
     parametros: ParametrosDominio,
 ) -> int:
-    sql_pares = text("""
-        SELECT DISTINCT presentacion_id, establecimiento_id
-        FROM public.reporte_precio
-        WHERE observado_en >= :limite
-          AND estado IN ('aceptado', 'dudoso')
-          AND es_demo = false;
-    """)
-    pares = (await sesion.execute(sql_pares, {"limite": limite_inferior})).fetchall()
+    pares = await listar_pares_para_recalculo(sesion, limite_inferior)
     recalculados = 0
+    pares_activos: set[tuple[UUID, UUID]] = set()
     for p_id, e_id in pares:
         res = await pol.recalcular_par(sesion, p_id, e_id, instante, parametros)
         if res is not None:
             recalculados += 1
+            pares_activos.add((p_id, e_id))
+    await _borrar_pares_fuera_de(sesion, pares_activos)
     return recalculados
+
+
+async def _borrar_pares_fuera_de(
+    sesion: AsyncSession,
+    pares_activos: set[tuple[UUID, UUID]],
+) -> None:
+    """Elimina proyecciones que ya no tienen comunidad vigente ni precio oficial."""
+    sql_todos_pv = text("SELECT presentacion_id, establecimiento_id FROM public.precio_vigente;")
+    filas_pv = (await sesion.execute(sql_todos_pv)).fetchall()
+    a_borrar = [
+        {"p": p_id, "e": e_id} for p_id, e_id in filas_pv if (p_id, e_id) not in pares_activos
+    ]
+    if a_borrar:
+        await sesion.execute(_SQL_DELETE_PV_PAR, a_borrar)
 
 
 async def reconstruir_precio_vigente(
@@ -382,9 +426,9 @@ async def reconstruir_precio_vigente(
     ahora: datetime | None = None,
     politica: PoliticaPrecioReferencia | None = None,
 ) -> int:
-    """Reconstruye por completo la tabla precio_vigente desde los reportes historicos."""
+    """Reconstruye por completo la tabla precio_vigente desde reportes y precios oficiales."""
     instante = ahora if ahora is not None else datetime.now(UTC)
-    pol = politica if politica is not None else SoloUsuarios()
+    pol = politica if politica is not None else OficialConContraste()
     parametros = await obtener_parametros_dominio(sesion)
     limite_inferior = instante - timedelta(days=parametros.vigencia_antiguo_dias)
 
@@ -401,6 +445,7 @@ async def reconstruir_precio_vigente(
         WHERE observado_en >= :limite
           AND estado IN ('aceptado', 'dudoso')
           AND es_demo = false
+          AND fuente <> 'comercio'
         ORDER BY observado_en DESC;
     """)
     filas = list((await sesion.execute(sql_reportes, {"limite": limite_inferior})).fetchall())
@@ -410,12 +455,6 @@ async def reconstruir_precio_vigente(
     if lote_upsert:
         await sesion.execute(_SQL_UPSERT_PV, lote_upsert)
 
-    sql_todos_pv = text("SELECT presentacion_id, establecimiento_id FROM public.precio_vigente;")
-    filas_pv = (await sesion.execute(sql_todos_pv)).fetchall()
-    a_borrar = [
-        {"p": p_id, "e": e_id} for p_id, e_id in filas_pv if (p_id, e_id) not in pares_activos
-    ]
-    if a_borrar:
-        await sesion.execute(_SQL_DELETE_PV_PAR, a_borrar)
+    await _borrar_pares_fuera_de(sesion, pares_activos)
 
     return len(lote_upsert)

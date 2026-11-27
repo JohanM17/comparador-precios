@@ -220,6 +220,13 @@ async def test_reconstruccion_ignora_reportes_demo_y_conserva_reales() -> None:
                                 AND rp.establecimiento_id = e.id
                                 AND rp.observado_en >= :limite
                           )
+                          AND NOT EXISTS (
+                              SELECT 1
+                              FROM public.precio_oficial po
+                              WHERE po.presentacion_id = pr.id
+                                AND po.establecimiento_id = e.id
+                                AND po.activo = true
+                          )
                         ORDER BY pr.id, e.id
                         LIMIT 2;
                     """),

@@ -6,7 +6,6 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.compartido.auditoria import registrar_auditoria
@@ -20,7 +19,11 @@ from app.modulos.moderacion.esquemas_casos import (
     ResolverCasoEntrada,
 )
 from app.puertos.cache import PuertoCache
-from app.puertos.politica_precio import PoliticaPrecioReferencia, SoloUsuarios
+from app.puertos.politica_precio import (
+    OficialConContraste,
+    PoliticaPrecioReferencia,
+    listar_pares_para_recalculo,
+)
 
 
 class ServicioCasosModeracion:
@@ -34,7 +37,8 @@ class ServicioCasosModeracion:
     ) -> None:
         self.sesion = sesion
         self.cache = cache
-        self.politica = politica or SoloUsuarios()
+        # Etapa 2: un recalculo manual debe respetar el contraste oficial/comunidad (D-01).
+        self.politica = politica if politica is not None else OficialConContraste()
 
     async def listar_casos(
         self,
@@ -192,16 +196,13 @@ class ServicioCasosModeracion:
             await self.cache.limpiar()
             await self.sesion.flush()
             return {"recalculados": 1, "sello": res.sello if res else None}
-        sql_pares = text("""
-            SELECT DISTINCT presentacion_id, establecimiento_id
-            FROM public.reporte_precio WHERE observado_en >= :limite;
-        """)
         limite = ahora - timedelta(days=params.vigencia_antiguo_dias)
-        pares = (await self.sesion.execute(sql_pares, {"limite": limite})).fetchall()
-        for p in pares:
-            await self.politica.recalcular_par(
-                self.sesion, p.presentacion_id, p.establecimiento_id, ahora, params
-            )
+        pares = await listar_pares_para_recalculo(self.sesion, limite)
+        recalculados = 0
+        for p_id, e_id in pares:
+            res = await self.politica.recalcular_par(self.sesion, p_id, e_id, ahora, params)
+            if res is not None:
+                recalculados += 1
         await self.cache.limpiar()
         await self.sesion.flush()
-        return {"recalculados": len(pares)}
+        return {"recalculados": recalculados}

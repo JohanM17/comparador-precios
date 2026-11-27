@@ -26,6 +26,24 @@ async def obtener_establecimiento(
     return dict(fila._mapping) if fila else None
 
 
+_SQL_BLOQUEAR_ESTABLECIMIENTO = text("""
+    SELECT id FROM public.establecimiento WHERE id = :id FOR UPDATE;
+""")
+
+
+async def bloquear_establecimiento(
+    sesion: AsyncSession,
+    establecimiento_id: UUID,
+) -> None:
+    """Serializa las escrituras de un establecimiento dentro de la transaccion.
+
+    Dos publicaciones concurrentes del mismo comercio comparten esta fila. El
+    bloqueo se toma antes de leer el precio anterior, de modo que la segunda
+    peticion espera y compara contra el valor que dejo la primera (ADR-0019).
+    """
+    await sesion.execute(_SQL_BLOQUEAR_ESTABLECIMIENTO, {"id": establecimiento_id})
+
+
 async def existe_reclamo_abierto(sesion: AsyncSession, establecimiento_id: UUID) -> bool:
     """Indica si el establecimiento ya tiene un reclamo de titularidad sin resolver."""
     sql = text("""
@@ -202,6 +220,26 @@ async def obtener_presentaciones(
     return {f.id: dict(f._mapping) for f in filas}
 
 
+async def obtener_precios_oficiales_cop(
+    sesion: AsyncSession,
+    establecimiento_id: UUID,
+    presentacion_ids: list[UUID],
+) -> dict[UUID, int]:
+    """Precios oficiales activos de un lote, indexados por presentacion."""
+    if not presentacion_ids:
+        return {}
+    sql = text("""
+        SELECT presentacion_id, precio_cop FROM public.precio_oficial
+        WHERE establecimiento_id = :est_id
+          AND presentacion_id = ANY(:ids)
+          AND activo = true;
+    """)
+    filas = (
+        await sesion.execute(sql, {"est_id": establecimiento_id, "ids": presentacion_ids})
+    ).fetchall()
+    return {f.presentacion_id: int(f.precio_cop) for f in filas}
+
+
 async def upsert_precio_oficial(
     sesion: AsyncSession,
     presentacion_id: UUID,
@@ -240,6 +278,56 @@ async def upsert_precio_oficial(
             "precio_por_base": precio_por_base,
         },
     )
+
+
+_SQL_INSERTAR_REPORTE_OFICIAL = text("""
+    INSERT INTO public.reporte_precio (
+        presentacion_id, establecimiento_id, producto_id, precio_cop,
+        cantidad_base_snapshot, precio_por_base, fuente, reportante_id,
+        observado_en, estado, estado_original, conjunto_referencia, es_demo
+    ) VALUES (
+        :pres_id, :est_id, :prod_id, :precio_cop,
+        :cantidad_base, :precio_por_base, 'comercio', NULL,
+        :observado_en, 'aceptado', 'aceptado', 'presentacion_tienda', false
+    )
+    RETURNING id;
+""")
+
+
+async def insertar_reporte_oficial(
+    sesion: AsyncSession,
+    *,
+    presentacion_id: UUID,
+    establecimiento_id: UUID,
+    producto_id: UUID,
+    precio_cop: int,
+    cantidad_base: Decimal,
+    precio_por_base: Decimal,
+    observado_en: datetime,
+) -> UUID:
+    """Agrega una version oficial al historial append-only de `reporte_precio` (ADR-0019).
+
+    El comercio no es un reportante: la fila viaja sin identidad, sin foto y sin
+    huella de red. Su origen se distingue por `fuente='comercio'`, y esa marca es la
+    que permite excluirla del voto comunitario en D-01.
+    """
+    fila = (
+        await sesion.execute(
+            _SQL_INSERTAR_REPORTE_OFICIAL,
+            {
+                "pres_id": presentacion_id,
+                "est_id": establecimiento_id,
+                "prod_id": producto_id,
+                "precio_cop": precio_cop,
+                "cantidad_base": cantidad_base,
+                "precio_por_base": precio_por_base,
+                "observado_en": observado_en,
+            },
+        )
+    ).first()
+    if fila is None:  # pragma: no cover
+        raise RuntimeError("El historial oficial no devolvio fila")
+    return UUID(str(fila[0]))
 
 
 async def revalidar_precios(
