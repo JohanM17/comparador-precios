@@ -24,12 +24,12 @@ const fuenteCursiva = Instrument_Serif({
 
 export const metadata: Metadata = {
   title: {
-    default: "Comparador de Precios de la Canasta Familiar",
-    template: "%s | Comparador de Precios",
+    default: "Quimbaya — Precios de la canasta en Armenia y Quindío",
+    template: "%s | Quimbaya",
   },
   description:
     "Plataforma colaborativa y transparente para la comparacion de precios de la canasta basica familiar en Colombia.",
-  applicationName: "Comparador de Precios",
+  applicationName: "Quimbaya",
   keywords: [
     "comparador de precios",
     "canasta familiar",
@@ -41,7 +41,8 @@ export const metadata: Metadata = {
   authors: [{ name: "Comunidad Abierta" }],
   manifest: "/manifest.webmanifest",
   icons: {
-    icon: "/icons/icon-192.svg",
+    /* La pestana muestra el simbolo a 16 px: ahi va la variante de dos barras. */
+    icon: [{ url: "/icons/favicon.svg", type: "image/svg+xml" }],
     apple: "/icons/icon-192.svg",
   },
 };
