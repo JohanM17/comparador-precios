@@ -42,6 +42,36 @@ test.describe("Flujos E2E del Nucleo (T-51)", () => {
     );
   });
 
+  test("Flujo sugerencia: el modal envía sin recargar y muestra confirmación", async ({ page }) => {
+    let cuerpoSugerencia: Record<string, unknown> | undefined;
+    await configurarMocksNucleo(page, {
+      rol: "reportante",
+      autorizadoInicial: true,
+      alSugerirPresentacion: (cuerpo) => {
+        cuerpoSugerencia = cuerpo as Record<string, unknown>;
+      },
+    });
+
+    await page.goto("/ingresar", { waitUntil: "networkidle" });
+    await page.fill("#auth-correo", "vecino@armenia.co");
+    await page.fill("#auth-clave", "ClaveSegura123");
+    await page.getByRole("button", { name: "Ingresar" }).click();
+
+    await page.goto("/reportar?medicion=1", { waitUntil: "networkidle" });
+    await page.getByRole("button", { name: /Sugerir presentación faltante/i }).click();
+    await page.fill("#sug-texto", "Atún Isabel en aceite");
+    await page.getByRole("button", { name: "Enviar sugerencia" }).click();
+
+    await expect(
+      page.getByText("Sugerencia de presentacion recibida y caso abierto para moderacion.")
+    ).toBeVisible();
+    await expect(
+      page.getByText("Completa tienda, presentación y un precio válido en COP.")
+    ).toHaveCount(0);
+    expect(page.url()).toContain("/reportar");
+    expect(cuerpoSugerencia).toMatchObject({ texto_libre: "Atún Isabel en aceite" });
+  });
+
   test("Flujo 2: Reportante autoriza Ley 1581, encola reporte offline en IndexedDB y sincroniza", async ({ page, context }) => {
     let claveIdempotenciaRecibida: string | undefined;
     await configurarMocksNucleo(page, {

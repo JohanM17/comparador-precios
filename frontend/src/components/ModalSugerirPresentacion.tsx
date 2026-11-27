@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { CheckCircle2, X } from "lucide-react";
 import { clienteApi, type ProductoResumen } from "@/lib/api/clienteApi";
 import { clienteReportes } from "@/lib/api/clienteReportes";
@@ -57,12 +58,16 @@ export default function ModalSugerirPresentacion({
       .catch(() => {});
   }, [abierto, productoId, productosIniciales]);
 
-  if (!abierto) {
+  if (!abierto || typeof document === "undefined") {
     return null;
   }
 
   const enviar = async (ev: React.FormEvent<HTMLFormElement>): Promise<void> => {
     ev.preventDefault();
+    // El portal esta fuera del <form> de reporte en el DOM, pero React propaga
+    // el evento por el arbol de componentes. Sin esto, el submit del modal
+    // tambien dispara la validacion del reporte y muestra un error ajeno.
+    ev.stopPropagation();
     setError(null);
     setEnviando(true);
     try {
@@ -92,7 +97,12 @@ export default function ModalSugerirPresentacion({
     }
   };
 
-  return (
+  /*
+   * El modal se abre desde dentro del formulario de reporte. Un <form> anidado
+   * es HTML invalido: el submit se asocia al formulario externo y recarga la
+   * pagina, perdiendo el mensaje de exito. El portal lo saca al body.
+   */
+  return createPortal(
     <dialog
       open
       aria-modal="true"
@@ -241,7 +251,8 @@ export default function ModalSugerirPresentacion({
           </form>
         )}
       </div>
-    </dialog>
+    </dialog>,
+    document.body
   );
 }
 

@@ -88,6 +88,7 @@ export interface OpcionesMock {
   alRevocarPromocion?: () => void;
   autorizadoInicial?: boolean;
   alCrearReporte?: (headers: Record<string, string>, cuerpo: unknown) => void;
+  alSugerirPresentacion?: (cuerpo: unknown) => void;
   alResolverCaso?: (cuerpo: unknown) => void;
 }
 
@@ -484,6 +485,19 @@ async function responderCuentaYReportes(route: Route, ruta: string, metodo: stri
     const req = route.request();
     estado.opts.alCrearReporte?.(req.headers(), req.postDataJSON());
     await route.fulfill({ status: 201, json: { datos: { id: "rep-e2e-1", estado_visible: "recibido", mensaje: "Gracias, tu precio quedó registrado." } } });
+    return true;
+  }
+  if (ruta === "/v1/sugerencias-presentacion" && metodo === "POST") {
+    estado.opts.alSugerirPresentacion?.(route.request().postDataJSON());
+    await route.fulfill({
+      status: 201,
+      json: {
+        id: "sug-e2e-1",
+        caso_id: "caso-sug-e2e-1",
+        estado: "pendiente",
+        mensaje: "Sugerencia de presentacion recibida y caso abierto para moderacion.",
+      },
+    });
     return true;
   }
   return false;
