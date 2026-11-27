@@ -229,27 +229,50 @@ test.describe("PWA y Accesibilidad WCAG 2.2 AA", () => {
     expect(Array.isArray(json.icons)).toBe(true);
   });
 
-  for (const pantalla of PANTALLAS) {
-    test(`${pantalla.nombre} (${pantalla.ruta}) tiene 0 violaciones criticas o serias WCAG 2.2 AA`, async ({
-      page,
-    }) => {
-      await mockApiBasica(page);
-      await page.goto(pantalla.ruta, { waitUntil: "networkidle" });
-      await page.waitForSelector("main h1", { timeout: 10_000 });
+  /*
+   * La aplicacion ofrece modo claro y oscuro, asi que el contraste se verifica en
+   * los dos. El tema se fija en localStorage antes de cargar la pagina: el script
+   * del <head> lo lee y aplica la clase `dark` antes del primer pintado.
+   */
+  const TEMAS = ["claro", "oscuro"] as const;
 
-      const resultados = await new AxeBuilder({ page })
-        .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
-        .analyze();
+  for (const tema of TEMAS) {
+    for (const pantalla of PANTALLAS) {
+      test(`${pantalla.nombre} (${pantalla.ruta}) en modo ${tema} tiene 0 violaciones criticas o serias WCAG 2.2 AA`, async ({
+        page,
+      }) => {
+        await page.addInitScript((valor) => {
+          try {
+            window.localStorage.setItem("tema", valor);
+          } catch {
+            // Sin almacenamiento disponible la pagina cae al tema del sistema.
+          }
+        }, tema);
+        await mockApiBasica(page);
+        await page.goto(pantalla.ruta, { waitUntil: "networkidle" });
+        await page.waitForSelector("main h1", { timeout: 10_000 });
 
-      const graves = resultados.violations.filter(
-        (v) => v.impact === "critical" || v.impact === "serious"
-      );
+        const esOscuro = await page.evaluate(() =>
+          document.documentElement.classList.contains("dark")
+        );
+        expect(esOscuro, `El tema ${tema} no quedo aplicado en ${pantalla.ruta}`).toBe(
+          tema === "oscuro"
+        );
 
-      expect(
-        graves,
-        `Violaciones graves en ${pantalla.ruta}: ${JSON.stringify(graves, null, 2)}`
-      ).toEqual([]);
-    });
+        const resultados = await new AxeBuilder({ page })
+          .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+          .analyze();
+
+        const graves = resultados.violations.filter(
+          (v) => v.impact === "critical" || v.impact === "serious"
+        );
+
+        expect(
+          graves,
+          `Violaciones graves en ${pantalla.ruta} (modo ${tema}): ${JSON.stringify(graves, null, 2)}`
+        ).toEqual([]);
+      });
+    }
   }
 
   test("Navegacion por teclado en S4 (/reportar) alcanza controles y cronometro EC-01", async ({

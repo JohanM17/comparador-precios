@@ -15,6 +15,7 @@ import {
 import type { PuntoHistorial } from "@/lib/api/clienteApi";
 import { formatearFechaBogota, formatearPesos } from "@/lib/formato";
 import {
+  RELLENO_PUNTO_HUECO,
   esEstadoDudoso,
   estiloOrigen,
   etiquetaEjePrecio,
@@ -70,8 +71,14 @@ function renderizarPunto(props: ScatterShapeProps): React.ReactElement | null {
   const estilo = estiloOrigen(punto.origen);
   const dudoso = esEstadoDudoso(punto.estado);
   const radio = dudoso ? 7 : 6;
-  const relleno = dudoso ? "#ffffff" : estilo.color;
-  const trazo = {
+
+  /*
+   * El color va en `style` y no en los atributos `fill`/`stroke`: los
+   * atributos de presentacion de SVG no resuelven `var()`, y los tokens del
+   * sistema estan declarados como variables CSS.
+   */
+  const pintura: React.CSSProperties = {
+    fill: dudoso ? RELLENO_PUNTO_HUECO : estilo.color,
     stroke: estilo.color,
     strokeWidth: dudoso ? 2.5 : 1.5,
     strokeDasharray: dudoso ? "3 2" : undefined,
@@ -86,20 +93,18 @@ function renderizarPunto(props: ScatterShapeProps): React.ReactElement | null {
           width={radio * 2}
           height={radio * 2}
           rx={1.5}
-          fill={relleno}
-          {...trazo}
+          style={pintura}
         />
       );
     case "triangulo":
       return (
         <polygon
           points={`${cx},${cy - radio} ${cx + radio},${cy + radio} ${cx - radio},${cy + radio}`}
-          fill={relleno}
-          {...trazo}
+          style={pintura}
         />
       );
     default:
-      return <circle cx={cx} cy={cy} r={radio} fill={relleno} {...trazo} />;
+      return <circle cx={cx} cy={cy} r={radio} style={pintura} />;
   }
 }
 
@@ -120,24 +125,26 @@ function ContenidoTooltip({
   const estilo = estiloOrigen(punto.origen);
 
   return (
-    <div className="max-w-xs rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs shadow-lg">
-      <p className="font-semibold text-slate-900">{formatearFechaBogota(punto.observado_en)}</p>
-      <p className="mt-1 text-sm font-semibold text-slate-900">
+    <div className="max-w-xs border border-slate-300 bg-superficie px-3.5 py-2.5 text-xs">
+      <p className="rotulo">{formatearFechaBogota(punto.observado_en)}</p>
+      <p className="cifras mt-1.5 text-[17px] font-medium tracking-[-0.02em] text-slate-900">
         {formatearPesos(punto.y)}{" "}
-        <span className="text-xs font-normal text-slate-600">por {etiquetaUnidad(unidad)}</span>
+        <span className="text-[12px] font-normal tracking-normal text-slate-500">
+          por {etiquetaUnidad(unidad)}
+        </span>
       </p>
-      <dl className="mt-2 space-y-0.5 text-slate-600">
-        <div className="flex gap-1">
-          <dt className="font-medium text-slate-700">Origen:</dt>
+      <dl className="mt-2 space-y-0.5 text-[12px] text-slate-600">
+        <div className="flex gap-1.5">
+          <dt className="text-slate-500">Origen</dt>
           <dd>{estilo.etiqueta}</dd>
         </div>
-        <div className="flex gap-1">
-          <dt className="font-medium text-slate-700">Estado:</dt>
+        <div className="flex gap-1.5">
+          <dt className="text-slate-500">Estado</dt>
           <dd>{etiquetaEstado(punto.estado)}</dd>
         </div>
         {punto.es_demo && (
-          <div className="flex gap-1">
-            <dt className="font-medium text-slate-700">Demo:</dt>
+          <div className="flex gap-1.5">
+            <dt className="text-slate-500">Demo</dt>
             <dd>Sí</dd>
           </div>
         )}
@@ -160,7 +167,7 @@ export default function GraficaHistorialRecharts({
     return (
       <p
         role="status"
-        className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-center text-sm text-slate-600"
+        className="border-y border-dashed border-slate-300 px-4 py-8 text-center text-[13.5px] text-slate-500"
       >
         No hay puntos para graficar.
       </p>
@@ -168,19 +175,19 @@ export default function GraficaHistorialRecharts({
   }
 
   return (
-    <div className="h-72 w-full sm:h-80">
+    <div className="grafica-historial h-72 w-full sm:h-80">
       <ResponsiveContainer width="100%" height="100%">
         <ScatterChart
           margin={{ top: 12, right: 20, bottom: 8, left: 8 }}
           accessibilityLayer={false}
         >
-          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+          <CartesianGrid strokeDasharray="3 3" />
           <XAxis
             type="number"
             dataKey="x"
             domain={["dataMin - 43200000", "dataMax + 43200000"]}
             tickFormatter={formatearMarcaEje}
-            tick={{ fontSize: 11, fill: "#475569" }}
+            tick={{ fontSize: 11 }}
             tickMargin={8}
             minTickGap={24}
             height={40}
@@ -190,7 +197,7 @@ export default function GraficaHistorialRecharts({
             dataKey="y"
             domain={["auto", "auto"]}
             tickFormatter={(valor: number) => formatearPesos(valor)}
-            tick={{ fontSize: 11, fill: "#475569" }}
+            tick={{ fontSize: 11 }}
             tickMargin={6}
             width={82}
             label={{
@@ -198,12 +205,12 @@ export default function GraficaHistorialRecharts({
               angle: -90,
               position: "insideLeft",
               offset: 6,
-              style: { fontSize: 11, fill: "#475569", textAnchor: "middle" },
+              style: { fontSize: 11, textAnchor: "middle" },
             }}
           />
           <Tooltip
             content={<ContenidoTooltip unidad={unidad} />}
-            cursor={{ stroke: "#94a3b8", strokeDasharray: "3 3" }}
+            cursor={{ strokeDasharray: "3 3" }}
           />
           <Scatter data={datos} shape={renderizarPunto} isAnimationActive={false} />
         </ScatterChart>

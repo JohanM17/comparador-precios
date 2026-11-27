@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { Camera, Clock, MapPin, Scale, Store } from "lucide-react";
+import { Camera, Clock, Scale } from "lucide-react";
 import type { ItemComparacion } from "@/lib/api/clienteApi";
 import {
   formatearAntiguedadRelativa,
@@ -14,14 +14,24 @@ import SelloConfianza from "@/components/SelloConfianza";
 export interface FilaPrecioProps {
   readonly item: ItemComparacion;
   readonly productoId: string;
+  /** Posicion mostrada tal como la entrega el servidor (no se reordena en el cliente). */
+  readonly posicion?: number;
+  /** Resalta la primera fila del bloque vigente cuando el servidor ordena por precio unitario. */
+  readonly destacada?: boolean;
 }
 
 /**
- * Fila individual de comparacion de precio en una tienda y presentacion.
+ * Renglon de comparacion de precio en una tienda y presentacion.
+ *
+ * No es una tarjeta: es una fila separada por una linea de un pixel. El precio
+ * por unidad base cierra a la derecha y es lo unico grande. Cuando la fila es la
+ * mas barata se tine de esmeralda, que en este diseno significa ahorro y nada mas.
  */
 export default function FilaPrecio({
   item,
   productoId,
+  posicion,
+  destacada = false,
 }: FilaPrecioProps): React.JSX.Element {
   const { establecimiento, presentacion, precio_por_unidad } = item;
   const fechaBogota = formatearFechaBogota(item.ultimo_reporte_en);
@@ -30,102 +40,115 @@ export default function FilaPrecio({
     establecimiento.distancia_m !== undefined && establecimiento.distancia_m !== null
       ? formatearDistancia(establecimiento.distancia_m)
       : null;
+  const secundaria = item.es_bloque_secundario;
+
+  const colorNombre = destacada
+    ? "text-emerald-600"
+    : secundaria
+      ? "text-slate-600"
+      : "text-slate-900";
+  const colorCifra = destacada
+    ? "text-emerald-600"
+    : secundaria
+      ? "text-slate-500"
+      : "text-slate-900";
 
   return (
     <article
       data-producto-id={productoId}
-      className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
+      className="grid grid-cols-[auto_1fr_auto] items-baseline gap-x-4 gap-y-1.5 border-t border-slate-200 py-5"
     >
-      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <div className="min-w-0 flex-1 space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <SelloConfianza sello={item.sello} motivoSello={item.motivo_sello ?? null} />
-            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
-              <Store className="h-3 w-3" aria-hidden="true" />
-              {formatearTipoEstablecimiento(establecimiento.tipo)}
-            </span>
-            {distancia && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-900">
-                <MapPin className="h-3 w-3" aria-hidden="true" />
-                {distancia}
-              </span>
-            )}
-          </div>
+      <span
+        aria-hidden="true"
+        className={`cifras w-6 text-[13px] font-medium ${
+          destacada ? "text-emerald-600" : "text-slate-400"
+        }`}
+      >
+        {posicion !== undefined ? String(posicion).padStart(2, "0") : "—"}
+      </span>
 
-          <div>
-            <Link
-              href={`/tienda/${establecimiento.id}`}
-              className="text-lg font-bold text-slate-900 underline decoration-slate-300 underline-offset-4 hover:text-emerald-800 hover:decoration-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
-            >
-              {establecimiento.nombre}
-            </Link>
-            <p className="mt-0.5 text-sm text-slate-600">
-              {[establecimiento.barrio, establecimiento.direccion].filter(Boolean).join(" · ") ||
-                "Dirección registrada en Armenia"}
-            </p>
-          </div>
+      <div className="min-w-0">
+        <Link
+          href={`/tienda/${establecimiento.id}`}
+          className={`text-[18px] font-medium tracking-tight underline decoration-slate-300 underline-offset-4 transition-colors hover:decoration-current focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${colorNombre}`}
+        >
+          {establecimiento.nombre}
+        </Link>
+        {destacada && (
+          <span className="ml-2.5 whitespace-nowrap text-[12px] font-medium text-emerald-600">
+            el más barato por {precio_por_unidad.por}
+          </span>
+        )}
 
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
-            <span className="font-semibold text-slate-800">
-              {presentacion.etiqueta}
-              {presentacion.marca ? ` (${presentacion.marca})` : ""}
-            </span>
-            <time
-              dateTime={item.ultimo_reporte_en}
-              title={fechaBogota}
-              className="inline-flex items-center gap-1 underline decoration-dotted underline-offset-2"
-            >
-              <Clock className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
-              {antiguedad}
-            </time>
-            <span>
-              {item.n_reportes_validos}{" "}
-              {item.n_reportes_validos === 1 ? "reporte" : "reportes"} · {item.n_fuentes}{" "}
-              {item.n_fuentes === 1 ? "fuente" : "fuentes"}
-            </span>
-            {item.con_foto_prueba && (
-              <span className="inline-flex items-center gap-1 font-medium text-emerald-800">
-                <Camera className="h-3.5 w-3.5" aria-hidden="true" />
-                Con foto de prueba
-              </span>
-            )}
-          </div>
-
-          {item.sello === "en_disputa" && (
-            <div className="mt-2 rounded-lg border border-orange-300 bg-orange-50 p-3 text-xs text-orange-950">
-              <p className="flex items-center gap-1.5 font-semibold">
-                <Scale className="h-4 w-4 text-orange-800" aria-hidden="true" />
-                Contraste de precios en disputa
-              </p>
-              <p className="mt-1">
-                Comunidad reporta <strong>{formatearPesos(item.precio_cop)}</strong>
-                {item.precio_oficial_cop !== null && item.precio_oficial_cop !== undefined
-                  ? ` frente a precio oficial del comercio de ${formatearPesos(item.precio_oficial_cop)}.`
-                  : " frente al precio oficial publicado por el comercio."}
-              </p>
-            </div>
-          )}
-        </div>
-
-        <div className="flex flex-row items-center justify-between gap-4 border-t border-slate-100 pt-3 md:flex-col md:items-end md:border-t-0 md:pt-0">
-          <div className="md:text-right">
-            <p className="text-2xl font-extrabold tracking-tight text-slate-900">
-              {formatearPesos(precio_por_unidad.valor_cop)} / {precio_por_unidad.por}
-            </p>
-            <p className="mt-0.5 text-xs font-medium text-slate-600">
-              Empaque: {formatearPesos(item.precio_cop)} COP IVA incl.
-            </p>
-          </div>
-
-          <Link
-            href={`/reportar?tienda=${establecimiento.id}&presentacion=${presentacion.id}`}
-            className="inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-700 px-4 py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-700 focus:ring-offset-2"
-          >
-            Confirmar / Actualizar
-          </Link>
-        </div>
+        <p className="mt-0.5 text-[13.5px] text-slate-500">
+          {formatearTipoEstablecimiento(establecimiento.tipo)}
+          {" · "}
+          {[establecimiento.barrio, establecimiento.direccion].filter(Boolean).join(" · ") ||
+            "Dirección registrada en Armenia"}
+          {distancia ? ` · ${distancia}` : ""}
+        </p>
       </div>
+
+      <div className="text-right">
+        <p className={`cifras text-[25px] font-medium leading-none tracking-tight ${colorCifra}`}>
+          {formatearPesos(precio_por_unidad.valor_cop)}
+          <span className="ml-1 text-[14px] font-normal text-slate-500">
+            /{precio_por_unidad.por}
+          </span>
+        </p>
+        <p className="mt-1 text-[12.5px] text-slate-500">
+          {formatearPesos(item.precio_cop)} el empaque
+        </p>
+      </div>
+
+      <div className="col-start-2 col-end-4 mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <SelloConfianza sello={item.sello} motivoSello={item.motivo_sello ?? null} />
+        <span className="text-[12.5px] text-slate-500">
+          {presentacion.etiqueta}
+          {presentacion.marca ? ` (${presentacion.marca})` : ""}
+        </span>
+        <time
+          dateTime={item.ultimo_reporte_en}
+          title={fechaBogota}
+          className="inline-flex items-center gap-1 text-[12.5px] text-slate-500"
+        >
+          <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+          {antiguedad}
+        </time>
+        <span className="text-[12.5px] text-slate-500">
+          {item.n_reportes_validos} {item.n_reportes_validos === 1 ? "reporte" : "reportes"} ·{" "}
+          {item.n_fuentes} {item.n_fuentes === 1 ? "fuente" : "fuentes"}
+        </span>
+        {item.con_foto_prueba && (
+          <span className="inline-flex items-center gap-1 text-[12.5px] text-slate-500">
+            <Camera className="h-3.5 w-3.5" aria-hidden="true" />
+            Con foto de prueba
+          </span>
+        )}
+        <Link
+          href={`/reportar?tienda=${establecimiento.id}&presentacion=${presentacion.id}`}
+          className="ml-auto inline-flex min-h-11 items-center text-[13px] font-medium text-slate-900 underline decoration-slate-300 underline-offset-4 transition-colors hover:decoration-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+        >
+          Confirmar / Actualizar
+        </Link>
+      </div>
+
+      {item.sello === "en_disputa" && (
+        <div className="col-start-2 col-end-4 mt-1 border-l-2 border-cereza-600 pl-3.5 text-[13px] text-slate-600">
+          <p className="inline-flex items-center gap-1.5 font-medium text-cereza-600">
+            <Scale className="h-4 w-4" aria-hidden="true" />
+            Contraste de precios en disputa
+          </p>
+          <p className="mt-0.5">
+            La comunidad reporta <strong className="font-medium text-slate-900">
+              {formatearPesos(item.precio_cop)}
+            </strong>
+            {item.precio_oficial_cop !== null && item.precio_oficial_cop !== undefined
+              ? ` frente al precio oficial del comercio de ${formatearPesos(item.precio_oficial_cop)}.`
+              : " frente al precio oficial publicado por el comercio."}
+          </p>
+        </div>
+      )}
     </article>
   );
 }
-

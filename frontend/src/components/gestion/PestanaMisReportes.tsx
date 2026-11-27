@@ -145,7 +145,7 @@ export default function PestanaMisReportes({
               type="button"
               onClick={() => void sincronizarAhora()}
               disabled={sincronizando}
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-amber-900 px-3.5 text-xs font-semibold text-white hover:bg-amber-950 disabled:opacity-50"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl bg-[#78350f] px-3.5 text-xs font-semibold text-white hover:bg-[#451a03] disabled:opacity-50"
             >
               <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
               {sincronizando ? "Sincronizando..." : "Sincronizar ahora"}

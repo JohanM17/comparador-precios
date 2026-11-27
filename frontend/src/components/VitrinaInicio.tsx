@@ -103,92 +103,102 @@ export default function VitrinaInicio(): React.JSX.Element {
     setTerminoActivo("");
   };
 
+  const claseChip = (activa: boolean): string =>
+    `min-h-10 flex-shrink-0 rounded-full border px-4 py-1.5 text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50 ${
+      activa
+        ? "border-slate-900 bg-slate-900 font-medium text-slate-50"
+        : "border-slate-300 text-slate-600 hover:border-slate-900 hover:text-slate-900"
+    }`;
+
   return (
-    <div>
+    <div className="mx-auto max-w-5xl px-5 sm:px-6">
       <AvisoDatosDemo visible={false} />
 
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            Compara precios reales de la canasta familiar en Armenia
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm text-slate-700 sm:text-base">
-            Precios normalizados por unidad de medida (kg, litro o unidad), sin pautas ni
-            favoritismos comerciales.
-          </p>
+      <section className="pb-12 pt-12 sm:pt-16">
+        <p className="rotulo">Armenia, Quindío · canasta familiar</p>
+        <h1 className="mt-4 max-w-[17ch] text-[clamp(2.1rem,6.4vw,3.9rem)] font-medium leading-[1.02] tracking-[-0.035em] text-slate-900">
+          ¿Dónde está{" "}
+          <span className="font-cursiva text-[1.08em] font-normal italic tracking-[-0.01em]">
+            más barato
+          </span>{" "}
+          el mercado de hoy?
+        </h1>
+        <p className="mt-5 max-w-[46ch] text-[17px] leading-relaxed text-slate-600">
+          Precios que reporta tu comunidad, comparados por kilo, litro o unidad para que dos
+          presentaciones distintas se puedan medir de verdad. Sin pauta y sin favoritismos.
+        </p>
 
-          <form onSubmit={manejarBusqueda} role="search" className="mt-5 flex flex-col gap-3 sm:flex-row">
-            <div className="relative flex-1">
-              <label htmlFor="buscador-vitrina" className="sr-only">
-                Buscar producto por nombre, marca o cantidad
-              </label>
-              <Search
-                className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
-                aria-hidden="true"
-              />
-              <input
-                id="buscador-vitrina"
-                type="search"
-                value={terminoInput}
-                onChange={(e) => setTerminoInput(e.target.value)}
-                placeholder="Ej. arroz 1/2 kilo, leche, aceite..."
-                className="min-h-11 w-full rounded-xl border border-slate-300 bg-slate-50 py-2.5 pl-10 pr-10 text-sm text-slate-900 placeholder-slate-500 focus:border-emerald-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-700/20"
-              />
-              {terminoInput && (
-                <button
-                  type="button"
-                  onClick={limpiarBusqueda}
-                  aria-label="Limpiar búsqueda"
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-500 hover:bg-slate-200 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-700"
-                >
-                  <X className="h-4 w-4" aria-hidden="true" />
-                </button>
-              )}
-            </div>
-            <button
-              type="submit"
-              className="inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-700 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-700 focus:ring-offset-2"
-            >
-              Buscar
-            </button>
-          </form>
+        <form
+          onSubmit={manejarBusqueda}
+          role="search"
+          className="mt-9 flex max-w-xl items-end gap-3 border-b border-slate-300 pb-2 focus-within:border-slate-900"
+        >
+          <div className="relative flex-1">
+            <label htmlFor="buscador-vitrina" className="sr-only">
+              Buscar producto por nombre, marca o cantidad
+            </label>
+            <Search
+              className="pointer-events-none absolute left-0 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-500"
+              aria-hidden="true"
+            />
+            <input
+              id="buscador-vitrina"
+              type="search"
+              value={terminoInput}
+              onChange={(e) => setTerminoInput(e.target.value)}
+              placeholder="Ej. arroz 1/2 kilo, leche, aceite…"
+              className="min-h-11 w-full border-0 bg-transparent py-2 pl-7 pr-8 text-[17px] text-slate-900 placeholder-slate-500 focus:outline-none focus:ring-0"
+            />
+            {terminoInput && (
+              <button
+                type="button"
+                onClick={limpiarBusqueda}
+                aria-label="Limpiar búsqueda"
+                className="absolute right-0 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-500 transition-colors hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            )}
+          </div>
+          <button
+            type="submit"
+            className="min-h-11 flex-none px-1 pb-1 text-[15px] font-medium text-slate-900 underline decoration-slate-300 underline-offset-[6px] transition-colors hover:decoration-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+          >
+            Buscar
+          </button>
+        </form>
 
-          <nav aria-label="Categorías de productos" className="mt-5 flex gap-2 overflow-x-auto pb-1">
+        <nav
+          aria-label="Categorías de productos"
+          className="mt-7 flex gap-2 overflow-x-auto pb-1"
+        >
+          <button
+            type="button"
+            onClick={() => setCategoriaId(null)}
+            aria-pressed={categoriaId === null}
+            className={claseChip(categoriaId === null)}
+          >
+            Todas
+          </button>
+          {categorias.map((cat) => (
             <button
+              key={cat.id}
               type="button"
-              onClick={() => setCategoriaId(null)}
-              aria-pressed={categoriaId === null}
-              className={`min-h-10 flex-shrink-0 rounded-full border px-4 py-1.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-700 ${
-                categoriaId === null
-                  ? "border-emerald-700 bg-emerald-700 text-white"
-                  : "border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
-              }`}
+              onClick={() => setCategoriaId(cat.id)}
+              aria-pressed={categoriaId === cat.id}
+              className={claseChip(categoriaId === cat.id)}
             >
-              Todas las categorías
+              {cat.nombre}
             </button>
-            {categorias.map((cat) => {
-              const seleccionada = categoriaId === cat.id;
-              return (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setCategoriaId(cat.id)}
-                  aria-pressed={seleccionada}
-                  className={`min-h-10 flex-shrink-0 rounded-full border px-4 py-1.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-700 ${
-                    seleccionada
-                      ? "border-emerald-700 bg-emerald-700 text-white"
-                      : "border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
-                  }`}
-                >
-                  {cat.nombre}
-                </button>
-              );
-            })}
-          </nav>
-        </section>
+          ))}
+        </nav>
+      </section>
 
-        <section aria-label="Catálogo de productos" className="mt-6">
-          {cargando && <Cargando filas={6} etiqueta="Cargando productos de la canasta..." />}
+      <div className="pb-4">
+        <section aria-label="Catálogo de productos">
+          <p className="rotulo mb-4">Catálogo</p>
+
+          {cargando && <Cargando filas={6} etiqueta="Cargando productos de la canasta…" />}
 
           {!cargando && error && (
             <EstadoError

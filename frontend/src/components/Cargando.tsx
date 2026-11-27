@@ -21,7 +21,7 @@ export default function Cargando({
       role="status"
       aria-live="polite"
       aria-label={etiqueta}
-      className="w-full space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+      className="w-full space-y-4 rounded-xl border border-slate-300 bg-superficie p-6"
     >
       <span className="sr-only">{etiqueta}</span>
       <div className="h-6 w-1/3 rounded bg-slate-200 motion-safe:animate-pulse" />

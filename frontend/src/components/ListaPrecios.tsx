@@ -1,6 +1,5 @@
 import React from "react";
 import Link from "next/link";
-import { AlertCircle, ShieldCheck } from "lucide-react";
 import type { ItemComparacion } from "@/lib/api/clienteApi";
 import FilaPrecio from "@/components/FilaPrecio";
 
@@ -25,60 +24,54 @@ export default function ListaPrecios({
   const bloqueSecundario = resultados.filter((item) => item.es_bloque_secundario);
 
   return (
-    <div data-criterio-orden={criterioOrden} className="space-y-6">
+    <div data-criterio-orden={criterioOrden}>
       <div
         role="note"
         aria-label="Garantía de neutralidad comercial"
-        className="flex flex-col justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 text-sm text-emerald-950 sm:flex-row sm:items-center"
+        className="flex flex-col gap-1.5 pb-7 text-[13.5px] leading-relaxed text-slate-600 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6"
       >
-        <div className="flex items-start gap-2.5 sm:items-center">
-          <ShieldCheck className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-800 sm:mt-0" aria-hidden="true" />
-          <p className="font-medium">{textoNeutralidad}</p>
-        </div>
+        <p className="max-w-[62ch]">{textoNeutralidad}</p>
         <Link
           href="/legal#neutralidad"
-          className="flex-shrink-0 text-xs font-semibold text-emerald-900 underline decoration-emerald-600 underline-offset-4 hover:text-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-700"
+          className="flex-shrink-0 text-slate-600 underline decoration-slate-300 underline-offset-4 transition-colors hover:text-slate-900 hover:decoration-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
         >
           Ver criterio de neutralidad
         </Link>
       </div>
 
       {bloquePrincipal.length > 0 && (
-        <section aria-label="Precios vigentes confiables" className="space-y-3">
-          {bloquePrincipal.map((item) => (
+        <section aria-label="Precios vigentes confiables" className="border-b border-slate-200">
+          {bloquePrincipal.map((item, indice) => (
             <FilaPrecio
               key={`${item.establecimiento.id}-${item.presentacion.id}`}
               item={item}
               productoId={productoId}
+              posicion={indice + 1}
+              destacada={indice === 0 && criterioOrden === "precio_unitario"}
             />
           ))}
         </section>
       )}
 
       {bloqueSecundario.length > 0 && (
-        <section aria-labelledby="titulo-bloque-secundario" className="space-y-3 pt-2">
-          <div className="flex items-center gap-3">
-            <div className="h-px flex-1 bg-slate-300" aria-hidden="true" />
-            <h2
-              id="titulo-bloque-secundario"
-              className="inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-slate-100 px-3.5 py-1 text-xs font-bold uppercase tracking-wide text-slate-700"
-            >
-              <AlertCircle className="h-3.5 w-3.5 text-slate-600" aria-hidden="true" />
-              Precios desactualizados o en revisión
-            </h2>
-            <div className="h-px flex-1 bg-slate-300" aria-hidden="true" />
+        <section aria-labelledby="titulo-bloque-secundario" className="mt-12">
+          <h2 id="titulo-bloque-secundario" className="rotulo mb-1.5">
+            Fuera de la comparación: precios desactualizados o en revisión
+          </h2>
+          <p className="mb-4 max-w-[58ch] text-[13.5px] text-slate-500">
+            Se muestran para que nada quede oculto, pero no compiten por el primer lugar.
+          </p>
+          <div className="border-b border-slate-200">
+            {bloqueSecundario.map((item) => (
+              <FilaPrecio
+                key={`${item.establecimiento.id}-${item.presentacion.id}`}
+                item={item}
+                productoId={productoId}
+              />
+            ))}
           </div>
-
-          {bloqueSecundario.map((item) => (
-            <FilaPrecio
-              key={`${item.establecimiento.id}-${item.presentacion.id}`}
-              item={item}
-              productoId={productoId}
-            />
-          ))}
         </section>
       )}
     </div>
   );
 }
-
