@@ -1665,6 +1665,8 @@ export interface components {
             motivo_sello?: string | null;
             /** Precio Cop */
             precio_cop: number;
+            /** Precio Oficial Cop */
+            precio_oficial_cop?: number | null;
             /** Precio Por Base */
             precio_por_base: string;
             /** Presentacion Etiqueta */

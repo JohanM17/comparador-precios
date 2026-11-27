@@ -14,6 +14,19 @@ async function ingresar(page: Page, correo: string): Promise<void> {
   await expect(page.getByText(/Sesión activa como/i)).toBeVisible();
 }
 
+async function analizarAxe(page: Page, contexto: string): Promise<void> {
+  const resultados = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
+    .analyze();
+  const graves = resultados.violations.filter(
+    (v) => v.impact === "critical" || v.impact === "serious"
+  );
+  expect(
+    graves,
+    `Violaciones graves en ${contexto}: ${JSON.stringify(graves, null, 2)}`
+  ).toEqual([]);
+}
+
 test.describe("Panel de comercio en S6 (T-67)", () => {
   test("un comercio corrige 20 precios en modo rápido en menos de un minuto", async ({ page }) => {
     let publicado: { precios?: { presentacion_id: string; precio_cop: number }[] } | undefined;
@@ -21,6 +34,7 @@ test.describe("Panel de comercio en S6 (T-67)", () => {
       rol: "comercio",
       autorizadoInicial: true,
       presentacionesComercio: 24,
+      preciosOficialesComercio: 24,
       alPublicarPrecios: (cuerpo) => {
         publicado = cuerpo as typeof publicado;
       },
@@ -47,7 +61,7 @@ test.describe("Panel de comercio en S6 (T-67)", () => {
     await campos.nth(0).focus();
     for (let i = 0; i < PRECIOS_A_CORREGIR; i += 1) {
       await page.keyboard.press("Control+a");
-      await page.keyboard.type(String(4100 + i * 25));
+      await page.keyboard.type(String(4000 + i * 100));
       // Enter baja al siguiente campo: es lo que evita volver al ratón.
       await page.keyboard.press("Enter");
     }
@@ -65,7 +79,7 @@ test.describe("Panel de comercio en S6 (T-67)", () => {
 
     // Solo viaja lo que cambió, no la lista entera.
     expect(publicado?.precios).toHaveLength(PRECIOS_A_CORREGIR);
-    expect(publicado?.precios?.[0]?.precio_cop).toBe(4100);
+    expect(publicado?.precios?.[0]?.precio_cop).toBe(4000);
   });
 
   test("«Todo sigue igual» confirma sin escribir un solo precio", async ({ page }) => {
@@ -73,6 +87,7 @@ test.describe("Panel de comercio en S6 (T-67)", () => {
       rol: "comercio",
       autorizadoInicial: true,
       presentacionesComercio: 12,
+      preciosOficialesComercio: 12,
     });
 
     await ingresar(page, "comercio@armenia.co");
@@ -85,16 +100,131 @@ test.describe("Panel de comercio en S6 (T-67)", () => {
     await expect(page.getByText("12 precios confirmados sin cambios")).toBeVisible();
   });
 
-  test("la pestaña de precios advierte que el valor precargado es de la comunidad", async ({
+  test("el modo rápido precarga el precio oficial y avisa cuando solo hay comunidad", async ({
     page,
   }) => {
-    await configurarMocksNucleo(page, { rol: "comercio", autorizadoInicial: true });
+    await configurarMocksNucleo(page, {
+      rol: "comercio",
+      autorizadoInicial: true,
+      presentacionesComercio: 2,
+      preciosOficialesComercio: 1,
+    });
     await ingresar(page, "comercio@armenia.co");
     await page.goto("/gestion", { waitUntil: "networkidle" });
 
-    const aviso = page.getByText(/Cada campo trae el último precio que reportó la comunidad/);
+    const campos = page.locator('[data-prueba="lista-precios-rapido"] input');
+    await expect(campos).toHaveCount(2);
+
+    // La fila con sello oficial muestra el precio del comercio (3700), no el comunitario (3000).
+    await expect(campos.nth(0)).toHaveValue("3700");
+    await expect(
+      page.locator('[data-prueba="lista-precios-rapido"]').getByText(/tu precio oficial/)
+    ).toBeVisible();
+
+    // La fila sin precio oficial muestra el comunitario y lo advierte.
+    await expect(campos.nth(1)).toHaveValue("3050");
+    await expect(
+      page.locator('[data-prueba="lista-precios-rapido"]').getByText(/precio de la comunidad, no el tuyo/)
+    ).toBeVisible();
+
+    const aviso = page.getByText(/Cada campo trae tu precio oficial cuando ya lo publicaste/);
     await expect(aviso).toBeVisible();
-    await expect(aviso).toContainText("no el tuyo");
+  });
+
+  test("una tienda sin precios oficiales publica todas las filas y no llama a revalidar", async ({
+    page,
+  }) => {
+    let publicado: { precios?: { presentacion_id: string; precio_cop: number }[] } | undefined;
+    let revalidaciones = 0;
+    await configurarMocksNucleo(page, {
+      rol: "comercio",
+      autorizadoInicial: true,
+      presentacionesComercio: 5,
+      preciosOficialesComercio: 0,
+      alPublicarPrecios: (cuerpo) => {
+        publicado = cuerpo as typeof publicado;
+      },
+      alRevalidarPrecios: () => {
+        revalidaciones += 1;
+      },
+    });
+    await ingresar(page, "comercio@armenia.co");
+    await page.goto("/gestion", { waitUntil: "networkidle" });
+
+    const boton = page.locator('[data-prueba="publicar-precios"]');
+    await expect(boton).toContainText("Publicar precios comunitarios");
+    await expect(page.getByRole("button", { name: "Todo sigue igual" })).toHaveCount(0);
+    await expect(page.getByText(/Esta tienda aún no tiene precios oficiales/)).toBeVisible();
+
+    await boton.click();
+    await expect(page.getByText("5 precios publicados. Ninguno quedó fuera.")).toBeVisible();
+
+    expect(publicado?.precios).toHaveLength(5);
+    expect(publicado?.precios?.[0]?.precio_cop).toBe(3000);
+    expect(revalidaciones).toBe(0);
+
+    // «Mi comercio» tampoco ofrece revalidar una tienda que aun no publico nada.
+    await page.getByRole("tab", { name: "Mi comercio" }).click();
+    await expect(page.getByText(/Publícalos en la pestaña «Precios»/)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Todo sigue igual" })).toHaveCount(0);
+  });
+
+  test("un rechazo conserva el valor tecleado y el motivo visible", async ({ page }) => {
+    await configurarMocksNucleo(page, {
+      rol: "comercio",
+      autorizadoInicial: true,
+      presentacionesComercio: 2,
+      preciosOficialesComercio: 2,
+      rechazarPrecios: {
+        "pres-1": "La presentacion no existe o esta inactiva.",
+      },
+    });
+    await ingresar(page, "comercio@armenia.co");
+    await page.goto("/gestion", { waitUntil: "networkidle" });
+
+    const campos = page.locator('[data-prueba="lista-precios-rapido"] input');
+    await campos.nth(0).focus();
+    await page.keyboard.press("Control+a");
+    await page.keyboard.type("4100");
+    await campos.nth(1).focus();
+    await page.keyboard.press("Control+a");
+    await page.keyboard.type("4200");
+
+    const boton = page.locator('[data-prueba="publicar-precios"]');
+    await expect(boton).toContainText("Publicar 2 precios");
+    await boton.click();
+
+    await expect(page.getByText("1 publicados, 1 no entraron.")).toBeVisible();
+    const alerta = page.getByRole("alert").filter({ hasText: "1 no entró" });
+    await expect(alerta).toBeVisible();
+    await expect(alerta).toContainText("1 no entró");
+    await expect(alerta).toContainText("La presentacion no existe o esta inactiva.");
+
+    // La recarga posterior a publicar no borra lo que el comercio ya habia escrito.
+    await expect(campos.nth(1)).toHaveValue("4200");
+    await expect(alerta).toBeVisible();
+  });
+
+  test("revocar una promoción acepta la respuesta 204 sin cuerpo", async ({ page }) => {
+    let revocaciones = 0;
+    await configurarMocksNucleo(page, {
+      rol: "comercio",
+      autorizadoInicial: true,
+      promocionesComercio: true,
+      alRevocarPromocion: () => {
+        revocaciones += 1;
+      },
+    });
+    await ingresar(page, "comercio@armenia.co");
+    await page.goto("/gestion", { waitUntil: "networkidle" });
+
+    await page.getByRole("tab", { name: "Promociones", exact: true }).click();
+    await expect(page.getByText("Pague 2 lleve 3 en arroz")).toBeVisible();
+    await page.getByRole("button", { name: "Revocar" }).click();
+
+    await expect(page.getByText(/Promoción revocada/)).toBeVisible();
+    await expect(page.getByText("Pague 2 lleve 3 en arroz")).toHaveCount(0);
+    expect(revocaciones).toBe(1);
   });
 
   test("un reportante ve el reclamo pero no las pestañas de comercio", async ({ page }) => {
@@ -130,26 +260,42 @@ test.describe("Panel de comercio en S6 (T-67)", () => {
       rol: "comercio",
       autorizadoInicial: true,
       presentacionesComercio: 8,
+      preciosOficialesComercio: 8,
     });
     await ingresar(page, "comercio@armenia.co");
     await page.goto("/gestion", { waitUntil: "networkidle" });
 
-    for (const pestana of ["Precios", "Promociones", "Mi comercio"]) {
+    const contenido: readonly { readonly pestana: string; readonly espera: RegExp }[] = [
+      { pestana: "Precios", espera: /Modo rápido/ },
+      { pestana: "Promociones", espera: /Publicar una promoción/ },
+      { pestana: "Mi comercio", espera: /Mis establecimientos/ },
+    ];
+    for (const { pestana, espera } of contenido) {
       await page.getByRole("tab", { name: pestana, exact: true }).click();
       await expect(page.getByRole("tab", { name: pestana, exact: true })).toHaveAttribute(
         "aria-selected",
         "true"
       );
-      const resultados = await new AxeBuilder({ page })
-        .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
-        .analyze();
-      const graves = resultados.violations.filter(
-        (v) => v.impact === "critical" || v.impact === "serious"
-      );
-      expect(graves, `Violaciones en la pestaña ${pestana}: ${JSON.stringify(graves, null, 2)}`).toEqual(
-        []
-      );
+      // Se espera el contenido propio de la pestaña antes de analizar: axe no
+      // debe escanear el panel vacio del cambio de pestaña.
+      await expect(page.getByText(espera).first()).toBeVisible();
+      await analizarAxe(page, `pestaña ${pestana}`);
     }
+  });
+
+  test("la pestaña de reclamos de comercio no tiene violaciones axe como moderador", async ({
+    page,
+  }) => {
+    await configurarMocksNucleo(page, { rol: "moderador", autorizadoInicial: true });
+    await ingresar(page, "moderador@armenia.co");
+    await page.goto("/gestion", { waitUntil: "networkidle" });
+
+    await page.getByRole("tab", { name: "Reclamos de comercio" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Reclamos de titularidad" })
+    ).toBeVisible();
+    await expect(page.getByText("don_jose · 3001234567")).toBeVisible();
+    await analizarAxe(page, "pestaña Reclamos de comercio");
   });
 });
 

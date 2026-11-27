@@ -71,8 +71,7 @@ test.describe("Flujos E2E del Nucleo (T-51)", () => {
     expect(claveIdempotenciaRecibida).toMatch(/^[0-9a-f-]{36}$/i);
   });
 
-  test("Flujo 3: Moderador consulta cola y resuelve un caso en /gestion", async ({ page }) => {
-    let decisionEnviada: unknown;
+  test("Flujo 3: Moderador consulta cola y resuelve un caso en /gestion", async ({ page }) => {    let decisionEnviada: unknown;
     await configurarMocksNucleo(page, {
       rol: "moderador",
       autorizadoInicial: true,
@@ -100,5 +99,20 @@ test.describe("Flujos E2E del Nucleo (T-51)", () => {
       nota: "Precio atipico verificado en tablero",
       sancion: null,
     });
+  });
+
+  test("El botón flotante de captura aparece en la vitrina y se oculta en /gestion", async ({
+    page,
+  }) => {
+    await configurarMocksNucleo(page);
+
+    await page.goto("/", { waitUntil: "networkidle" });
+    const boton = page.getByRole("link", { name: "Reportar precio de producto" });
+    await expect(boton).toBeVisible();
+
+    await page.goto("/gestion", { waitUntil: "networkidle" });
+    await expect(
+      page.getByRole("link", { name: "Reportar precio de producto" })
+    ).toHaveCount(0);
   });
 });

@@ -1898,6 +1898,17 @@
             "title": "Precio Cop",
             "type": "integer"
           },
+          "precio_oficial_cop": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Precio Oficial Cop"
+          },
           "precio_por_base": {
             "title": "Precio Por Base",
             "type": "string"
