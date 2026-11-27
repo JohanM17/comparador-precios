@@ -336,6 +336,24 @@ def test_sanitizar_atributos_redacta_ip_y_huella_en_valores() -> None:
     assert resultado == {"detalle": "cliente [REDACTADO_IP] [REDACTADO_HUELLA]"}
 
 
+def test_sanitizar_atributos_bloquea_telefono_y_mensaje_de_reclamo() -> None:
+    """Los datos de contacto de un reclamo de comercio nunca se exportan."""
+    atributos = {
+        "telefono_contacto": "3001234567",
+        "mensaje": "Soy el dueno, atiendo de 7 a 8.",
+        "Telefono_Contacto": "3007654321",
+        "detalle": {"mensaje": "Confirmar por telefono", "estado": "pendiente"},
+        "ruta": "/v1/moderacion/comercios",
+    }
+
+    resultado = telemetria.sanitizar_atributos(atributos)
+
+    assert resultado == {
+        "detalle": {"estado": "pendiente"},
+        "ruta": "/v1/moderacion/comercios",
+    }
+
+
 def test_parsear_headers_otlp_conserva_iguales_y_limpia_espacios() -> None:
     """Parsea cabeceras con valores que contienen iguales y segmentos vacios."""
     valor = "Authorization=Basic abc==, ,X-Entorno = pruebas,,sin-igual,=valor,Clave="

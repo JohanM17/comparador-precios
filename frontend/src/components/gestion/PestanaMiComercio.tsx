@@ -184,14 +184,20 @@ export default function PestanaMiComercio({
                       )}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => void revalidar(tienda.id)}
-                    className="inline-flex min-h-11 flex-none items-center gap-2 text-[13.5px] text-slate-600 underline decoration-slate-300 underline-offset-4 transition-colors hover:text-slate-900 hover:decoration-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
-                  >
-                    <RefreshCw className="h-4 w-4" aria-hidden="true" />
-                    Todo sigue igual
-                  </button>
+                  {tienda.n_precios_oficiales === 0 ? (
+                    <p className="max-w-[30ch] flex-none text-[13px] leading-relaxed text-slate-500">
+                      Aún no hay precios oficiales. Publícalos en la pestaña «Precios».
+                    </p>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => void revalidar(tienda.id)}
+                      className="inline-flex min-h-11 flex-none items-center gap-2 text-[13.5px] text-slate-600 underline decoration-slate-300 underline-offset-4 transition-colors hover:text-slate-900 hover:decoration-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+                    >
+                      <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                      Todo sigue igual
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>

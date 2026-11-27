@@ -60,7 +60,17 @@ export interface OpcionesMock {
   rol?: "reportante" | "moderador" | "comercio";
   /** Presentaciones que el modo rapido muestra para la tienda del comercio. */
   presentacionesComercio?: number;
+  /** Cuantas de esas presentaciones tienen precio oficial publicado. */
+  preciosOficialesComercio?: number;
+  /** Sello simulado para las filas con precio oficial. */
+  selloPreciosOficiales?: "oficial" | "en_disputa";
+  /** Motivos de rechazo indexados por presentacion_id (pres-0, pres-1, ...). */
+  rechazarPrecios?: Readonly<Record<string, string>>;
   alPublicarPrecios?: (cuerpo: unknown) => void;
+  alRevalidarPrecios?: () => void;
+  /** La tienda tiene una promocion activa que se puede revocar con 204. */
+  promocionesComercio?: boolean;
+  alRevocarPromocion?: () => void;
   autorizadoInicial?: boolean;
   alCrearReporte?: (headers: Record<string, string>, cuerpo: unknown) => void;
   alResolverCaso?: (cuerpo: unknown) => void;
@@ -69,6 +79,9 @@ export interface OpcionesMock {
 interface EstadoMock {
   autorizado: boolean;
   casoResuelto: boolean;
+  promocionRevocada: boolean;
+  /** Precios oficiales activos por presentacion; el PUT los actualiza. */
+  preciosOficiales: Record<string, number>;
   readonly rol: "reportante" | "moderador" | "comercio";
   readonly opts: OpcionesMock;
 }
@@ -394,18 +407,38 @@ async function responderCuentaYReportes(route: Route, ruta: string, metodo: stri
 }
 
 /** Presentaciones sinteticas para medir el modo rapido con un lote realista. */
-export function presentacionesComercioMock(cantidad: number): unknown[] {
-  return Array.from({ length: cantidad }, (_, i) => ({
-    producto_id: `prod-${i}`,
-    producto_nombre: `Producto ${i + 1}`,
-    presentacion_id: `pres-${i}`,
-    presentacion_etiqueta: `Marca ${i + 1} 500 g`,
-    precio_cop: 3000 + i * 50,
-    precio_por_base: { valor_cop: 6000 + i * 100, por: "kg" },
-    sello: "confiable",
-    motivo_sello: "3 reportes de 3 fuentes",
-    ultimo_reporte_en: new Date().toISOString(),
-  }));
+export function presentacionesComercioMock(
+  cantidad: number,
+  preciosOficiales: Readonly<Record<string, number>> = {},
+  selloOficial: "oficial" | "en_disputa" = "oficial"
+): unknown[] {
+  return Array.from({ length: cantidad }, (_, i) => {
+    const presentacionId = `pres-${i}`;
+    const precioComunidad = 3000 + i * 50;
+    const precioOficial = preciosOficiales[presentacionId];
+    const tieneOficial = precioOficial !== undefined;
+    /*
+     * Sello `oficial`: el precio vigente es el del comercio. Sello `en_disputa`:
+     * el vigente es la comunidad y el oficial viaja al lado. Esta ultima es la
+     * rama donde los dos valores difieren de verdad.
+     */
+    const precioVisible =
+      tieneOficial && selloOficial === "oficial" ? precioOficial : precioComunidad;
+    return {
+      producto_id: `prod-${i}`,
+      producto_nombre: `Producto ${i + 1}`,
+      presentacion_id: presentacionId,
+      presentacion_etiqueta: `Marca ${i + 1} 500 g`,
+      precio_cop: precioVisible,
+      precio_oficial_cop: tieneOficial ? precioOficial : null,
+      precio_por_base: { valor_cop: 6000 + i * 100, por: "kg" },
+      sello: tieneOficial ? selloOficial : "confiable",
+      motivo_sello: tieneOficial
+        ? "Precio publicado por el comercio"
+        : "3 reportes de 3 fuentes",
+      ultimo_reporte_en: new Date().toISOString(),
+    };
+  });
 }
 
 async function responderComercio(
@@ -415,13 +448,14 @@ async function responderComercio(
   estado: EstadoMock
 ): Promise<boolean> {
   const cantidad = estado.opts.presentacionesComercio ?? 20;
+  const totalOficiales = Object.keys(estado.preciosOficiales).length;
 
   if (ruta === "/v1/comercio/establecimientos" && metodo === "GET") {
     await route.fulfill({
       json: [{
         id: TIENDA_A, nombre: "Tienda La Esquina", tipo: "tienda_barrio", barrio: "Centro",
         direccion: "Cra 14 # 18-22", estado_verificacion: "verificado",
-        n_precios_oficiales: 0, n_por_revalidar: 0,
+        n_precios_oficiales: totalOficiales, n_por_revalidar: 0,
       }],
     });
     return true;
@@ -433,28 +467,101 @@ async function responderComercio(
         id: TIENDA_A, nombre: "Tienda La Esquina", tipo: "tienda_barrio", cadena: null,
         direccion: "Cra 14 # 18-22", barrio: "Centro", municipio: "Armenia", departamento: "Quindío",
         lat: 4.535, lng: -75.675, distancia_m: null, estado_verificacion: "verificado", activo: true,
-        precios_vigentes: presentacionesComercioMock(cantidad),
+        precios_vigentes: presentacionesComercioMock(
+          cantidad,
+          estado.preciosOficiales,
+          estado.opts.selloPreciosOficiales ?? "oficial"
+        ),
       },
     });
     return true;
   }
 
   if (ruta === `/v1/comercio/establecimientos/${TIENDA_A}/precios` && metodo === "PUT") {
-    const cuerpo = route.request().postDataJSON() as { precios?: unknown[] };
+    const cuerpo = route.request().postDataJSON() as {
+      precios?: { presentacion_id: string; precio_cop: number }[];
+    };
     estado.opts.alPublicarPrecios?.(cuerpo);
-    await route.fulfill({
-      json: { actualizados: cuerpo.precios?.length ?? 0, rechazados: [] },
-    });
+    const motivos = estado.opts.rechazarPrecios ?? {};
+    const rechazados = (cuerpo.precios ?? [])
+      .filter((precio) => precio.presentacion_id in motivos)
+      .map((precio) => ({
+        presentacion_id: precio.presentacion_id,
+        motivo: motivos[precio.presentacion_id] ?? "Precio rechazado en la prueba.",
+      }));
+    for (const precio of cuerpo.precios ?? []) {
+      if (!(precio.presentacion_id in motivos)) {
+        estado.preciosOficiales[precio.presentacion_id] = precio.precio_cop;
+      }
+    }
+    const actualizados = (cuerpo.precios?.length ?? 0) - rechazados.length;
+    await route.fulfill({ json: { actualizados, rechazados } });
     return true;
   }
 
   if (ruta === `/v1/comercio/establecimientos/${TIENDA_A}/revalidar` && metodo === "POST") {
-    await route.fulfill({ json: { revalidados: cantidad, revalidado_en: new Date().toISOString() } });
+    estado.opts.alRevalidarPrecios?.();
+    const revalidados = Object.keys(estado.preciosOficiales).length;
+    if (revalidados === 0) {
+      /*
+       * El backend responde 409 cuando no hay precios oficiales que revalidar.
+       * El mock no puede fingir doce confirmaciones para una tienda vacia: esa
+       * mentira fue la que oculto el bloqueo de la primera publicacion.
+       */
+      await route.fulfill({
+        status: 409,
+        json: {
+          type: "https://comparador.armenia.gov.co/errores/conflicto",
+          title: "Conflicto De Recursos",
+          status: 409,
+          detail: "No hay precios oficiales que revalidar.",
+          codigo: "CONFLICTO",
+        },
+      });
+      return true;
+    }
+    await route.fulfill({
+      json: { revalidados, revalidado_en: new Date().toISOString() },
+    });
     return true;
   }
 
   if (ruta === `/v1/comercio/establecimientos/${TIENDA_A}/promociones` && metodo === "GET") {
-    await route.fulfill({ json: [] });
+    const mostrar = Boolean(estado.opts.promocionesComercio) && !estado.promocionRevocada;
+    await route.fulfill({
+      json: mostrar
+        ? [{
+            id: "promo-e2e-1",
+            establecimiento_id: TIENDA_A,
+            producto_id: PROD_ID,
+            presentacion_id: null,
+            titulo: "Pague 2 lleve 3 en arroz",
+            tipo: "pague_x_lleve_y",
+            porcentaje_descuento: null,
+            precio_especial_cop: null,
+            pague_x: 2,
+            lleve_y: 3,
+            condiciones: "Valido todos los viernes en la tienda.",
+            vigente_desde: new Date().toISOString(),
+            vigente_hasta: null,
+            hasta_revocar: true,
+            activa: true,
+            vigente: true,
+            es_promocion: true,
+          }]
+        : [],
+    });
+    return true;
+  }
+
+  if (
+    ruta === `/v1/comercio/establecimientos/${TIENDA_A}/promociones/promo-e2e-1` &&
+    metodo === "DELETE"
+  ) {
+    estado.promocionRevocada = true;
+    estado.opts.alRevocarPromocion?.();
+    // Sin cuerpo: la ruta responde 204 y `solicitarApi` debe tolerarlo.
+    await route.fulfill({ status: 204 });
     return true;
   }
 
@@ -506,9 +613,16 @@ async function responderModeracion(route: Route, ruta: string, metodo: string, e
 }
 
 export async function configurarMocksNucleo(page: Page, opts: OpcionesMock = {}): Promise<void> {
+  const cantidadInicial = opts.presentacionesComercio ?? 20;
+  const preciosOficiales: Record<string, number> = {};
+  for (let i = 0; i < Math.min(opts.preciosOficialesComercio ?? 0, cantidadInicial); i += 1) {
+    preciosOficiales[`pres-${i}`] = 3000 + i * 50 + 700;
+  }
   const estado: EstadoMock = {
     autorizado: opts.autorizadoInicial ?? true,
     casoResuelto: false,
+    promocionRevocada: false,
+    preciosOficiales,
     rol: opts.rol ?? "reportante",
     opts,
   };

@@ -109,7 +109,7 @@ async def obtener_establecimiento_por_id(
         SELECT pv.presentacion_id, pv.producto_id,
                p.nombre as producto_nombre,
                pr.etiqueta as presentacion_etiqueta,
-               pv.precio_cop, pv.precio_por_base,
+               pv.precio_cop, pv.precio_oficial_cop, pv.precio_por_base,
                pv.sello::text, pv.motivo_sello,
                pv.ultimo_reporte_en
         FROM precio_vigente pv

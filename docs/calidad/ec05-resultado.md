@@ -166,10 +166,9 @@ de aplicación.
   identifica. La **escritura** en las columnas y tablas nuevas no se ha ejercitado contra la base.
 - **No hay pruebas de integración ejecutadas** sobre el esquema comercial. La suite de
   `backend/tests/integracion` no aísla sus escrituras en transacciones revertidas, así que
-  correrla contra la base compartida dejaría datos. Para eso quedó
-  [`infra/pruebas/`](../../infra/pruebas/README.md): una base desechable en contenedor, con los
-  roles `anon` y `authenticated` que Supabase trae y Postgres no. Ejecutar la suite contra ella
-  es `T-68` y todavía está pendiente.
+  correrla contra la base compartida dejaría datos. Por eso `T-68` queda pendiente y se resolverá
+  con una base aislada o con transacciones revertidas, no con Docker local: el proyecto no usa
+  contenedores en la máquina de desarrollo.
 - **La política por omisión no cambió.** `ServicioPrecios`, `servicio_casos` y el trabajo de
   reconstrucción siguen usando `SoloUsuarios`. `OficialConContraste` solo es la implementación
   por omisión dentro del servicio comercial, que es donde corresponde.

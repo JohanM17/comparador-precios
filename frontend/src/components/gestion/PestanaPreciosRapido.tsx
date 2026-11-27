@@ -21,6 +21,28 @@ interface FilaPrecioRapido {
   readonly productoNombre: string;
   readonly presentacionEtiqueta: string;
   readonly precioComunidad: number;
+  readonly precioOficialCop: number | null;
+  readonly sello: string;
+}
+
+interface RechazoVisible {
+  readonly id: string;
+  readonly productoNombre: string;
+  readonly motivo: string;
+}
+
+function esPrecioOficial(fila: FilaPrecioRapido): boolean {
+  return (
+    (fila.sello === "oficial" || fila.sello === "en_disputa") &&
+    fila.precioOficialCop !== null
+  );
+}
+
+/** Valor que el comercio confirma al publicar: el oficial si existe, si no el comunitario. */
+function precioPrecargado(fila: FilaPrecioRapido): number {
+  return esPrecioOficial(fila) && fila.precioOficialCop !== null
+    ? fila.precioOficialCop
+    : fila.precioComunidad;
 }
 
 function soloDigitos(texto: string): string {
@@ -35,9 +57,10 @@ function soloDigitos(texto: string): string {
  * plana, sin modales ni confirmaciones intermedias, la tecla Enter baja al
  * siguiente campo y solo se envía lo que de verdad cambió.
  *
- * Los campos llegan con el precio que reportó la comunidad, no con el precio
- * oficial del comercio. Se dice en pantalla: rellenar con un dato ajeno sin
- * advertirlo invitaría a confirmarlo sin mirarlo.
+ * El campo precargado no es siempre comunitario: si el comercio ya publicó un
+ * precio oficial, ese es el valor que debe confirmar. Cuando no existe, se
+ * precarga el precio de la comunidad y la fila lo advierte, para no invitar a
+ * confirmar como propio un dato ajeno.
  */
 export default function PestanaPreciosRapido({
   token,
@@ -51,54 +74,112 @@ export default function PestanaPreciosRapido({
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<InfoErrorVisible | null>(null);
   const [exito, setExito] = useState<string | null>(null);
-  const [rechazados, setRechazados] = useState<readonly { id: string; motivo: string }[]>([]);
+  const [rechazados, setRechazados] = useState<readonly RechazoVisible[]>([]);
+  const [publicadasEnSesion, setPublicadasEnSesion] = useState<readonly string[]>([]);
 
   const campos = useRef<(HTMLInputElement | null)[]>([]);
 
-  const cargarPresentaciones = useCallback(async (): Promise<void> => {
-    if (!tiendaId) {
-      setFilas([]);
-      return;
-    }
-    setCargando(true);
-    setError(null);
-    setRechazados([]);
-    try {
-      const detalle = await clienteApi.obtenerEstablecimiento(tiendaId);
-      const nuevas = (detalle.precios_vigentes ?? []).map(
-        (p: PrecioVigenteResumen): FilaPrecioRapido => ({
-          presentacionId: p.presentacion_id,
-          productoNombre: p.producto_nombre,
-          presentacionEtiqueta: p.presentacion_etiqueta,
-          precioComunidad: p.precio_cop,
-        })
-      );
-      setFilas(nuevas);
-      const inicial: Record<string, string> = {};
-      for (const fila of nuevas) {
-        inicial[fila.presentacionId] = String(fila.precioComunidad);
+  const cargarPresentaciones = useCallback(
+    async (conservarValores = false): Promise<void> => {
+      if (!tiendaId) {
+        setFilas([]);
+        setValores({});
+        if (!conservarValores) {
+          setRechazados([]);
+        }
+        return;
       }
-      setValores(inicial);
-    } catch (err) {
-      setError(extraerInfoError(err, "No fue posible cargar las presentaciones de la tienda."));
-    } finally {
-      setCargando(false);
-    }
-  }, [tiendaId]);
+      setCargando(true);
+      setError(null);
+      if (!conservarValores) {
+        setRechazados([]);
+      }
+      try {
+        const detalle = await clienteApi.obtenerEstablecimiento(tiendaId);
+        const nuevas = (detalle.precios_vigentes ?? []).map(
+          (p: PrecioVigenteResumen): FilaPrecioRapido => ({
+            presentacionId: p.presentacion_id,
+            productoNombre: p.producto_nombre,
+            presentacionEtiqueta: p.presentacion_etiqueta,
+            precioComunidad: p.precio_cop,
+            precioOficialCop: p.precio_oficial_cop ?? null,
+            sello: p.sello,
+          })
+        );
+        setFilas(nuevas);
+        setValores((previos) => {
+          const inicial: Record<string, string> = {};
+          for (const fila of nuevas) {
+            inicial[fila.presentacionId] = String(precioPrecargado(fila));
+          }
+          if (!conservarValores) {
+            return inicial;
+          }
+          /*
+           * Al recargar después de publicar se conserva lo que el comercio ya
+           * había tecleado. Las filas rechazadas siguen mostrando su valor y su
+           * motivo; perderlos obligaría a repetir el trabajo.
+           */
+          const siguiente = { ...inicial };
+          for (const fila of nuevas) {
+            if (Object.prototype.hasOwnProperty.call(previos, fila.presentacionId)) {
+              siguiente[fila.presentacionId] =
+                previos[fila.presentacionId] ?? inicial[fila.presentacionId];
+            }
+          }
+          return siguiente;
+        });
+      } catch (err) {
+        setError(extraerInfoError(err, "No fue posible cargar las presentaciones de la tienda."));
+      } finally {
+        setCargando(false);
+      }
+    },
+    [tiendaId]
+  );
 
   useEffect(() => {
     void cargarPresentaciones();
   }, [cargarPresentaciones]);
 
-  const cambiados: PrecioOficialEntrada[] = filas
-    .filter((fila) => {
-      const valor = valores[fila.presentacionId] ?? "";
-      return valor !== "" && Number(valor) !== fila.precioComunidad && Number(valor) > 0;
-    })
-    .map((fila) => ({
+  const tiendaActual = tiendas.find((tienda) => tienda.id === tiendaId);
+  const hayFilasOficiales = filas.some(esPrecioOficial);
+  const hayOficialesReales =
+    (tiendaActual?.n_precios_oficiales ?? 0) > 0 || hayFilasOficiales;
+  /*
+   * En una tienda sin precios oficiales no hay nada que revalidar: intentarlo
+   * responde 409. La primera vez se publican todas las filas comunitarias como
+   * precios oficiales; después, el botón principal solo manda lo que cambió.
+   * La comprobación sobre las filas cubre el caso de volver a la pestaña con el
+   * contador de la tienda todavía desactualizado.
+   */
+  const primeraPublicacion =
+    tiendaActual !== undefined &&
+    !hayOficialesReales &&
+    !publicadasEnSesion.includes(tiendaId);
+
+  const filasConValor = filas
+    .map((fila) => ({ fila, valor: valores[fila.presentacionId] ?? "" }))
+    .filter(({ valor }) => valor !== "" && Number(valor) > 0);
+
+  const filasOmitidas = filas.filter((fila) => {
+    const valor = valores[fila.presentacionId] ?? "";
+    return valor === "" || Number(valor) <= 0;
+  });
+
+  const cambiados: PrecioOficialEntrada[] = filasConValor
+    .filter(({ fila, valor }) => Number(valor) !== precioPrecargado(fila))
+    .map(({ fila, valor }) => ({
       presentacion_id: fila.presentacionId,
-      precio_cop: Number(valores[fila.presentacionId]),
+      precio_cop: Number(valor),
     }));
+
+  const preciosAEnviar: PrecioOficialEntrada[] = primeraPublicacion
+    ? filasConValor.map(({ fila, valor }) => ({
+        presentacion_id: fila.presentacionId,
+        precio_cop: Number(valor),
+      }))
+    : cambiados;
 
   const alTeclear = (ev: React.KeyboardEvent<HTMLInputElement>, indice: number): void => {
     if (ev.key !== "Enter") {
@@ -114,23 +195,42 @@ export default function PestanaPreciosRapido({
   };
 
   const publicar = async (): Promise<void> => {
-    if (cambiados.length === 0) {
+    if (preciosAEnviar.length === 0) {
       return;
     }
+    const omitidas = filasOmitidas.length;
     setError(null);
     setExito(null);
-    setRechazados([]);
     setGuardando(true);
     try {
-      const res = await clienteComercio.publicarPrecios(token, tiendaId, cambiados);
-      setExito(
-        `${res.actualizados} ${res.actualizados === 1 ? "precio publicado" : "precios publicados"}.` +
-          (res.rechazados.length > 0 ? "" : " Ninguno quedó fuera.")
-      );
-      setRechazados(
-        res.rechazados.map((r) => ({ id: r.presentacion_id, motivo: r.motivo }))
-      );
-      await cargarPresentaciones();
+      const res = await clienteComercio.publicarPrecios(token, tiendaId, preciosAEnviar);
+      const motivos: RechazoVisible[] = res.rechazados.map((rechazo) => ({
+        id: rechazo.presentacion_id,
+        productoNombre:
+          filas.find((fila) => fila.presentacionId === rechazo.presentacion_id)?.productoNombre ??
+          "Presentación sin nombre",
+        motivo: rechazo.motivo,
+      }));
+      setRechazados(motivos);
+      if (res.actualizados > 0) {
+        setPublicadasEnSesion((previas) =>
+          previas.includes(tiendaId) ? previas : [...previas, tiendaId]
+        );
+      }
+      const resumen =
+        motivos.length === 0
+          ? `${res.actualizados} ${res.actualizados === 1 ? "precio publicado" : "precios publicados"}.`
+          : `${res.actualizados} publicados, ${motivos.length} no entraron.`;
+      const faltantes =
+        omitidas > 0
+          ? ` ${omitidas} ${omitidas === 1 ? "fila quedó" : "filas quedaron"} sin precio y no se ${
+              omitidas === 1 ? "envió" : "enviaron"
+            }.`
+          : motivos.length === 0
+            ? " Ninguno quedó fuera."
+            : "";
+      setExito(resumen + faltantes);
+      await cargarPresentaciones(true);
     } catch (err) {
       setError(extraerInfoError(err, "No fue posible publicar los precios."));
     } finally {
@@ -167,10 +267,16 @@ export default function PestanaPreciosRapido({
           Modo rápido
         </h2>
         <p className="max-w-[62ch] text-[13.5px] leading-relaxed text-slate-500">
-          Cada campo trae el último precio que reportó la comunidad, <strong>no el tuyo</strong>.
-          Corrige solo los que estén mal y presiona Enter para bajar al siguiente. Si todos están
-          bien, no escribas nada: usa «Todo sigue igual».
+          Cada campo trae tu precio oficial cuando ya lo publicaste. Si todavía no existe, trae el
+          último precio que reportó la comunidad y la fila te lo advierte. Corrige solo los que
+          estén mal y presiona Enter para bajar al siguiente.
         </p>
+        {primeraPublicacion && (
+          <p className="mt-3 max-w-[62ch] text-[13.5px] leading-relaxed text-slate-600">
+            Esta tienda aún no tiene precios oficiales. Revisa los valores y publícalos todos con
+            el botón de abajo; desde la próxima vez podrás usar «Todo sigue igual».
+          </p>
+        )}
       </section>
 
       {tiendas.length > 1 && (
@@ -214,10 +320,14 @@ export default function PestanaPreciosRapido({
 
       {rechazados.length > 0 && (
         <div role="alert" className="border-l-2 border-cereza-600 pl-3">
-          <p className="rotulo mb-1.5">No entraron</p>
+          <p className="rotulo mb-1.5">
+            {rechazados.length} {rechazados.length === 1 ? "no entró" : "no entraron"}
+          </p>
           <ul className="space-y-1 text-[13px] text-slate-700">
             {rechazados.map((r) => (
-              <li key={r.id}>{r.motivo}</li>
+              <li key={r.id}>
+                <strong className="font-medium">{r.productoNombre}</strong>: {r.motivo}
+              </li>
             ))}
           </ul>
         </div>
@@ -236,7 +346,9 @@ export default function PestanaPreciosRapido({
           <ul className="border-t border-slate-200" data-prueba="lista-precios-rapido">
             {filas.map((fila, indice) => {
               const valor = valores[fila.presentacionId] ?? "";
-              const cambio = valor !== "" && Number(valor) !== fila.precioComunidad;
+              const cambio = valor !== "" && Number(valor) !== precioPrecargado(fila);
+              const oficial = fila.precioOficialCop;
+              const conOficial = esPrecioOficial(fila) && oficial !== null;
               return (
                 <li
                   key={fila.presentacionId}
@@ -247,7 +359,12 @@ export default function PestanaPreciosRapido({
                       {fila.productoNombre}
                     </span>
                     <span className="block truncate text-[12.5px] text-slate-500">
-                      {fila.presentacionEtiqueta} · comunidad {formatearPesos(fila.precioComunidad)}
+                      {fila.presentacionEtiqueta} ·{" "}
+                      {conOficial && oficial !== null
+                        ? fila.sello === "en_disputa"
+                          ? `oficial en disputa ${formatearPesos(oficial)} · comunidad ${formatearPesos(fila.precioComunidad)}`
+                          : `tu precio oficial ${formatearPesos(oficial)}`
+                        : `comunidad ${formatearPesos(fila.precioComunidad)} · precio de la comunidad, no el tuyo`}
                     </span>
                   </label>
                   <div className="flex items-center gap-1.5">
@@ -283,29 +400,46 @@ export default function PestanaPreciosRapido({
             })}
           </ul>
 
+          {filasOmitidas.length > 0 && (
+            <p
+              data-prueba="filas-sin-precio"
+              className="max-w-[62ch] text-[12.5px] leading-relaxed text-cereza-600"
+            >
+              {filasOmitidas.length}{" "}
+              {filasOmitidas.length === 1
+                ? "fila quedó sin precio y no se enviará"
+                : "filas quedaron sin precio y no se enviarán"}
+              . Complétalas si quieres publicarlas.
+            </p>
+          )}
+
           <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
             <button
               type="button"
               onClick={() => void publicar()}
-              disabled={guardando || cambiados.length === 0}
+              disabled={guardando || preciosAEnviar.length === 0}
               className="inline-flex min-h-11 items-center justify-center rounded-full bg-brasa-600 px-5 text-[13.5px] font-medium text-white transition-colors hover:bg-brasa-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:opacity-50"
               data-prueba="publicar-precios"
             >
               {guardando
                 ? "Publicando…"
-                : cambiados.length === 0
-                  ? "Sin cambios por publicar"
-                  : `Publicar ${cambiados.length} ${cambiados.length === 1 ? "precio" : "precios"}`}
+                : primeraPublicacion
+                  ? "Publicar precios comunitarios"
+                  : cambiados.length === 0
+                    ? "Sin cambios por publicar"
+                    : `Publicar ${cambiados.length} ${cambiados.length === 1 ? "precio" : "precios"}`}
             </button>
 
-            <button
-              type="button"
-              onClick={() => void revalidar()}
-              className="inline-flex min-h-11 items-center gap-2 text-[13.5px] text-slate-600 underline decoration-slate-300 underline-offset-4 transition-colors hover:text-slate-900 hover:decoration-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
-            >
-              <RefreshCw className="h-4 w-4" aria-hidden="true" />
-              Todo sigue igual
-            </button>
+            {hayOficialesReales && (
+              <button
+                type="button"
+                onClick={() => void revalidar()}
+                className="inline-flex min-h-11 items-center gap-2 text-[13.5px] text-slate-600 underline decoration-slate-300 underline-offset-4 transition-colors hover:text-slate-900 hover:decoration-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+              >
+                <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                Todo sigue igual
+              </button>
+            )}
           </div>
         </>
       )}
