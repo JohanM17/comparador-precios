@@ -186,6 +186,9 @@ class ServicioComercial:
     ) -> dict[str, Any]:
         """Publica un lote de precios oficiales y recalcula el precio vigente de cada par."""
         await self._establecimiento_propio(establecimiento_id, usuario)
+        # Serializa publicaciones concurrentes del mismo establecimiento antes de leer
+        # el precio anterior; sin el lock dos peticiones podrian duplicar el historial.
+        await repositorio.bloquear_establecimiento(self.sesion, establecimiento_id)
 
         ids = [p.presentacion_id for p in entrada.precios]
         presentaciones = await repositorio.obtener_presentaciones(self.sesion, ids)

@@ -26,6 +26,24 @@ async def obtener_establecimiento(
     return dict(fila._mapping) if fila else None
 
 
+_SQL_BLOQUEAR_ESTABLECIMIENTO = text("""
+    SELECT id FROM public.establecimiento WHERE id = :id FOR UPDATE;
+""")
+
+
+async def bloquear_establecimiento(
+    sesion: AsyncSession,
+    establecimiento_id: UUID,
+) -> None:
+    """Serializa las escrituras de un establecimiento dentro de la transaccion.
+
+    Dos publicaciones concurrentes del mismo comercio comparten esta fila. El
+    bloqueo se toma antes de leer el precio anterior, de modo que la segunda
+    peticion espera y compara contra el valor que dejo la primera (ADR-0019).
+    """
+    await sesion.execute(_SQL_BLOQUEAR_ESTABLECIMIENTO, {"id": establecimiento_id})
+
+
 async def existe_reclamo_abierto(sesion: AsyncSession, establecimiento_id: UUID) -> bool:
     """Indica si el establecimiento ya tiene un reclamo de titularidad sin resolver."""
     sql = text("""

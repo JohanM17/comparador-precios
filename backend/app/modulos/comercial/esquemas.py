@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 PATRON_TIPO_PROMOCION = r"^(porcentaje|precio_especial|pague_x_lleve_y)$"
 
@@ -59,6 +60,14 @@ class PreciosLoteEntrada(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     precios: list[PrecioOficialEntrada] = Field(min_length=1, max_length=LOTE_PRECIOS_MAX)
+
+    @model_validator(mode="after")
+    def validar_presentaciones_unicas(self) -> Self:
+        """Cada presentacion aparece una sola vez: un lote no puede contradecirse."""
+        ids = [p.presentacion_id for p in self.precios]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Cada presentacion debe aparecer una sola vez en el lote.")
+        return self
 
 
 class PrecioRechazado(BaseModel):

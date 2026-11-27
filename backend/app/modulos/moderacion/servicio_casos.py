@@ -198,8 +198,11 @@ class ServicioCasosModeracion:
             return {"recalculados": 1, "sello": res.sello if res else None}
         limite = ahora - timedelta(days=params.vigencia_antiguo_dias)
         pares = await listar_pares_para_recalculo(self.sesion, limite)
+        recalculados = 0
         for p_id, e_id in pares:
-            await self.politica.recalcular_par(self.sesion, p_id, e_id, ahora, params)
+            res = await self.politica.recalcular_par(self.sesion, p_id, e_id, ahora, params)
+            if res is not None:
+                recalculados += 1
         await self.cache.limpiar()
         await self.sesion.flush()
-        return {"recalculados": len(pares)}
+        return {"recalculados": recalculados}

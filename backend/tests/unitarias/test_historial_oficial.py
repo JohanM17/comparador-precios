@@ -6,19 +6,24 @@ La prueba de integracion real contra `reporte_precio` queda para T-68.
 
 from __future__ import annotations
 
+import re
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
+from pydantic import ValidationError
 
 from app.compartido.seguridad import UsuarioAutenticado
 from app.dominio.parametros import ParametrosDominio
 from app.dominio.precio_oficial import requiere_historial_oficial
 from app.modulos.comercial import servicio as servicio_modulo
 from app.modulos.comercial.esquemas import PrecioOficialEntrada, PreciosLoteEntrada
-from app.modulos.comercial.repositorio import _SQL_INSERTAR_REPORTE_OFICIAL
+from app.modulos.comercial.repositorio import (
+    _SQL_BLOQUEAR_ESTABLECIMIENTO,
+    _SQL_INSERTAR_REPORTE_OFICIAL,
+)
 from app.modulos.comercial.servicio import ServicioComercial
 
 ESTABLECIMIENTO_ID = UUID(int=1)
@@ -55,13 +60,29 @@ def test_requiere_historial_oficial_solo_cuando_el_valor_cambia(
 def test_sql_del_historial_oficial_marca_origen_y_no_expone_identidad() -> None:
     """La fila oficial nace aceptada, sin reportante y con el conjunto de la tienda."""
     sql = " ".join(str(_SQL_INSERTAR_REPORTE_OFICIAL).lower().split())
+    coincidencia = re.search(
+        r"insert into public\.reporte_precio \((.*?)\) values \((.*?)\) returning", sql
+    )
+    assert coincidencia is not None
+    columnas = [c.strip() for c in coincidencia.group(1).split(",")]
+    valores = [v.strip() for v in coincidencia.group(2).split(",")]
+    fila = dict(zip(columnas, valores, strict=True))
 
-    assert "insert into public.reporte_precio" in sql
-    assert "'comercio'" in sql
-    assert "'aceptado'" in sql
-    assert "'presentacion_tienda'" in sql
-    assert "null" in sql
-    assert "false" in sql
+    assert fila["fuente"] == "'comercio'"
+    assert fila["reportante_id"] == "null"
+    assert fila["observado_en"] == ":observado_en"
+    assert fila["estado"] == "'aceptado'"
+    assert fila["estado_original"] == "'aceptado'"
+    assert fila["conjunto_referencia"] == "'presentacion_tienda'"
+    assert fila["es_demo"] == "false"
+
+
+def test_sql_del_bloqueo_serializa_la_fila_del_establecimiento() -> None:
+    """El lock debe ser `FOR UPDATE` sobre el establecimiento, no un SELECT simple."""
+    sql = " ".join(str(_SQL_BLOQUEAR_ESTABLECIMIENTO).lower().split())
+
+    assert sql.startswith("select id from public.establecimiento")
+    assert "for update" in sql
 
 
 class PoliticaEspia:
@@ -97,10 +118,16 @@ def _preparar_publicacion(
     anterior: int | None,
     historial: list[dict[str, Any]],
     upserts: list[dict[str, Any]] | None = None,
+    eventos: list[str] | None = None,
 ) -> None:
     """Instala un repositorio falso para el flujo de publicacion de precios."""
 
+    def anotar(nombre: str) -> None:
+        if eventos is not None:
+            eventos.append(nombre)
+
     async def obtener_establecimiento(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        anotar("autorizacion")
         return {
             "id": ESTABLECIMIENTO_ID,
             "nombre": "Tienda de prueba",
@@ -112,7 +139,11 @@ def _preparar_publicacion(
             "activo": True,
         }
 
+    async def bloquear_establecimiento(*args: Any, **kwargs: Any) -> None:
+        anotar("lock")
+
     async def obtener_presentaciones(*args: Any, **kwargs: Any) -> dict[UUID, dict[str, Any]]:
+        anotar("presentaciones")
         return {
             PRESENTACION_ID: {
                 "id": PRESENTACION_ID,
@@ -123,13 +154,16 @@ def _preparar_publicacion(
         }
 
     async def obtener_precios_oficiales_cop(*args: Any, **kwargs: Any) -> dict[UUID, int]:
+        anotar("precios_anteriores")
         return {} if anterior is None else {PRESENTACION_ID: anterior}
 
     async def upsert_precio_oficial(sesion: Any, **datos: Any) -> None:
+        anotar("upsert")
         if upserts is not None:
             upserts.append(datos)
 
     async def insertar_reporte_oficial(sesion: Any, **datos: Any) -> UUID:
+        anotar("historial")
         historial.append(datos)
         return uuid4()
 
@@ -141,6 +175,11 @@ def _preparar_publicacion(
 
     monkeypatch.setattr(
         servicio_modulo.repositorio, "obtener_establecimiento", obtener_establecimiento
+    )
+    monkeypatch.setattr(
+        servicio_modulo.repositorio,
+        "bloquear_establecimiento",
+        bloquear_establecimiento,
     )
     monkeypatch.setattr(
         servicio_modulo.repositorio, "obtener_presentaciones", obtener_presentaciones
@@ -243,28 +282,40 @@ async def test_cambiar_el_precio_agrega_una_version_sin_borrar_la_anterior(
     assert historial[0]["precio_por_base"] == Decimal("2.600000")
 
 
+def test_el_lote_rechaza_la_misma_presentacion_dos_veces() -> None:
+    """Un lote ambiguo se rechaza con 422 antes de tocar el historial."""
+    with pytest.raises(ValidationError, match="una sola vez"):
+        PreciosLoteEntrada(
+            precios=[
+                PrecioOficialEntrada(presentacion_id=PRESENTACION_ID, precio_cop=2500),
+                PrecioOficialEntrada(presentacion_id=PRESENTACION_ID, precio_cop=2600),
+            ]
+        )
+
+
 @pytest.mark.asyncio
-async def test_el_mismo_precio_repetido_en_el_lote_inserta_una_sola_version(
+async def test_publicar_precios_adquiere_el_lock_antes_de_leer_el_precio_anterior(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Dos entradas iguales para la misma presentacion no duplican el historial."""
-    historial: list[dict[str, Any]] = []
-    _preparar_publicacion(monkeypatch, anterior=None, historial=historial)
+    """La lectura del precio previo ocurre despues del bloqueo por establecimiento."""
+    eventos: list[str] = []
+    _preparar_publicacion(
+        monkeypatch,
+        anterior=2500,
+        historial=[],
+        eventos=eventos,
+    )
     servicio = ServicioComercial(
         sesion=object(),  # type: ignore[arg-type]
         puerto_cache=CacheEspia(),  # type: ignore[arg-type]
         politica_precio=PoliticaEspia(),  # type: ignore[arg-type]
     )
-    lote = PreciosLoteEntrada(
-        precios=[
-            PrecioOficialEntrada(presentacion_id=PRESENTACION_ID, precio_cop=2500),
-            PrecioOficialEntrada(presentacion_id=PRESENTACION_ID, precio_cop=2500),
-        ]
-    )
 
-    await servicio.publicar_precios(ESTABLECIMIENTO_ID, lote, USUARIO)
+    await servicio.publicar_precios(ESTABLECIMIENTO_ID, _lote(2600), USUARIO)
 
-    assert len(historial) == 1
+    assert eventos.index("lock") < eventos.index("precios_anteriores")
+    assert eventos.index("lock") < eventos.index("upsert")
+    assert eventos.count("lock") == 1
 
 
 @pytest.mark.asyncio
