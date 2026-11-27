@@ -6,6 +6,7 @@ reconstruccion conserve los pares que solo tienen precio oficial.
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from decimal import Decimal
 from types import SimpleNamespace
@@ -53,17 +54,16 @@ def test_servicio_casos_usa_oficial_con_contraste_por_defecto() -> None:
 async def test_reconstruccion_usa_oficial_con_contraste_por_defecto(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """El job y las llamadas sin politica explicita usan la regla de Etapa 2."""
+    """El job y las llamadas sin politica explicita usan la ruta batch de Etapa 2."""
     capturada: dict[str, Any] = {}
 
     async def reconstruir_falso(
         sesion: Any,
-        pol: Any,
         limite_inferior: datetime,
         instante: datetime,
         parametros: ParametrosDominio,
     ) -> int:
-        capturada["politica"] = pol
+        capturada["ruta"] = "lote"
         return 0
 
     async def obtener_parametros(sesion: Any) -> ParametrosDominio:
@@ -71,7 +71,7 @@ async def test_reconstruccion_usa_oficial_con_contraste_por_defecto(
 
     monkeypatch.setattr(
         politica_modulo,
-        "_reconstruir_con_politica_personalizada",
+        "_reconstruir_oficial_con_contraste",
         reconstruir_falso,
     )
     monkeypatch.setattr(
@@ -82,35 +82,22 @@ async def test_reconstruccion_usa_oficial_con_contraste_por_defecto(
 
     await politica_modulo.reconstruir_precio_vigente(object())  # type: ignore[arg-type]
 
-    assert isinstance(capturada["politica"], OficialConContraste)
-
-
-class ResultadoFalso:
-    """Resultado minimo de una consulta SQL para la sesion falsa."""
-
-    def __init__(self, filas: list[tuple[UUID, UUID]]) -> None:
-        self._filas = filas
-
-    def fetchall(self) -> list[tuple[UUID, UUID]]:
-        return self._filas
+    assert capturada["ruta"] == "lote"
 
 
 class SesionFalsa:
-    """Sesion que solo entiende el SELECT y el DELETE de la reconstruccion."""
+    """Sesion que solo entiende el DELETE final de la reconstruccion."""
 
-    def __init__(self, filas_precio_vigente: list[tuple[UUID, UUID]]) -> None:
-        self._filas_precio_vigente = filas_precio_vigente
-        self.borrados: list[list[dict[str, UUID]]] = []
+    def __init__(self) -> None:
+        self.borrados: list[list[dict[str, str]]] = []
 
     async def execute(
         self,
         sentencia: Any,
         parametros: Any = None,
-    ) -> ResultadoFalso | None:
-        if parametros is None:
-            return ResultadoFalso(self._filas_precio_vigente)
-        self.borrados.append(parametros)
-        return None
+    ) -> None:
+        assert isinstance(parametros, dict)
+        self.borrados.append(json.loads(parametros["pares"]))
 
 
 class PoliticaFalsa:
@@ -131,12 +118,7 @@ async def test_reconstruccion_conserva_el_par_que_solo_tiene_precio_oficial(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Un par oficial sin reportes comunitarios se recalcula y no se borra."""
-    sesion = SesionFalsa(
-        [
-            (PRESENTACION_OFICIAL, ESTABLECIMIENTO_OFICIAL),
-            (PRESENTACION_OBSOLETA, ESTABLECIMIENTO_OBSOLETO),
-        ]
-    )
+    sesion = SesionFalsa()
 
     async def listar_pares(sesion_falsa: Any, limite_inferior: datetime) -> list[tuple[UUID, UUID]]:
         return [(PRESENTACION_OFICIAL, ESTABLECIMIENTO_OFICIAL)]
@@ -152,7 +134,9 @@ async def test_reconstruccion_conserva_el_par_que_solo_tiene_precio_oficial(
     )
 
     assert recalculados == 1
-    assert sesion.borrados == [[{"p": PRESENTACION_OBSOLETA, "e": ESTABLECIMIENTO_OBSOLETO}]]
+    assert sesion.borrados == [
+        [{"pres_id": str(PRESENTACION_OFICIAL), "est_id": str(ESTABLECIMIENTO_OFICIAL)}]
+    ]
 
 
 class ResultadoConsulta:
@@ -179,10 +163,9 @@ class ResultadoConsulta:
 class SesionSoloOficial:
     """Sesion falsa que responde como una base con solo el precio oficial."""
 
-    def __init__(self, filas_precio_vigente: list[tuple[UUID, UUID]]) -> None:
-        self._filas_precio_vigente = filas_precio_vigente
+    def __init__(self) -> None:
         self.upserts: list[dict[str, Any]] = []
-        self.borrados: list[list[dict[str, UUID]]] = []
+        self.borrados: list[list[dict[str, str]]] = []
 
     async def execute(
         self,
@@ -207,10 +190,9 @@ class SesionSoloOficial:
             )
         if "select producto_id from public.precio_oficial" in sql:
             return ResultadoConsulta(fila=SimpleNamespace(producto_id=PRODUCTO_OFICIAL))
-        if sql.startswith("select presentacion_id, establecimiento_id from public.precio_vigente"):
-            return ResultadoConsulta(filas=list(self._filas_precio_vigente))
         if sql.startswith("delete from public.precio_vigente"):
-            self.borrados.append(parametros)
+            assert isinstance(parametros, dict)
+            self.borrados.append(json.loads(parametros["pares"]))
             return ResultadoConsulta()
         raise AssertionError(f"SQL inesperado: {sql}")
 
@@ -219,7 +201,7 @@ async def test_oficial_con_contraste_real_recalcula_y_conserva_el_par_sin_report
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Con solo `precio_oficial`, la politica real crea la proyeccion y no la borra."""
-    sesion = SesionSoloOficial([(PRESENTACION_OFICIAL, ESTABLECIMIENTO_OFICIAL)])
+    sesion = SesionSoloOficial()
 
     async def listar_pares(sesion_falsa: Any, limite_inferior: datetime) -> list[tuple[UUID, UUID]]:
         return [(PRESENTACION_OFICIAL, ESTABLECIMIENTO_OFICIAL)]
@@ -239,7 +221,9 @@ async def test_oficial_con_contraste_real_recalcula_y_conserva_el_par_sin_report
     assert sesion.upserts[0]["precio_cop"] == 2500
     assert sesion.upserts[0]["precio_oficial_cop"] == 2500
     assert sesion.upserts[0]["sello"] == "oficial"
-    assert sesion.borrados == []
+    assert sesion.borrados == [
+        [{"pres_id": str(PRESENTACION_OFICIAL), "est_id": str(ESTABLECIMIENTO_OFICIAL)}]
+    ]
 
 
 class PoliticaConResultadosParciales:
