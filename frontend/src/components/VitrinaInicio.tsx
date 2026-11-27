@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Search, X } from "lucide-react";
 import {
@@ -14,6 +15,13 @@ import Cargando from "@/components/Cargando";
 import EstadoError from "@/components/EstadoError";
 import EstadoVacio from "@/components/EstadoVacio";
 import GrillaProductos from "@/components/GrillaProductos";
+
+function normalizarBusqueda(valor: string): string {
+  return valor
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
 
 /**
  * Vitrina interactiva de inicio (S1) conectada con GET /v1/categorias y GET /v1/productos.
@@ -92,6 +100,40 @@ export default function VitrinaInicio(): React.JSX.Element {
     }
     return mapa;
   }, [categorias]);
+
+  const presentacionesCoincidentes = useMemo(() => {
+    const tokens = normalizarBusqueda(terminoActivo).split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) {
+      return [];
+    }
+    const vistos = new Set<string>();
+    const coincidencias: { producto: ProductoResumen; presentacion: { id: string; etiqueta: string } }[] = [];
+    for (const producto of productos) {
+      const nombreProducto = normalizarBusqueda(producto.nombre);
+      const nombreCoincide = tokens.every((token) => nombreProducto.includes(token));
+      for (const presentacion of producto.presentaciones ?? []) {
+        const etiqueta = normalizarBusqueda(presentacion.etiqueta);
+        if (!tokens.every((token) => etiqueta.includes(token))) {
+          continue;
+        }
+        // Si la busqueda ya coincide con el producto, la tarjeta del catalogo
+        // basta; la seccion extra es para marcas/presentaciones que el nombre
+        // generico no contiene.
+        if (nombreCoincide && tokens.length === 1) {
+          continue;
+        }
+        if (vistos.has(presentacion.id)) {
+          continue;
+        }
+        vistos.add(presentacion.id);
+        coincidencias.push({ producto, presentacion });
+        if (coincidencias.length >= 6) {
+          return coincidencias;
+        }
+      }
+    }
+    return coincidencias;
+  }, [productos, terminoActivo]);
 
   const manejarBusqueda = (evento: React.FormEvent<HTMLFormElement>): void => {
     evento.preventDefault();
@@ -195,6 +237,32 @@ export default function VitrinaInicio(): React.JSX.Element {
       </section>
 
       <div className="pb-4">
+        {presentacionesCoincidentes.length > 0 && (
+          <section aria-label="Presentaciones que coinciden" className="mb-8">
+            <h2 className="rotulo mb-4">Presentaciones que coinciden</h2>
+            <ul className="border-b border-slate-200">
+              {presentacionesCoincidentes.map(({ producto, presentacion }) => (
+                <li key={presentacion.id}>
+                  <Link
+                    href={`/producto/${producto.id}?presentacion=${presentacion.id}`}
+                    className="flex min-h-16 items-center justify-between gap-4 border-t border-slate-200 px-2 py-3 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-600 sm:px-3"
+                  >
+                    <span className="min-w-0">
+                      <span className="block text-[17px] font-medium leading-snug tracking-tight text-slate-900">
+                        {presentacion.etiqueta}
+                      </span>
+                      <span className="mt-0.5 block text-[13px] text-slate-500">
+                        {producto.nombre}
+                      </span>
+                    </span>
+                    <span className="flex-none text-[13px] text-slate-500">Ver precios</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         <section aria-label="Catálogo de productos">
           <h2 className="rotulo mb-4">Catálogo</h2>
 

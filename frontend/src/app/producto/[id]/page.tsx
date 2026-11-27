@@ -5,9 +5,17 @@ interface PaginaProductoProps {
   readonly params: {
     readonly id: string;
   };
+  readonly searchParams?: {
+    readonly presentacion?: string | string[];
+  };
 }
 
-export default function PaginaProducto({ params }: PaginaProductoProps): React.JSX.Element {
-  return <ComparadorProducto productoId={params.id} />;
+export default function PaginaProducto({
+  params,
+  searchParams,
+}: PaginaProductoProps): React.JSX.Element {
+  const presentacion =
+    typeof searchParams?.presentacion === "string" ? searchParams.presentacion : null;
+  return <ComparadorProducto productoId={params.id} presentacionInicial={presentacion} />;
 }
 
