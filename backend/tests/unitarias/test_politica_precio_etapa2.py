@@ -53,17 +53,16 @@ def test_servicio_casos_usa_oficial_con_contraste_por_defecto() -> None:
 async def test_reconstruccion_usa_oficial_con_contraste_por_defecto(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """El job y las llamadas sin politica explicita usan la regla de Etapa 2."""
+    """El job y las llamadas sin politica explicita usan la ruta batch de Etapa 2."""
     capturada: dict[str, Any] = {}
 
     async def reconstruir_falso(
         sesion: Any,
-        pol: Any,
         limite_inferior: datetime,
         instante: datetime,
         parametros: ParametrosDominio,
     ) -> int:
-        capturada["politica"] = pol
+        capturada["ruta"] = "lote"
         return 0
 
     async def obtener_parametros(sesion: Any) -> ParametrosDominio:
@@ -71,7 +70,7 @@ async def test_reconstruccion_usa_oficial_con_contraste_por_defecto(
 
     monkeypatch.setattr(
         politica_modulo,
-        "_reconstruir_con_politica_personalizada",
+        "_reconstruir_oficial_con_contraste",
         reconstruir_falso,
     )
     monkeypatch.setattr(
@@ -82,7 +81,7 @@ async def test_reconstruccion_usa_oficial_con_contraste_por_defecto(
 
     await politica_modulo.reconstruir_precio_vigente(object())  # type: ignore[arg-type]
 
-    assert isinstance(capturada["politica"], OficialConContraste)
+    assert capturada["ruta"] == "lote"
 
 
 class ResultadoFalso:
