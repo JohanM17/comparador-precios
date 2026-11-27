@@ -796,6 +796,47 @@ def test_redactar_texto_sensible_cubre_percent_encoding() -> None:
     )
 
 
+def test_redactar_texto_sensible_redacta_telefonos_colombianos() -> None:
+    """Los telefonos moviles y fijos no sobreviven, con o sin +57."""
+    texto = (
+        "telefono=3001234567; contacto +57 310 555 7788; "
+        "fijo (606) 123-4567; mensaje='Llame al 320 444 5566'; "
+        "fecha=2026-11-27 uuid=123e4567-e89b-12d3-a456-426614174000"
+    )
+
+    redactado = redactar_texto_sensible(texto)
+
+    assert "3001234567" not in redactado
+    assert "310 555 7788" not in redactado
+    assert "123-4567" not in redactado
+    assert "320 444 5566" not in redactado
+    assert redactado.count("[REDACTADO_TELEFONO]") == 4
+    # Un patron demasiado amplio romperia fechas e identificadores legitimos.
+    assert "2026-11-27" in redactado
+    assert "123e4567-e89b-12d3-a456-426614174000" in redactado
+
+
+def test_filtro_privacidad_redacta_telefono_en_logs() -> None:
+    """El filtro de Ley 1581 tambien sanea el telefono de un reclamo."""
+    filtro = FiltroPrivacidadLey1581()
+    record = logging.LogRecord(
+        "app.comercial",
+        logging.INFO,
+        __file__,
+        10,
+        "reclamo telefono=%s mensaje=%s",
+        ("3001234567", "Llame al 300 123 4567"),
+        None,
+    )
+
+    filtro.filter(record)
+    mensaje = record.getMessage()
+
+    assert "3001234567" not in mensaje
+    assert "300 123 4567" not in mensaje
+    assert mensaje.count("[REDACTADO_TELEFONO]") == 2
+
+
 def test_redactar_texto_sensible_redacta_ip_y_huella_red() -> None:
     """Las IP y las huellas de red tampoco sobreviven a la redaccion."""
     huella = "0123456789abcdef" * 4

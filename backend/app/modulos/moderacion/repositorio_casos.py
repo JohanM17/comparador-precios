@@ -60,6 +60,27 @@ async def obtener_caso_por_id_bd(sesion: AsyncSession, caso_id: UUID) -> dict[st
     return dict(fila._mapping) if fila else None
 
 
+_SQL_CASO_PARA_RESOLVER = text("""
+    SELECT id, tipo::text, referencia_tabla, referencia_id, detalle,
+           prioridad, estado::text, decision::text, moderador_id, nota,
+           creado_en, resuelto_en
+    FROM public.caso_moderacion WHERE id = :id FOR UPDATE;
+""")
+
+
+async def obtener_caso_para_resolver_bd(
+    sesion: AsyncSession, caso_id: UUID
+) -> dict[str, Any] | None:
+    """Lee el caso y bloquea su fila hasta que termine la resolucion.
+
+    Dos moderadores que abren el mismo caso se serializan aqui: el segundo espera
+    al commit del primero y encuentra `estado='resuelto'`, que el servicio rechaza
+    con 409. Sin el bloqueo ambos leerian el estado abierto y lo resolverian dos veces.
+    """
+    fila = (await sesion.execute(_SQL_CASO_PARA_RESOLVER, {"id": caso_id})).first()
+    return dict(fila._mapping) if fila else None
+
+
 async def obtener_datos_referencia_bd(
     sesion: AsyncSession, tabla: str, ref_id: UUID | None
 ) -> dict[str, Any] | None:
@@ -116,7 +137,9 @@ _SQL_PRECIO_OFICIAL_DEL_PAR = text("""
     FROM public.precio_oficial po
     JOIN public.presentacion pr ON pr.id = po.presentacion_id
     WHERE po.presentacion_id = :pres_id
-      AND po.establecimiento_id = :est_id;
+      AND po.establecimiento_id = :est_id
+      AND po.activo = true
+    FOR UPDATE OF po;
 """)
 
 _SQL_REVALIDAR_OFICIAL_PAR = text("""
@@ -148,6 +171,8 @@ _SQL_FIJAR_PRECIO_VIGENTE_OFICIAL = text("""
         cantidad_base = EXCLUDED.cantidad_base,
         sello = EXCLUDED.sello,
         motivo_sello = EXCLUDED.motivo_sello,
+        ultimo_reporte_en = EXCLUDED.ultimo_reporte_en,
+        reporte_origen_id = EXCLUDED.reporte_origen_id,
         precio_oficial_cop = EXCLUDED.precio_oficial_cop,
         diferencia_pct = 0,
         requiere_revalidacion = false,
@@ -168,12 +193,22 @@ async def confirmar_disputa_precio_bd(
     presentacion_id: UUID,
     establecimiento_id: UUID,
     ahora: datetime,
+    precio_oficial_esperado: int,
 ) -> UUID | None:
     """Deja ganar al precio oficial: lo revalida y fija la proyeccion vigente.
+
+    Valida que el oficial siga activo y con el mismo precio que vio el moderador;
+    si cambio, devuelve None para que el servicio responda 409 sin resolver el caso.
 
     Solo toca `precio_oficial` y `precio_vigente`. Los reportes comunitarios y su
     historial no se modifican: la decision es sobre que precio se muestra, no sobre
     borrar la evidencia que levanto la mano.
+
+    En el conflicto se conservan `n_reportes_validos`, `n_fuentes` y `dispersion`
+    existentes (la comunidad sigue siendo la fuente de esos conteos), pero la
+    antiguedad y la foto pasan a ser las del precio oficial: `ultimo_reporte_en`
+    es el momento de la confirmacion y `reporte_origen_id` queda NULL. Si la fila
+    no existia, el INSERT arranca con 0/0/NULL porque no hay comunidad previa.
     """
     fila = (
         await sesion.execute(
@@ -181,7 +216,7 @@ async def confirmar_disputa_precio_bd(
             {"pres_id": presentacion_id, "est_id": establecimiento_id},
         )
     ).first()
-    if fila is None:
+    if fila is None or int(fila.precio_cop) != precio_oficial_esperado:
         return None
 
     await sesion.execute(
@@ -208,12 +243,26 @@ async def desactivar_precio_oficial_bd(
     sesion: AsyncSession,
     presentacion_id: UUID,
     establecimiento_id: UUID,
+    precio_oficial_esperado: int,
 ) -> UUID | None:
     """Deja ganar a la comunidad: apaga el precio oficial del par.
+
+    Antes de apagarlo valida que siga activo y con el precio que vio el moderador.
+    Si el comercio lo cambio durante el caso, devuelve None y el servicio responde
+    409 sin resolver: la decision se tomo sobre un precio que ya no existe.
 
     `precio_oficial` conserva la fila con `activo=false`; no se borra el historial.
     El siguiente recalculo con la politica ya no encuentra oficial y usa la comunidad.
     """
+    fila = (
+        await sesion.execute(
+            _SQL_PRECIO_OFICIAL_DEL_PAR,
+            {"pres_id": presentacion_id, "est_id": establecimiento_id},
+        )
+    ).first()
+    if fila is None or int(fila.precio_cop) != precio_oficial_esperado:
+        return None
+
     fila = (
         await sesion.execute(
             _SQL_DESACTIVAR_OFICIAL_PAR,

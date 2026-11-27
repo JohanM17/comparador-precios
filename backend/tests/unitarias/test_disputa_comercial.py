@@ -2,9 +2,9 @@
 
 - El reclamo de titularidad exige autorizacion de datos (Ley 1581).
 - Un contraste con `hay_disputa` abre un `caso_moderacion` idempotente.
-- Si la insercion del caso falla, el precio vigente se calcula igual.
-- Un moderador resuelve la disputa: `confirmar` deja ganar al oficial,
-  `descartar` deja ganar a la comunidad y `sancionar` responde 422.
+- Una disputa confirmada es durable: los reportes previos ya no la reabren.
+- La resolucion valida la version del precio oficial y bloquea el caso.
+- `confirmar` deja ganar al oficial, `descartar` a la comunidad y `sancionar` da 422.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from uuid import UUID, uuid4
 import pytest
 from fastapi.routing import APIRoute
 
-from app.compartido.errores import ValidacionError
+from app.compartido.errores import ConflictoError, ValidacionError
 from app.compartido.seguridad import UsuarioAutenticado, requiere_autorizacion_datos
 from app.dominio.parametros import ParametrosDominio
 from app.modulos.comercial.api import router as comercial_router
@@ -72,17 +72,19 @@ class _SavepointFalso:
 
 
 class SesionPoliticaFalsa:
-    """Sesion que responde como un par con oficial y reportes comunitarios."""
+    """Sesion que responde como un par con oficial, reportes y un posible corte."""
 
     def __init__(
         self,
         reportes: list[Any],
         precio_oficial_cop: int = 3050,
         falla_caso: bool = False,
+        corte: datetime | None = None,
     ) -> None:
         self.reportes = reportes
         self.precio_oficial_cop = precio_oficial_cop
         self.falla_caso = falla_caso
+        self.corte = corte
         self.upserts: list[dict[str, Any]] = []
         self.casos: list[dict[str, Any]] = []
 
@@ -96,6 +98,8 @@ class SesionPoliticaFalsa:
             return ResultadoConsulta()
         if "from public.reporte_precio" in sql:
             return ResultadoConsulta(filas=self.reportes)
+        if "max(c.resuelto_en)" in sql:
+            return ResultadoConsulta(fila=SimpleNamespace(corte=self.corte))
         if "from public.precio_oficial po" in sql:
             return ResultadoConsulta(
                 fila=SimpleNamespace(
@@ -113,14 +117,37 @@ class SesionPoliticaFalsa:
 
 
 class SesionResolucionFalsa:
-    """Sesion que ejecuta el SQL real de resolucion de disputas."""
+    """Sesion que ejecuta el SQL real de resolucion y simula la fila vigente."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        precio_oficial_cop: int = 3050,
+        precio_oficial_activo: bool = True,
+    ) -> None:
+        self.precio_oficial_cop = precio_oficial_cop
+        self.precio_oficial_activo = precio_oficial_activo
         self.revalidaciones: list[dict[str, Any]] = []
         self.upserts: list[dict[str, Any]] = []
         self.desactivaciones: list[dict[str, Any]] = []
         self.casos_actualizados: list[dict[str, Any]] = []
         self.auditorias: list[dict[str, Any]] = []
+        # Proyeccion previa con conteos comunitarios que deben sobrevivir a confirmar.
+        self.precio_vigente: dict[str, Any] = {
+            "producto_id": PRODUCTO,
+            "precio_cop": 2600,
+            "precio_por_base": Decimal("2.600000"),
+            "cantidad_base": Decimal("1000.000"),
+            "sello": "en_disputa",
+            "motivo_sello": "La comunidad reporta un precio distinto",
+            "n_reportes_validos": 3,
+            "n_fuentes": 3,
+            "dispersion": Decimal("0.0300"),
+            "ultimo_reporte_en": AHORA - timedelta(hours=2),
+            "reporte_origen_id": UUID(int=77),
+            "precio_oficial_cop": 3050,
+            "diferencia_pct": Decimal("0.1475"),
+            "requiere_revalidacion": False,
+        }
 
     async def flush(self) -> None:
         return None
@@ -128,9 +155,11 @@ class SesionResolucionFalsa:
     async def execute(self, sentencia: Any, parametros: Any = None) -> ResultadoConsulta:
         sql = " ".join(str(sentencia).lower().split())
         if sql.startswith("select po.precio_cop, po.precio_por_base"):
+            if not self.precio_oficial_activo:
+                return ResultadoConsulta()
             return ResultadoConsulta(
                 fila=SimpleNamespace(
-                    precio_cop=3050,
+                    precio_cop=self.precio_oficial_cop,
                     precio_por_base=Decimal("3.050000"),
                     producto_id=PRODUCTO,
                     cantidad_base=Decimal("1000.000"),
@@ -141,9 +170,27 @@ class SesionResolucionFalsa:
             return ResultadoConsulta()
         if sql.startswith("insert into public.precio_vigente"):
             self.upserts.append(parametros)
+            # Solo los campos que el ON CONFLICT oficial debe tocar.
+            self.precio_vigente.update(
+                {
+                    "producto_id": parametros["prod_id"],
+                    "precio_cop": parametros["precio_cop"],
+                    "precio_por_base": parametros["precio_por_base"],
+                    "cantidad_base": parametros["cantidad_base"],
+                    "sello": "oficial",
+                    "motivo_sello": "Precio oficial confirmado por moderacion",
+                    "precio_oficial_cop": parametros["precio_oficial_cop"],
+                    "diferencia_pct": 0,
+                    "requiere_revalidacion": False,
+                    "ultimo_reporte_en": parametros["ahora"],
+                    "reporte_origen_id": None,
+                    "recalculado_en": AHORA,
+                }
+            )
             return ResultadoConsulta()
         if sql.startswith("update public.precio_oficial set activo = false"):
             self.desactivaciones.append(parametros)
+            self.precio_oficial_activo = False
             return ResultadoConsulta(fila=SimpleNamespace(producto_id=PRODUCTO))
         if sql.startswith("update public.caso_moderacion"):
             self.casos_actualizados.append(parametros)
@@ -237,6 +284,32 @@ def _caso_disputa() -> dict[str, Any]:
     }
 
 
+def _parchear_repositorio(
+    monkeypatch: pytest.MonkeyPatch,
+    caso: dict[str, Any],
+    casos_para_resolver: list[dict[str, Any]] | None = None,
+) -> None:
+    """Sustituye la lectura de casos; el resto del SQL corre contra la sesion falsa."""
+    cola = list(casos_para_resolver) if casos_para_resolver is not None else None
+
+    async def obtener_para_resolver(sesion: Any, caso_id: UUID) -> dict[str, Any]:
+        if cola is None:
+            return dict(caso)
+        if not cola:
+            return {**caso, "estado": "resuelto"}
+        return cola.pop(0)
+
+    async def obtener_por_id(sesion: Any, caso_id: UUID) -> dict[str, Any]:
+        return dict(caso)
+
+    async def parametros(sesion: Any) -> ParametrosDominio:
+        return ParametrosDominio()
+
+    monkeypatch.setattr(repositorio_casos, "obtener_caso_para_resolver_bd", obtener_para_resolver)
+    monkeypatch.setattr(repositorio_casos, "obtener_caso_por_id_bd", obtener_por_id)
+    monkeypatch.setattr(servicio_casos_modulo, "obtener_parametros_dominio", parametros)
+
+
 def test_reclamo_de_comercio_exige_autorizacion_de_datos() -> None:
     """La ruta no puede seguir aceptando cuentas sin autorizacion Ley 1581."""
     ruta = next(
@@ -326,6 +399,64 @@ async def test_fallo_al_abrir_el_caso_no_rompe_el_calculo(
     assert resultado.sello == "en_disputa"
     assert len(sesion.upserts) == 1
     assert "caso de disputa" in caplog.text
+    assert "RuntimeError" in caplog.text
+
+
+async def test_disputa_confirmada_ignora_reportes_anteriores_al_corte() -> None:
+    """Confirmar deja un corte durable: los reportes ya juzgados no reabren el caso."""
+    sesion = SesionPoliticaFalsa(_reportes_contradictorios(), corte=AHORA)
+
+    resultado = await OficialConContraste().recalcular_par(
+        sesion,  # type: ignore[arg-type]
+        PRESENTACION,
+        ESTABLECIMIENTO,
+        AHORA + timedelta(hours=1),
+        ParametrosDominio(),
+    )
+
+    assert resultado is not None
+    assert resultado.sello == "oficial"
+    assert sesion.casos == []
+    # El resultado oficial conserva los conteos comunitarios completos.
+    assert resultado.n_reportes_validos == 3
+    assert resultado.n_fuentes == 3
+
+
+async def test_reporte_posterior_al_corte_si_puede_abrir_un_caso_nuevo() -> None:
+    """La comunidad puede volver a contradecir con evidencia posterior al corte."""
+    reportes = [
+        *_reportes_contradictorios(),
+        _reporte(2600, "d", -0.10),
+        _reporte(2600, "e", -0.20),
+        _reporte(2650, "f", -0.30),
+    ]
+    sesion = SesionPoliticaFalsa(reportes, corte=AHORA)
+
+    resultado = await OficialConContraste().recalcular_par(
+        sesion,  # type: ignore[arg-type]
+        PRESENTACION,
+        ESTABLECIMIENTO,
+        AHORA + timedelta(hours=2),
+        ParametrosDominio(),
+    )
+
+    assert resultado is not None
+    assert resultado.sello == "en_disputa"
+    assert len(sesion.casos) == 1
+
+
+def test_filtro_post_corte_excluye_el_instante_exacto() -> None:
+    """El corte es estrictamente posterior; el mismo instante ya estaba a la vista."""
+    candidatos = [
+        SimpleNamespace(observado_en=AHORA - timedelta(seconds=1)),
+        SimpleNamespace(observado_en=AHORA),
+        SimpleNamespace(observado_en=AHORA + timedelta(seconds=1)),
+    ]
+
+    filtrados = politica_modulo.filtrar_candidatos_post_corte(candidatos, AHORA)  # type: ignore[arg-type]
+
+    assert [c.observado_en for c in filtrados] == [AHORA + timedelta(seconds=1)]
+    assert politica_modulo.filtrar_candidatos_post_corte(candidatos, None) == candidatos  # type: ignore[arg-type]
 
 
 async def test_confirmar_disputa_deja_ganar_al_precio_oficial(
@@ -336,15 +467,8 @@ async def test_confirmar_disputa_deja_ganar_al_precio_oficial(
     cache = CacheFalsa()
     politica = PoliticaFalsa()
     caso = _caso_disputa()
-
-    async def obtener_caso(sesion_falsa: Any, caso_id: UUID) -> dict[str, Any]:
-        return dict(caso)
-
-    async def parametros(sesion_falsa: Any) -> ParametrosDominio:
-        return ParametrosDominio()
-
-    monkeypatch.setattr(repositorio_casos, "obtener_caso_por_id_bd", obtener_caso)
-    monkeypatch.setattr(servicio_casos_modulo, "obtener_parametros_dominio", parametros)
+    _parchear_repositorio(monkeypatch, caso)
+    inicio = datetime.now(UTC)
 
     servicio = ServicioCasosModeracion(
         sesion=sesion,  # type: ignore[arg-type]
@@ -362,11 +486,32 @@ async def test_confirmar_disputa_deja_ganar_al_precio_oficial(
     assert upsert["precio_oficial_cop"] == 3050
     assert upsert["precio_por_base"] == Decimal("3.050000")
 
+    # Valores finales de la fila preexistente, no solo el texto de la sentencia.
+    vigente = sesion.precio_vigente
+    assert vigente["precio_cop"] == 3050
+    assert vigente["precio_por_base"] == Decimal("3.050000")
+    assert vigente["sello"] == "oficial"
+    assert vigente["motivo_sello"] == "Precio oficial confirmado por moderacion"
+    assert vigente["precio_oficial_cop"] == 3050
+    assert vigente["diferencia_pct"] == 0
+    assert vigente["requiere_revalidacion"] is False
+    assert vigente["ultimo_reporte_en"] >= inicio
+    assert vigente["reporte_origen_id"] is None
+    # Los conteos comunitarios existentes se conservan en el conflicto.
+    assert vigente["n_reportes_validos"] == 3
+    assert vigente["n_fuentes"] == 3
+    assert vigente["dispersion"] == Decimal("0.0300")
+
     sql_upsert = " ".join(str(repositorio_casos._SQL_FIJAR_PRECIO_VIGENTE_OFICIAL).lower().split())
+    assert "ultimo_reporte_en = excluded.ultimo_reporte_en" in sql_upsert
+    assert "reporte_origen_id = excluded.reporte_origen_id" in sql_upsert
     assert "diferencia_pct = 0" in sql_upsert
     assert "requiere_revalidacion = false" in sql_upsert
     assert "'oficial'" in sql_upsert
     assert "precio oficial confirmado por moderacion" in sql_upsert
+    assert "n_reportes_validos = excluded" not in sql_upsert
+    assert "n_fuentes = excluded" not in sql_upsert
+    assert "dispersion = excluded" not in sql_upsert
 
     assert politica.llamadas == []
     assert cache.invalidados == [PRODUCTO]
@@ -385,15 +530,7 @@ async def test_descartar_disputa_deja_ganar_a_la_comunidad(
     cache = CacheFalsa()
     politica = PoliticaFalsa()
     caso = _caso_disputa()
-
-    async def obtener_caso(sesion_falsa: Any, caso_id: UUID) -> dict[str, Any]:
-        return dict(caso)
-
-    async def parametros(sesion_falsa: Any) -> ParametrosDominio:
-        return ParametrosDominio()
-
-    monkeypatch.setattr(repositorio_casos, "obtener_caso_por_id_bd", obtener_caso)
-    monkeypatch.setattr(servicio_casos_modulo, "obtener_parametros_dominio", parametros)
+    _parchear_repositorio(monkeypatch, caso)
 
     servicio = ServicioCasosModeracion(
         sesion=sesion,  # type: ignore[arg-type]
@@ -414,21 +551,141 @@ async def test_descartar_disputa_deja_ganar_a_la_comunidad(
     assert despues["precio_ganador"] == "comunidad"
 
 
+@pytest.mark.parametrize("decision", ["confirmar", "descartar"])
+async def test_precio_cambiado_durante_el_caso_devuelve_409(
+    monkeypatch: pytest.MonkeyPatch, decision: str
+) -> None:
+    """Si el comercio cambio el precio, la decision se toma sobre un dato obsoleto."""
+    sesion = SesionResolucionFalsa(precio_oficial_cop=3100)
+    caso = _caso_disputa()
+    _parchear_repositorio(monkeypatch, caso)
+
+    servicio = ServicioCasosModeracion(
+        sesion=sesion,  # type: ignore[arg-type]
+        cache=CacheFalsa(),  # type: ignore[arg-type]
+        politica=PoliticaFalsa(),  # type: ignore[arg-type]
+    )
+    entrada = ResolverCasoEntrada(decision=decision, nota="Precio revisado en gondola")  # type: ignore[arg-type]
+
+    with pytest.raises(ConflictoError) as exc:
+        await servicio.resolver_caso(CASO_ID, entrada, MODERADOR)
+
+    assert exc.value.status == 409
+    assert "precio oficial cambio" in exc.value.detalle
+    assert sesion.revalidaciones == []
+    assert sesion.desactivaciones == []
+    assert sesion.upserts == []
+    assert sesion.casos_actualizados == []
+    assert sesion.auditorias == []
+
+
+async def test_precio_oficial_inactivo_durante_el_caso_devuelve_409(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Un oficial ya apagado no puede confirmarse ni descartarse otra vez."""
+    sesion = SesionResolucionFalsa(precio_oficial_activo=False)
+    caso = _caso_disputa()
+    _parchear_repositorio(monkeypatch, caso)
+
+    servicio = ServicioCasosModeracion(
+        sesion=sesion,  # type: ignore[arg-type]
+        cache=CacheFalsa(),  # type: ignore[arg-type]
+        politica=PoliticaFalsa(),  # type: ignore[arg-type]
+    )
+    entrada = ResolverCasoEntrada(decision="confirmar", nota="Precio revisado en gondola")
+
+    with pytest.raises(ConflictoError) as exc:
+        await servicio.resolver_caso(CASO_ID, entrada, MODERADOR)
+
+    assert exc.value.status == 409
+    assert sesion.casos_actualizados == []
+    assert sesion.auditorias == []
+
+
+async def test_doble_resolucion_del_mismo_caso_devuelve_409(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """El segundo moderador encuentra el caso resuelto y no lo vuelve a decidir."""
+    sesion = SesionResolucionFalsa()
+    caso = _caso_disputa()
+    _parchear_repositorio(monkeypatch, caso, casos_para_resolver=[dict(caso)])
+
+    servicio = ServicioCasosModeracion(
+        sesion=sesion,  # type: ignore[arg-type]
+        cache=CacheFalsa(),  # type: ignore[arg-type]
+        politica=PoliticaFalsa(),  # type: ignore[arg-type]
+    )
+    entrada = ResolverCasoEntrada(decision="confirmar", nota="Precio revisado en gondola")
+    await servicio.resolver_caso(CASO_ID, entrada, MODERADOR)
+
+    with pytest.raises(ConflictoError) as exc:
+        await servicio.resolver_caso(CASO_ID, entrada, MODERADOR)
+
+    assert exc.value.status == 409
+    assert "ya se encuentra resuelto" in exc.value.detalle
+
+
+def test_resolucion_bloquea_la_fila_del_caso() -> None:
+    """El SELECT de resolucion toma FOR UPDATE para serializar a los moderadores."""
+    sql = " ".join(str(repositorio_casos._SQL_CASO_PARA_RESOLVER).lower().split())
+    assert "for update" in sql
+
+
+def test_consulta_oficial_para_resolver_exige_activo_y_bloquea_la_fila() -> None:
+    """La version validada es la del oficial activo, no una fila ya apagada."""
+    sql = " ".join(str(repositorio_casos._SQL_PRECIO_OFICIAL_DEL_PAR).lower().split())
+    assert "po.activo = true" in sql
+    assert "for update of po" in sql
+
+
+def test_corte_durable_solo_considera_confirmaciones() -> None:
+    """Un descarte no crea corte: la comunidad ya gano ese caso."""
+    sql = " ".join(str(politica_modulo._SQL_CORTE_DISPUTA_CONFIRMADA).lower().split())
+    assert "decision = cast('confirmar' as decision_caso)" in sql
+    assert "max(c.resuelto_en)" in sql
+
+
+@pytest.mark.parametrize(
+    "cambio",
+    [
+        {"presentacion_id": "no-es-uuid"},
+        {"establecimiento_id": "no-es-uuid"},
+        {"precio_oficial_cop": "no-es-numero"},
+        {"precio_oficial_cop": 0},
+        {"presentacion_id": str(UUID(int=999))},
+    ],
+)
+async def test_referencias_malformadas_del_caso_devuelven_422(
+    monkeypatch: pytest.MonkeyPatch, cambio: dict[str, Any]
+) -> None:
+    """Un detalle corrupto se rechaza con 422 y no toca el caso ni el precio."""
+    sesion = SesionResolucionFalsa()
+    caso = _caso_disputa()
+    caso["detalle"] = {**caso["detalle"], **cambio}
+    _parchear_repositorio(monkeypatch, caso)
+
+    servicio = ServicioCasosModeracion(
+        sesion=sesion,  # type: ignore[arg-type]
+        cache=CacheFalsa(),  # type: ignore[arg-type]
+        politica=PoliticaFalsa(),  # type: ignore[arg-type]
+    )
+    entrada = ResolverCasoEntrada(decision="confirmar", nota="Precio revisado en gondola")
+
+    with pytest.raises(ValidacionError) as exc:
+        await servicio.resolver_caso(CASO_ID, entrada, MODERADOR)
+
+    assert exc.value.status == 422
+    assert sesion.casos_actualizados == []
+    assert sesion.auditorias == []
+
+
 async def test_sancionar_no_aplica_a_una_disputa_de_precio(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """No hay un unico reporte que sancionar: la decision se rechaza con 422."""
     sesion = SesionResolucionFalsa()
     caso = _caso_disputa()
-
-    async def obtener_caso(sesion_falsa: Any, caso_id: UUID) -> dict[str, Any]:
-        return dict(caso)
-
-    async def parametros(sesion_falsa: Any) -> ParametrosDominio:
-        return ParametrosDominio()
-
-    monkeypatch.setattr(repositorio_casos, "obtener_caso_por_id_bd", obtener_caso)
-    monkeypatch.setattr(servicio_casos_modulo, "obtener_parametros_dominio", parametros)
+    _parchear_repositorio(monkeypatch, caso)
 
     servicio = ServicioCasosModeracion(
         sesion=sesion,  # type: ignore[arg-type]

@@ -22,6 +22,9 @@ _PATRON_COORDENADAS = re.compile(r"(lat|lng|latitude|longitude)=[-+]?(\d*\.\d+|\
 _PATRON_COORDENADAS_CODIFICADAS = re.compile(
     r"(lat|lng|latitude|longitude)%3D[-+]?(\d*\.\d+|\d+)", re.IGNORECASE
 )
+_PATRON_TELEFONO_CO = re.compile(
+    r"(?<![\w])(?:\+?57[\s.-]?)?(?:\(?(?:3\d{2}|60\d)\)?[\s.-]?)\d{3}[\s.-]?\d{4}(?![\w])"
+)
 _PATRON_BEARER = re.compile(r"Bearer\s+[-a-z0-9._~+/]+=*", re.IGNORECASE)
 _PATRON_IPV4 = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 _PATRON_IPV6_LOCAL = re.compile(r"(?<![\w:])(?:\[::1\]|::1)(?![\w:])")
@@ -47,12 +50,13 @@ def _ids_traza_actuales() -> tuple[str, str]:
 
 
 def redactar_texto_sensible(texto: str) -> str:
-    """Redacta correos, coordenadas, IP, huellas y tokens.
+    """Redacta correos, telefonos, coordenadas, IP, huellas y tokens.
 
-    Cubre las variantes percent-encoded de correos y coordenadas. Las
-    direcciones IPv4 y el loopback IPv6 se sustituyen por `[REDACTADO_IP]`; las
-    huellas de red etiquetadas o con 64 caracteres hexadecimales se sustituyen
-    por `[REDACTADO_HUELLA]`.
+    Cubre las variantes percent-encoded de correos y coordenadas. Los telefonos
+    colombianos (moviles `3XX`, fijos `60X`, con o sin `+57` y separadores) se
+    sustituyen por `[REDACTADO_TELEFONO]`. Las direcciones IPv4 y el loopback IPv6
+    se sustituyen por `[REDACTADO_IP]`; las huellas de red etiquetadas o con 64
+    caracteres hexadecimales se sustituyen por `[REDACTADO_HUELLA]`.
     """
     if not texto:
         return texto
@@ -60,6 +64,7 @@ def redactar_texto_sensible(texto: str) -> str:
     redactado = _PATRON_EMAIL_CODIFICADO.sub("[REDACTADO_EMAIL]", redactado)
     redactado = _PATRON_COORDENADAS.sub(r"\1=[REDACTADO_COORD]", redactado)
     redactado = _PATRON_COORDENADAS_CODIFICADAS.sub(r"\1%3D[REDACTADO_COORD]", redactado)
+    redactado = _PATRON_TELEFONO_CO.sub("[REDACTADO_TELEFONO]", redactado)
     redactado = _PATRON_BEARER.sub("Bearer [REDACTADO_TOKEN]", redactado)
     redactado = _PATRON_IPV4.sub("[REDACTADO_IP]", redactado)
     redactado = _PATRON_IPV6_LOCAL.sub("[REDACTADO_IP]", redactado)

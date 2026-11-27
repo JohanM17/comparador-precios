@@ -156,6 +156,21 @@ _SQL_PRECIO_OFICIAL_PAR = text("""
       AND po.activo = true;
 """)
 
+# D-01 durable: una disputa confirmada por un moderador vale como corte. Los reportes
+# anteriores a esa resolucion ya fueron juzgados y no pueden reabrir el mismo caso.
+# No se tocan ni se rechazan: solo dejan de alimentar la ventana de contradiccion.
+_SQL_CORTE_DISPUTA_CONFIRMADA = text("""
+    SELECT max(c.resuelto_en) AS corte
+    FROM public.caso_moderacion c
+    WHERE c.tipo = CAST('disputa_precio' AS tipo_caso)
+      AND c.referencia_tabla = 'presentacion'
+      AND c.referencia_id = :pres_id
+      AND c.estado = CAST('resuelto' AS estado_caso)
+      AND c.decision = CAST('confirmar' AS decision_caso)
+      AND c.resuelto_en IS NOT NULL
+      AND c.detalle ->> 'establecimiento_id' = :est_id_txt;
+""")
+
 _SQL_PARES_RECALCULO = text("""
     SELECT presentacion_id, establecimiento_id
     FROM public.reporte_precio
@@ -247,6 +262,39 @@ async def _leer_precio_oficial(
     )
 
 
+async def _leer_corte_disputa_confirmada(
+    sesion: AsyncSession,
+    presentacion_id: UUID,
+    establecimiento_id: UUID,
+) -> datetime | None:
+    """Ultima resolucion `confirmar` del par, o None si nunca se confirmo una disputa."""
+    fila = (
+        await sesion.execute(
+            _SQL_CORTE_DISPUTA_CONFIRMADA,
+            {"pres_id": presentacion_id, "est_id_txt": str(establecimiento_id)},
+        )
+    ).first()
+    if fila is None:
+        return None
+    corte = fila.corte
+    return corte if isinstance(corte, datetime) else None
+
+
+def filtrar_candidatos_post_corte(
+    candidatos: list[CandidatoReporte],
+    corte: datetime | None,
+) -> list[CandidatoReporte]:
+    """Conserva solo los reportes posteriores a una disputa confirmada.
+
+    El corte es estrictamente posterior: un reporte observado en el mismo instante
+    de la resolucion ya estaba a la vista del moderador y no puede reabrir el caso.
+    Sin corte se conserva la lista completa, que es el comportamiento historico.
+    """
+    if corte is None:
+        return list(candidatos)
+    return [c for c in candidatos if c.observado_en > corte]
+
+
 def _detalle_caso_disputa(
     presentacion_id: UUID,
     establecimiento_id: UUID,
@@ -295,9 +343,12 @@ async def _abrir_caso_disputa(
     try:
         async with sesion.begin_nested():
             await sesion.execute(_SQL_ABRIR_CASO_DISPUTA, parametros)
-    except Exception:  # noqa: BLE001
-        # Aviso generico: sin IDs ni coordenadas en el log (Ley 1581).
-        logger.warning("No se pudo abrir el caso de disputa; el precio vigente se calculo igual.")
+    except Exception as exc:  # noqa: BLE001
+        # Solo el tipo de error: sin IDs, SQL ni coordenadas en el log (Ley 1581).
+        logger.warning(
+            "No se pudo abrir el caso de disputa (%s); el precio vigente se calculo igual.",
+            type(exc).__name__,
+        )
 
 
 class SoloUsuarios:
@@ -374,9 +425,17 @@ class OficialConContraste:
         )
         oficial = await _leer_precio_oficial(sesion, presentacion_id, establecimiento_id)
 
+        # La comunidad completa alimenta el precio y los conteos del resultado oficial;
+        # solo la ventana de contradiccion ignora lo que un moderador ya confirmo.
         comunidad = evaluar_sello_y_precio(candidatos, instante, parametros) if candidatos else None
+        corte = (
+            await _leer_corte_disputa_confirmada(sesion, presentacion_id, establecimiento_id)
+            if oficial is not None
+            else None
+        )
+        candidatos_contraste = filtrar_candidatos_post_corte(candidatos, corte)
         contraste = contrastar_oficial_con_comunidad(
-            oficial, comunidad, candidatos, instante, parametros
+            oficial, comunidad, candidatos_contraste, instante, parametros
         )
 
         if contraste is None:

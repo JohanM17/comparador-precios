@@ -67,7 +67,7 @@ class ServicioCasosModeracion:
     async def resolver_caso(
         self, caso_id: UUID, entrada: ResolverCasoEntrada, moderador: UsuarioAutenticado
     ) -> CasoDetalleRespuesta:
-        caso = await repositorio_casos.obtener_caso_por_id_bd(self.sesion, caso_id)
+        caso = await repositorio_casos.obtener_caso_para_resolver_bd(self.sesion, caso_id)
         if not caso:
             raise NoEncontradoError(f"Caso {caso_id} no encontrado")
         if caso["estado"] == "resuelto":
@@ -197,22 +197,49 @@ class ServicioCasosModeracion:
         await repositorio_sanciones.actualizar_estado_perfil_bd(self.sesion, uid, nuevo_est, hasta)
 
     @staticmethod
-    def _referencias_disputa(caso: dict[str, Any]) -> tuple[UUID, UUID, UUID | None]:
-        """Extrae el par y el producto del `detalle` guardado al abrir el caso."""
+    def _referencias_disputa(caso: dict[str, Any]) -> tuple[UUID, UUID, UUID | None, int]:
+        """Extrae y valida el par, el producto y el precio que vio el moderador."""
         detalle = caso.get("detalle") or {}
         if isinstance(detalle, str):
-            detalle = json.loads(detalle)
+            try:
+                detalle = json.loads(detalle)
+            except (TypeError, ValueError) as exc:
+                raise ValidacionError("El detalle del caso de disputa no es JSON valido.") from exc
+        if not isinstance(detalle, dict):
+            raise ValidacionError("El detalle del caso de disputa no tiene el formato esperado.")
 
         pres_raw = caso.get("referencia_id") or detalle.get("presentacion_id")
         est_raw = detalle.get("establecimiento_id")
-        if not pres_raw or not est_raw:
-            raise ValidacionError("El caso de disputa no tiene las referencias del par.")
-        prod_raw = detalle.get("producto_id")
-        return (
-            UUID(str(pres_raw)),
-            UUID(str(est_raw)),
-            UUID(str(prod_raw)) if prod_raw else None,
-        )
+        precio_raw = detalle.get("precio_oficial_cop")
+        if not pres_raw or not est_raw or precio_raw is None:
+            raise ValidacionError(
+                "El caso de disputa no tiene las referencias o el precio oficial esperado."
+            )
+
+        try:
+            pres_id = UUID(str(pres_raw))
+            est_id = UUID(str(est_raw))
+            prod_id = UUID(str(detalle["producto_id"])) if detalle.get("producto_id") else None
+            precio_esperado = int(precio_raw)
+        except (TypeError, ValueError) as exc:
+            raise ValidacionError("El caso de disputa tiene referencias malformadas.") from exc
+
+        if precio_esperado <= 0:
+            raise ValidacionError("El precio oficial esperado del caso no es valido.")
+        detalle_pres_raw = detalle.get("presentacion_id")
+        if detalle_pres_raw:
+            try:
+                detalle_pres_id = UUID(str(detalle_pres_raw))
+            except (TypeError, ValueError) as exc:
+                raise ValidacionError(
+                    "La presentacion del detalle del caso esta malformada."
+                ) from exc
+            if caso.get("referencia_id") and detalle_pres_id != pres_id:
+                raise ValidacionError(
+                    "La presentacion del detalle no coincide con la referencia del caso."
+                )
+
+        return pres_id, est_id, prod_id, precio_esperado
 
     async def _resolver_disputa_precio(
         self,
@@ -237,22 +264,28 @@ class ServicioCasosModeracion:
                 "no hay un unico reporte que sancionar. Use 'confirmar' o 'descartar'."
             )
 
-        pres_id, est_id, prod_id = self._referencias_disputa(caso)
+        pres_id, est_id, prod_id, precio_esperado = self._referencias_disputa(caso)
         producto_id: UUID | None
+        mensaje_version = (
+            "El precio oficial cambio o ya no esta activo desde que se abrio el caso; "
+            "recargue el caso antes de resolver."
+        )
 
         if entrada.decision == "confirmar":
-            producto_id = (
-                await repositorio_casos.confirmar_disputa_precio_bd(
-                    self.sesion, pres_id, est_id, ahora
-                )
-                or prod_id
+            confirmado = await repositorio_casos.confirmar_disputa_precio_bd(
+                self.sesion, pres_id, est_id, ahora, precio_esperado
             )
+            if confirmado is None:
+                raise ConflictoError(mensaje_version)
+            producto_id = confirmado or prod_id
             precio_ganador = "oficial"
         elif entrada.decision == "descartar":
-            producto_id = (
-                await repositorio_casos.desactivar_precio_oficial_bd(self.sesion, pres_id, est_id)
-                or prod_id
+            desactivado = await repositorio_casos.desactivar_precio_oficial_bd(
+                self.sesion, pres_id, est_id, precio_esperado
             )
+            if desactivado is None:
+                raise ConflictoError(mensaje_version)
+            producto_id = desactivado or prod_id
             await self.politica.recalcular_par(self.sesion, pres_id, est_id, ahora, params)
             precio_ganador = "comunidad"
         else:  # pragma: no cover - Literal de Pydantic ya limita las decisiones
