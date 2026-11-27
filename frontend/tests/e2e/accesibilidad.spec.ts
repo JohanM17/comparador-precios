@@ -287,6 +287,13 @@ const PANTALLAS: readonly { readonly nombre: string; readonly ruta: string }[] =
 ];
 
 test.describe("PWA y Accesibilidad WCAG 2.2 AA", () => {
+  /*
+   * Las pantallas con varias corridas de axe (S6) rozan el limite por defecto
+   * de 30 s cuando el runner esta cargado. 90 s mantiene 4 workers y evita
+   * timeouts intermitentes en CI.
+   */
+  test.describe.configure({ timeout: 90_000 });
+
   test("El manifiesto PWA existe y cumple configuracion standalone", async ({ request }) => {
     const resp = await request.get("/manifest.webmanifest");
     expect(resp.status()).toBe(200);

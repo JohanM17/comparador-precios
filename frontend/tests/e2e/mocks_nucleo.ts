@@ -6,6 +6,7 @@ export const PRES_1000 = "8d0f7780-8536-51ef-a55c-f18fd2fa1bf8";
 export const TIENDA_A = "11111111-2222-3333-4444-555555555555";
 export const TIENDA_B = "22222222-3333-4444-5555-666666666666";
 export const CASO_ID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+export const CASO_DISPUTA_ID = "dddddddd-1111-4222-8333-444444444444";
 
 export type OrigenHistorialMock = "usuario" | "comercio" | "semilla";
 export type EstadoHistorialMock = "aceptado" | "dudoso";
@@ -56,6 +57,12 @@ export interface OpcionesHistorialMock {
   readonly hasta?: string;
 }
 
+export type EscenarioComparacion =
+  | "normal"
+  | "oficial_revalidacion"
+  | "en_disputa_revalidacion"
+  | "comunidad_revalidacion";
+
 export interface OpcionesMock {
   rol?: "reportante" | "moderador" | "comercio";
   /** Presentaciones que el modo rapido muestra para la tienda del comercio. */
@@ -64,6 +71,12 @@ export interface OpcionesMock {
   preciosOficialesComercio?: number;
   /** Sello simulado para las filas con precio oficial. */
   selloPreciosOficiales?: "oficial" | "en_disputa";
+  /** La ficha de tienda trae precios oficiales que piden revalidacion (D-02). */
+  revalidacionComercio?: boolean;
+  /** Escenario del comparador para probar los avisos D-02 y sus guardas. */
+  escenarioComparacion?: EscenarioComparacion;
+  /** Tipo del unico caso que aparece en la cola de moderacion. */
+  casoModeracion?: "reporte_dudoso" | "disputa_precio";
   /** Motivos de rechazo indexados por presentacion_id (pres-0, pres-1, ...). */
   rechazarPrecios?: Readonly<Record<string, string>>;
   alPublicarPrecios?: (cuerpo: unknown) => void;
@@ -86,8 +99,45 @@ interface EstadoMock {
   readonly opts: OpcionesMock;
 }
 
-function construirComparacion(): unknown {
+function construirComparacion(escenario: EscenarioComparacion = "normal"): unknown {
   const ahora = new Date().toISOString();
+  const base = {
+    establecimiento: { id: TIENDA_A, nombre: "Tienda La Esquina", tipo: "tienda_barrio", barrio: "Centro", direccion: "Cra 14 # 18-22", distancia_m: 420 },
+    presentacion: { id: PRES_1000, etiqueta: "Arroz Diana 1 kg", marca: "Diana", cantidad_base: 1000 },
+    precio_por_unidad: { valor_cop: 5000, por: "kg" },
+    ultimo_reporte_en: ahora,
+    con_foto_prueba: false,
+    es_bloque_secundario: false,
+  };
+  const primerResultado =
+    escenario === "oficial_revalidacion"
+      ? {
+          ...base,
+          precio_cop: 5000, precio_oficial_cop: 5000, requiere_revalidacion: true,
+          sello: "oficial", motivo_sello: "Precio oficial por revalidar: 45 días sin cambios",
+          n_reportes_validos: 0, n_fuentes: 0,
+        }
+      : escenario === "en_disputa_revalidacion"
+        ? {
+            ...base,
+            precio_cop: 3000, precio_oficial_cop: 3700, requiere_revalidacion: true,
+            sello: "en_disputa",
+            motivo_sello: "La comunidad reporta un precio distinto al oficial de $3.700",
+            n_reportes_validos: 4, n_fuentes: 3,
+          }
+        : escenario === "comunidad_revalidacion"
+          ? {
+              ...base,
+              precio_cop: 5000, precio_oficial_cop: null, requiere_revalidacion: true,
+              sello: "confiable", motivo_sello: "3 reportes de 3 fuentes",
+              n_reportes_validos: 4, n_fuentes: 3,
+            }
+          : {
+              ...base,
+              precio_cop: 5000, precio_oficial_cop: null, requiere_revalidacion: false,
+              sello: "confiable", motivo_sello: null,
+              n_reportes_validos: 4, n_fuentes: 3, con_foto_prueba: true,
+            };
   return {
     datos: {
       producto: {
@@ -98,12 +148,7 @@ function construirComparacion(): unknown {
         ],
       },
       resultados: [
-        {
-          establecimiento: { id: TIENDA_A, nombre: "Tienda La Esquina", tipo: "tienda_barrio", barrio: "Centro", direccion: "Cra 14 # 18-22", distancia_m: 420 },
-          presentacion: { id: PRES_1000, etiqueta: "Arroz Diana 1 kg", marca: "Diana", cantidad_base: 1000 },
-          precio_cop: 5000, precio_oficial_cop: null, precio_por_unidad: { valor_cop: 5000, por: "kg" },
-          sello: "confiable", motivo_sello: null, n_reportes_validos: 4, n_fuentes: 3, ultimo_reporte_en: ahora, con_foto_prueba: true, es_bloque_secundario: false,
-        },
+        primerResultado,
         {
           establecimiento: { id: TIENDA_B, nombre: "Supermercado Central", tipo: "supermercado", barrio: "Norte", direccion: "Av Bolivar 10-20", distancia_m: 980 },
           presentacion: { id: PRES_500, etiqueta: "Arroz Diana 500 g", marca: "Diana", cantidad_base: 500 },
@@ -318,7 +363,11 @@ async function responderHistorial(route: Route, ruta: string): Promise<boolean> 
   return true;
 }
 
-async function responderPublicos(route: Route, ruta: string): Promise<boolean> {
+async function responderPublicos(
+  route: Route,
+  ruta: string,
+  opts: OpcionesMock
+): Promise<boolean> {
   const mapaPublicos: Record<string, unknown> = {
     "/v1/categorias": [{ id: 1, nombre: "Granos, arroz y pastas", padre_id: null, orden: 1 }],
     "/v1/productos": {
@@ -335,7 +384,7 @@ async function responderPublicos(route: Route, ruta: string): Promise<boolean> {
         unidad: "g", multiplicador: 1, cantidad_base: "500.000", etiqueta: "Arroz Diana 500 g", activa: true,
       }],
     },
-    [`/v1/productos/${PROD_ID}/comparacion`]: construirComparacion(),
+    [`/v1/productos/${PROD_ID}/comparacion`]: construirComparacion(opts.escenarioComparacion),
     "/v1/establecimientos": {
       datos: [{
         id: TIENDA_A, nombre: "Tienda La Esquina", tipo: "tienda_barrio", cadena: null,
@@ -410,7 +459,8 @@ async function responderCuentaYReportes(route: Route, ruta: string, metodo: stri
 export function presentacionesComercioMock(
   cantidad: number,
   preciosOficiales: Readonly<Record<string, number>> = {},
-  selloOficial: "oficial" | "en_disputa" = "oficial"
+  selloOficial: "oficial" | "en_disputa" = "oficial",
+  revalidacion = false
 ): unknown[] {
   return Array.from({ length: cantidad }, (_, i) => {
     const presentacionId = `pres-${i}`;
@@ -433,8 +483,13 @@ export function presentacionesComercioMock(
       precio_oficial_cop: tieneOficial ? precioOficial : null,
       precio_por_base: { valor_cop: 6000 + i * 100, por: "kg" },
       sello: tieneOficial ? selloOficial : "confiable",
+      requiere_revalidacion: tieneOficial && revalidacion,
       motivo_sello: tieneOficial
-        ? "Precio publicado por el comercio"
+        ? selloOficial === "en_disputa"
+          ? "La comunidad reporta un precio distinto al oficial"
+          : revalidacion
+            ? "Precio oficial por revalidar: 45 días sin cambios"
+            : "Precio publicado por el comercio"
         : "3 reportes de 3 fuentes",
       ultimo_reporte_en: new Date().toISOString(),
     };
@@ -470,7 +525,8 @@ async function responderComercio(
         precios_vigentes: presentacionesComercioMock(
           cantidad,
           estado.preciosOficiales,
-          estado.opts.selloPreciosOficiales ?? "oficial"
+          estado.opts.selloPreciosOficiales ?? "oficial",
+          estado.opts.revalidacionComercio ?? false
         ),
       },
     });
@@ -585,28 +641,50 @@ async function responderComercio(
 }
 
 async function responderModeracion(route: Route, ruta: string, metodo: string, estado: EstadoMock): Promise<boolean> {
+  const esDisputa = estado.opts.casoModeracion === "disputa_precio";
+  const idCaso = esDisputa ? CASO_DISPUTA_ID : CASO_ID;
+  const tipoCaso = esDisputa ? "disputa_precio" : "reporte_dudoso";
+  const referenciaTabla = esDisputa ? "presentacion" : "reporte_precio";
+  const referenciaId = esDisputa ? PRES_1000 : "rep-99";
+  const detalle = esDisputa
+    ? {
+        presentacion_id: PRES_1000,
+        establecimiento_id: TIENDA_A,
+        producto_id: PROD_ID,
+        precio_oficial_cop: 3700,
+        precio_comunidad_cop: 3000,
+        diferencia_pct: 0.1892,
+        n_reportes_validos: 4,
+        n_fuentes: 3,
+        sello: "en_disputa",
+      }
+    : { senales: ["z_score_alto"] };
+
   if (ruta === "/v1/moderacion/casos" && metodo === "GET") {
     const lista = estado.casoResuelto ? [] : [{
-      id: CASO_ID, tipo: "reporte_dudoso", referencia_tabla: "reporte_precio", referencia_id: "rep-99",
-      detalle: { senales: ["z_score_alto"] }, prioridad: 2, estado: "abierto", creado_en: new Date().toISOString(),
+      id: idCaso, tipo: tipoCaso, referencia_tabla: referenciaTabla, referencia_id: referenciaId,
+      detalle, prioridad: 2, estado: "abierto", creado_en: new Date().toISOString(),
     }];
     await route.fulfill({ json: { datos: lista, total: lista.length } });
     return true;
   }
-  if (ruta === `/v1/moderacion/casos/${CASO_ID}` && metodo === "GET") {
+  if (ruta === `/v1/moderacion/casos/${idCaso}` && metodo === "GET") {
     await route.fulfill({
       json: {
-        id: CASO_ID, tipo: "reporte_dudoso", referencia_tabla: "reporte_precio", referencia_id: "rep-99",
-        detalle: { senales: ["z_score_alto"] }, prioridad: 2, estado: "abierto", creado_en: new Date().toISOString(),
-        referencia_datos: { precio_cop: 15000, producto: "Arroz blanco" },
+        id: idCaso, tipo: tipoCaso, referencia_tabla: referenciaTabla, referencia_id: referenciaId,
+        detalle, prioridad: 2, estado: "abierto", creado_en: new Date().toISOString(),
+        referencia_datos: esDisputa
+          ? { precio_cop: 3000, producto: "Arroz blanco", establecimiento: "Tienda La Esquina" }
+          : { precio_cop: 15000, producto: "Arroz blanco" },
       },
     });
     return true;
   }
-  if (ruta === `/v1/moderacion/casos/${CASO_ID}/resolver` && metodo === "POST") {
+  if (ruta === `/v1/moderacion/casos/${idCaso}/resolver` && metodo === "POST") {
+    const cuerpo = route.request().postDataJSON() as { decision?: string };
     estado.casoResuelto = true;
-    estado.opts.alResolverCaso?.(route.request().postDataJSON());
-    await route.fulfill({ json: { id: CASO_ID, tipo: "reporte_dudoso", estado: "resuelto", decision: "confirmar", prioridad: 2, creado_en: new Date().toISOString() } });
+    estado.opts.alResolverCaso?.(cuerpo);
+    await route.fulfill({ json: { id: idCaso, tipo: tipoCaso, estado: "resuelto", decision: cuerpo.decision ?? "confirmar", prioridad: 2, creado_en: new Date().toISOString() } });
     return true;
   }
   return false;
@@ -637,7 +715,7 @@ export async function configurarMocksNucleo(page: Page, opts: OpcionesMock = {})
     const metodo = req.method();
     if (await responderHistorial(route, ruta)) return;
     if (await responderComercio(route, ruta, metodo, estado)) return;
-    if (await responderPublicos(route, ruta)) return;
+    if (await responderPublicos(route, ruta, estado.opts)) return;
     if (await responderCuentaYReportes(route, ruta, metodo, estado)) return;
     if (await responderModeracion(route, ruta, metodo, estado)) return;
     await route.fulfill({ status: 404, json: { detail: `Ruta no mockeada: ${ruta}` } });

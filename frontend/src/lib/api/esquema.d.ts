@@ -173,7 +173,10 @@ export interface paths {
         put?: never;
         /**
          * Reclamar la titularidad de un establecimiento
-         * @description Cualquier cuenta puede reclamar un establecimiento; la decision es de un moderador.
+         * @description Cualquier cuenta autorizada puede reclamar; la decision es de un moderador.
+         *
+         *     El reclamo guarda telefono de contacto y mensaje, asi que exige autorizacion
+         *     previa y expresa de tratamiento de datos (Ley 1581, FR-006).
          */
         post: operations["reclamar_titularidad_v1_comercio_reclamos_post"];
         delete?: never;
@@ -1460,6 +1463,11 @@ export interface components {
             precio_oficial_cop?: number | null;
             precio_por_unidad: components["schemas"]["PrecioUnidad"];
             presentacion: components["schemas"]["PresentacionComparacion"];
+            /**
+             * Requiere Revalidacion
+             * @default false
+             */
+            requiere_revalidacion: boolean;
             /** Sello */
             sello: string;
             /**
@@ -1683,6 +1691,11 @@ export interface components {
             producto_id: string;
             /** Producto Nombre */
             producto_nombre: string;
+            /**
+             * Requiere Revalidacion
+             * @default false
+             */
+            requiere_revalidacion: boolean;
             /** Sello */
             sello: string;
             /**

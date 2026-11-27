@@ -1427,6 +1427,11 @@
           "presentacion": {
             "$ref": "#/components/schemas/PresentacionComparacion"
           },
+          "requiere_revalidacion": {
+            "default": false,
+            "title": "Requiere Revalidacion",
+            "type": "boolean"
+          },
           "sello": {
             "title": "Sello",
             "type": "string"
@@ -1930,6 +1935,11 @@
           "producto_nombre": {
             "title": "Producto Nombre",
             "type": "string"
+          },
+          "requiere_revalidacion": {
+            "default": false,
+            "title": "Requiere Revalidacion",
+            "type": "boolean"
           },
           "sello": {
             "title": "Sello",
