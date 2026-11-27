@@ -66,6 +66,34 @@ async def crear_reclamo(
     return dict(fila._mapping)
 
 
+async def listar_solicitudes_pendientes(
+    sesion: AsyncSession,
+    limite: int,
+) -> list[dict[str, Any]]:
+    """Reclamos de titularidad sin resolver, del mas antiguo al mas reciente.
+
+    El telefono de contacto viaja porque es el unico dato con el que un
+    moderador puede verificar que quien reclama responde por el local. La ruta
+    que la usa exige rol de moderador.
+    """
+    sql = text("""
+        SELECT s.id, s.establecimiento_id, s.telefono_contacto, s.mensaje,
+               s.estado::text AS estado, s.creado_en,
+               e.nombre AS establecimiento_nombre,
+               e.barrio AS establecimiento_barrio,
+               e.direccion AS establecimiento_direccion,
+               p.alias AS solicitante_alias
+        FROM public.solicitud_verificacion_comercio s
+        JOIN public.establecimiento e ON e.id = s.establecimiento_id
+        JOIN public.perfil p ON p.id = s.usuario_id
+        WHERE s.estado = 'pendiente'
+        ORDER BY s.creado_en ASC
+        LIMIT :limite;
+    """)
+    filas = (await sesion.execute(sql, {"limite": limite})).fetchall()
+    return [dict(f._mapping) for f in filas]
+
+
 async def obtener_solicitud(sesion: AsyncSession, solicitud_id: UUID) -> dict[str, Any] | None:
     """Solicitud de verificacion con el usuario y el establecimiento implicados."""
     sql = text("""

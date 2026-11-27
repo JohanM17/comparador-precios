@@ -435,6 +435,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/moderacion/comercios": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cola de reclamos de titularidad sin resolver
+         * @description Sin esta cola un reclamo no tendria quien lo mire: solo se podria resolver
+         *     quien ya conociera su identificador.
+         */
+        get: operations["listar_solicitudes_comercio_v1_moderacion_comercios_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/moderacion/comercios/{solicitud_id}/verificar": {
         parameters: {
             query?: never;
@@ -1489,6 +1510,16 @@ export interface components {
             total_estimado?: number | null;
         };
         /**
+         * ListaSolicitudesRespuesta
+         * @description Cola de reclamos de titularidad sin resolver.
+         */
+        ListaSolicitudesRespuesta: {
+            /** Datos */
+            datos: components["schemas"]["SolicitudVerificacionResumen"][];
+            /** Total */
+            total: number;
+        };
+        /**
          * MetaComparacion
          * @description Metadatos de ordenamiento, frescura y neutralidad comercial (EC-06).
          */
@@ -2234,6 +2265,41 @@ export interface components {
              * @description Tipo MIME de la imagen (solo image/jpeg o image/webp)
              */
             tipo_mime: string;
+        };
+        /**
+         * SolicitudVerificacionResumen
+         * @description Reclamo pendiente, tal como lo ve un moderador en su cola.
+         */
+        SolicitudVerificacionResumen: {
+            /**
+             * Creado En
+             * Format: date-time
+             */
+            creado_en: string;
+            /** Establecimiento Barrio */
+            establecimiento_barrio: string | null;
+            /** Establecimiento Direccion */
+            establecimiento_direccion: string | null;
+            /**
+             * Establecimiento Id
+             * Format: uuid
+             */
+            establecimiento_id: string;
+            /** Establecimiento Nombre */
+            establecimiento_nombre: string;
+            /** Estado */
+            estado: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Mensaje */
+            mensaje: string;
+            /** Solicitante Alias */
+            solicitante_alias: string;
+            /** Telefono Contacto */
+            telefono_contacto: string;
         };
         /**
          * SugerenciaPresentacionEntrada
@@ -3163,6 +3229,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConsultaCatalogoExternoRespuesta"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listar_solicitudes_comercio_v1_moderacion_comercios_get: {
+        parameters: {
+            query?: {
+                limite?: number;
+            };
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ListaSolicitudesRespuesta"];
                 };
             };
             /** @description Validation Error */

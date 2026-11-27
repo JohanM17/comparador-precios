@@ -155,6 +155,14 @@ export async function solicitarApi<T>(
     throw new ApiError(problema);
   }
 
+  /*
+   * Un 204 no trae cuerpo y `json()` sobre un cuerpo vacio lanza. Hasta ahora
+   * ninguna ruta devolvia 204; la revocacion de promociones si.
+   */
+  if (respuesta.status === 204 || respuesta.headers.get("Content-Length") === "0") {
+    return undefined as T;
+  }
+
   return (await respuesta.json()) as T;
 }
 

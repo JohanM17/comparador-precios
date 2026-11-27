@@ -1,0 +1,31 @@
+# Base de datos desechable para las pruebas de integracion.
+#
+# Existe porque la suite de `backend/tests/integracion` escribe de verdad:
+# crea reportes, cuentas y casos, y no envuelve sus escrituras en una
+# transaccion que revierta. Correrla contra la base compartida del equipo
+# dejaria datos de prueba mezclados con los reales.
+#
+#   docker compose -f infra/pruebas/docker-compose.yml up -d
+#   # exportar DATABASE_URL y MIGRATIONS_DATABASE_URL (ver docs/despliegue.md)
+#   python scripts/migrar.py && python scripts/semilla.py
+#   pytest backend/tests/integracion
+#   docker compose -f infra/pruebas/docker-compose.yml down -v
+#
+# El `down -v` borra el volumen: cada corrida parte de cero, que es el punto.
+services:
+  bd_pruebas:
+    image: postgis/postgis:16-3.4
+    container_name: comparador_bd_pruebas
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: pruebas_locales
+      POSTGRES_DB: postgres
+    ports:
+      - "55432:5432"
+    volumes:
+      - ./00_roles.sql:/docker-entrypoint-initdb.d/00_roles.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
