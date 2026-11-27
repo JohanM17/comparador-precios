@@ -8,6 +8,8 @@ from uuid import UUID
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.compartido.errores import ConflictoError
+
 
 async def verificar_alias_disponible(
     sesion: AsyncSession,
@@ -55,10 +57,15 @@ async def crear_o_actualizar_autorizacion(
             alias = :alias,
             estado = 'activa',
             actualizado_en = now()
+        WHERE perfil.estado <> 'eliminada'
         RETURNING id, alias, rol::text, estado::text, reputacion, creado_en;
     """)
     fila_p = (await sesion.execute(sql_perfil, {"id": usuario_id, "alias": alias})).fetchone()
-    perfil_dict = dict(fila_p._mapping)  # type: ignore[union-attr]
+    if fila_p is None:
+        # El upsert no encontro fila porque el perfil esta eliminado. No se
+        # escribe la autorizacion ni se reactiva la cuenta.
+        raise ConflictoError("La cuenta fue eliminada y no puede reactivarse.")
+    perfil_dict = dict(fila_p._mapping)
 
     sql_aut = text("""
         INSERT INTO autorizacion_datos (usuario_id, version_politica, finalidad)
@@ -100,17 +107,17 @@ async def actualizar_alias_bd(
     sesion: AsyncSession,
     usuario_id: UUID,
     nuevo_alias: str,
-) -> dict[str, Any]:
-    """Actualiza el alias de un perfil existente."""
+) -> dict[str, Any] | None:
+    """Actualiza el alias solo si la cuenta sigue activa; None si esta eliminada."""
     sql = text("""
         UPDATE perfil
         SET alias = :alias, actualizado_en = now()
-        WHERE id = :id
+        WHERE id = :id AND estado = 'activa'
         RETURNING id, alias, rol::text, estado::text, reputacion,
                   reportes_corroborados, reportes_malos_confirmados, creado_en;
     """)
     fila = (await sesion.execute(sql, {"id": usuario_id, "alias": nuevo_alias})).fetchone()
-    return dict(fila._mapping)  # type: ignore[union-attr]
+    return dict(fila._mapping) if fila is not None else None
 
 
 _TEXTO_TELEFONO_ANONIMIZADO = "anonimizado"
@@ -120,17 +127,21 @@ _TEXTO_MENSAJE_ANONIMIZADO = "Dato anonimizado por supresion de cuenta (Ley 1581
 async def anonimizar_y_dar_de_baja_cuenta(
     sesion: AsyncSession,
     usuario_id: UUID,
-) -> tuple[dict[str, Any], list[str], dict[str, int]]:
+) -> tuple[dict[str, Any], list[str], dict[str, int], list[UUID]]:
     """Ejecuta en transaccion atomica la anonimizacion completa segun FR-007.
 
-    Ademas de los reportes y la autorizacion, limpia los datos comerciales del
-    titular: borra sus reclamos pendientes, anonimiza telefono y mensaje de los
-    reclamos ya resueltos, desvincula sus establecimientos, y desactiva los
-    precios oficiales y las promociones de esas tiendas. La operacion sigue
-    siendo reversible solo por rollback: no se borra el perfil ni el historial.
+    El orden de bloqueos sigue el de la aprobacion de reclamos
+    (`solicitud -> establecimiento -> perfil`) para no formar un ciclo: por eso
+    el perfil se actualiza al final, despues de reclamos, tiendas, precios y
+    promociones.
 
-    Devuelve el perfil anonimizado, las rutas de fotos a eliminar y un resumen
-    con conteos sin PII para la auditoria.
+    La proyeccion `precio_vigente` de las tiendas desvinculadas se elimina; de
+    lo contrario el comparador seguiria mostrando `sello='oficial'` y el precio
+    del comercio hasta el siguiente recalculo. Se devuelven los `producto_id`
+    afectados para invalidar la cache.
+
+    Devuelve el perfil anonimizado, las rutas de fotos a eliminar, un resumen
+    con conteos sin PII para la auditoria y los productos a invalidar.
     """
     sql_fotos = text("""
         SELECT foto_prueba_path FROM reporte_precio
@@ -147,28 +158,7 @@ async def anonimizar_y_dar_de_baja_cuenta(
     """)
     await sesion.execute(sql_rep, {"id": usuario_id})
 
-    # 2. Anonimizar alias y cambiar estado a 'eliminada'
-    alias_anonimo = f"eliminado_{str(usuario_id)[:8]}"
-    sql_perfil = text("""
-        UPDATE perfil
-        SET alias = :alias, estado = 'eliminada', actualizado_en = now()
-        WHERE id = :id
-        RETURNING id, alias, estado::text;
-    """)
-    fila_perfil = (
-        await sesion.execute(sql_perfil, {"id": usuario_id, "alias": alias_anonimo})
-    ).fetchone()
-    perfil_anon = dict(fila_perfil._mapping)  # type: ignore[union-attr]
-
-    # 3. Revocar autorizacion de datos
-    sql_aut = text("""
-        UPDATE autorizacion_datos
-        SET revocada_en = now()
-        WHERE usuario_id = :id AND revocada_en IS NULL;
-    """)
-    await sesion.execute(sql_aut, {"id": usuario_id})
-
-    # 4. Borrar reclamos pendientes: un titular eliminado no puede quedar en la
+    # 2. Borrar reclamos pendientes: un titular eliminado no puede quedar en la
     #    cola de moderacion con telefono y mensaje.
     sql_borrar_reclamos = text("""
         DELETE FROM solicitud_verificacion_comercio
@@ -179,7 +169,7 @@ async def anonimizar_y_dar_de_baja_cuenta(
         (await sesion.execute(sql_borrar_reclamos, {"id": usuario_id})).fetchall()
     )
 
-    # 5. Anonimizar telefono y mensaje de los reclamos ya resueltos. La fila se
+    # 3. Anonimizar telefono y mensaje de los reclamos ya resueltos. La fila se
     #    conserva porque es historial de moderacion; la PII no.
     sql_anonimizar_reclamos = text("""
         UPDATE solicitud_verificacion_comercio
@@ -200,7 +190,7 @@ async def anonimizar_y_dar_de_baja_cuenta(
         ).fetchall()
     )
 
-    # 6. Desvincular las tiendas del titular. La tienda sigue existiendo, pero
+    # 4. Desvincular las tiendas del titular. La tienda sigue existiendo, pero
     #    queda sin dueno y sin verificar hasta que otro comercio la reclame.
     sql_desvincular = text("""
         UPDATE establecimiento
@@ -216,32 +206,75 @@ async def anonimizar_y_dar_de_baja_cuenta(
 
     precios_desactivados = 0
     promociones_revocadas = 0
+    precios_vigentes_eliminados = 0
+    productos_afectados: set[UUID] = set()
     if establecimientos:
-        # 7. Desactivar los precios oficiales de esas tiendas. Se conserva la
+        # 5. Desactivar los precios oficiales de esas tiendas. Se conserva la
         #    fila historica para no perder trazabilidad de lo ya publicado.
         sql_precios = text("""
             UPDATE precio_oficial
             SET activo = false
             WHERE establecimiento_id = ANY(:establecimientos) AND activo = true
-            RETURNING presentacion_id;
+            RETURNING producto_id;
         """)
-        precios_desactivados = len(
-            (await sesion.execute(sql_precios, {"establecimientos": establecimientos})).fetchall()
-        )
+        filas_precios = (
+            await sesion.execute(sql_precios, {"establecimientos": establecimientos})
+        ).fetchall()
+        precios_desactivados = len(filas_precios)
+        productos_afectados.update(fila.producto_id for fila in filas_precios)
 
-        # 8. Revocar las promociones activas de esas tiendas, conservando el
+        # 6. Revocar las promociones activas de esas tiendas, conservando el
         #    registro y su fecha de revocacion.
         sql_promociones = text("""
             UPDATE promocion
             SET activa = false, revocada_en = now()
             WHERE establecimiento_id = ANY(:establecimientos) AND activa = true
-            RETURNING id;
+            RETURNING producto_id;
         """)
-        promociones_revocadas = len(
-            (
-                await sesion.execute(sql_promociones, {"establecimientos": establecimientos})
-            ).fetchall()
-        )
+        filas_promociones = (
+            await sesion.execute(sql_promociones, {"establecimientos": establecimientos})
+        ).fetchall()
+        promociones_revocadas = len(filas_promociones)
+        productos_afectados.update(fila.producto_id for fila in filas_promociones)
+
+        # 7. Eliminar la proyeccion vigente. Si solo se desactivara el oficial,
+        #    el comparador seguiria sirviendo `sello='oficial'` desde esta tabla
+        #    hasta que el job de reconstruccion lo corrija.
+        sql_precio_vigente = text("""
+            DELETE FROM precio_vigente
+            WHERE establecimiento_id = ANY(:establecimientos)
+            RETURNING producto_id;
+        """)
+        filas_vigentes = (
+            await sesion.execute(sql_precio_vigente, {"establecimientos": establecimientos})
+        ).fetchall()
+        precios_vigentes_eliminados = len(filas_vigentes)
+        productos_afectados.update(fila.producto_id for fila in filas_vigentes)
+
+    # 8. Anonimizar el perfil al final, cuando ya se liberaron los bloqueos
+    #    comerciales. Un moderador o admin eliminado pierde ademas su rol.
+    alias_anonimo = f"eliminado_{str(usuario_id)[:8]}"
+    sql_perfil = text("""
+        UPDATE perfil
+        SET alias = :alias,
+            estado = 'eliminada',
+            rol = 'reportante',
+            actualizado_en = now()
+        WHERE id = :id
+        RETURNING id, alias, estado::text, rol::text;
+    """)
+    fila_perfil = (
+        await sesion.execute(sql_perfil, {"id": usuario_id, "alias": alias_anonimo})
+    ).fetchone()
+    perfil_anon = dict(fila_perfil._mapping)  # type: ignore[union-attr]
+
+    # 9. Revocar autorizacion de datos
+    sql_aut = text("""
+        UPDATE autorizacion_datos
+        SET revocada_en = now()
+        WHERE usuario_id = :id AND revocada_en IS NULL;
+    """)
+    await sesion.execute(sql_aut, {"id": usuario_id})
 
     resumen_comercial = {
         "reclamos_pendientes_borrados": reclamos_borrados,
@@ -249,5 +282,6 @@ async def anonimizar_y_dar_de_baja_cuenta(
         "establecimientos_desvinculados": len(establecimientos),
         "precios_oficiales_desactivados": precios_desactivados,
         "promociones_revocadas": promociones_revocadas,
+        "precios_vigentes_eliminados": precios_vigentes_eliminados,
     }
-    return perfil_anon, rutas_fotos, resumen_comercial
+    return perfil_anon, rutas_fotos, resumen_comercial, sorted(productos_afectados)

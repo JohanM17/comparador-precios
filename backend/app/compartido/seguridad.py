@@ -120,7 +120,10 @@ async def requiere_usuario_autenticado_base(
 def requiere_usuario(
     usuario: Annotated[UsuarioAutenticado, Depends(requiere_usuario_autenticado_base)],
 ) -> UsuarioAutenticado:
-    """Valida el token y exige cuenta activa, rechazando suspendidas o bloqueadas."""
+    """Valida el token y exige cuenta activa, rechazando suspendidas, bloqueadas o eliminadas."""
+    if usuario.estado == "eliminada":
+        # Una cuenta suprimida no puede volver a operar ni reautorizar datos.
+        raise NoAutenticadoError("La cuenta fue eliminada y no puede volver a autenticarse.")
     if usuario.estado in ("suspendida", "bloqueada"):
         raise CuentaSuspendidaError()
     return usuario

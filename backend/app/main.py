@@ -14,6 +14,7 @@ from fastapi.openapi.utils import get_openapi
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from pydantic import BaseModel
 
+from app.adaptadores.auth_supabase import AdaptadorAuthSupabase
 from app.adaptadores.cache_dos_niveles import CacheDosNiveles
 from app.adaptadores.open_food_facts import AdaptadorOpenFoodFacts
 from app.adaptadores.storage_supabase import AdaptadorStorageSupabase
@@ -37,6 +38,9 @@ from app.modulos.catalogo.api import router as catalogo_router
 from app.modulos.comercial.api import router as comercial_router
 from app.modulos.cuentas.api import (
     obtener_puerto_almacenamiento as obtener_almacenamiento_cuentas,
+)
+from app.modulos.cuentas.api import (
+    obtener_puerto_auth_admin,
 )
 from app.modulos.cuentas.api import (
     router as cuentas_router,
@@ -227,10 +231,12 @@ def create_app() -> FastAPI:
 
     adaptador_off = AdaptadorOpenFoodFacts()
     adaptador_storage = AdaptadorStorageSupabase()
+    adaptador_auth = AdaptadorAuthSupabase()
     adaptador_cache = CacheDosNiveles()
     app.dependency_overrides[obtener_puerto_catalogo] = lambda: adaptador_off
     app.dependency_overrides[obtener_almacenamiento_cuentas] = lambda: adaptador_storage
     app.dependency_overrides[obtener_almacenamiento_fotos] = lambda: adaptador_storage
+    app.dependency_overrides[obtener_puerto_auth_admin] = lambda: adaptador_auth
     app.dependency_overrides[obtener_puerto_cache] = lambda: adaptador_cache
 
     v1_router.include_router(catalogo_router)

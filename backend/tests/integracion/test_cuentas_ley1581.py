@@ -272,11 +272,20 @@ async def test_eliminar_cuenta_limpia_datos_comerciales_y_audita_sin_pii() -> No
         async with sesion_transaccional() as sesion:
             fila_pres = (
                 await sesion.execute(
-                    text("SELECT id, producto_id FROM presentacion WHERE activa = true LIMIT 1;")
+                    text(
+                        "SELECT id, producto_id, cantidad_base "
+                        "FROM presentacion WHERE activa = true LIMIT 1;"
+                    )
                 )
             ).first()
             assert fila_pres is not None
-            pres_id, prod_id = fila_pres[0], fila_pres[1]
+            pres_id, prod_id, cantidad_base = fila_pres[0], fila_pres[1], fila_pres[2]
+
+            # El titular era moderador: al eliminarse debe perder el privilegio.
+            await sesion.execute(
+                text("UPDATE perfil SET rol = 'moderador' WHERE id = :uid;"),
+                {"uid": uid},
+            )
 
             await sesion.execute(
                 text("""
@@ -347,6 +356,24 @@ async def test_eliminar_cuenta_limpia_datos_comerciales_y_audita_sin_pii() -> No
                     VALUES (:pres, :est, :prod, :uid, 3500, 3.5);
                 """),
                 {"pres": pres_id, "est": tienda_id, "prod": prod_id, "uid": uid},
+            )
+            await sesion.execute(
+                text("""
+                    INSERT INTO precio_vigente
+                        (presentacion_id, establecimiento_id, producto_id,
+                         precio_cop, precio_por_base, cantidad_base, sello,
+                         n_reportes_validos, n_fuentes, ultimo_reporte_en,
+                         precio_oficial_cop, diferencia_pct, requiere_revalidacion)
+                    VALUES
+                        (:pres, :est, :prod, 3500, 3.5, :cant, 'oficial',
+                         0, 0, now(), 3500, 0, false);
+                """),
+                {
+                    "pres": pres_id,
+                    "est": tienda_id,
+                    "prod": prod_id,
+                    "cant": cantidad_base,
+                },
             )
             await sesion.execute(
                 text("""
@@ -424,6 +451,28 @@ async def test_eliminar_cuenta_limpia_datos_comerciales_y_audita_sin_pii() -> No
             assert res_promo[0] is False
             assert res_promo[1] is not None
 
+            res_vigente = (
+                await sesion.execute(
+                    text("""
+                        SELECT count(*) FROM precio_vigente
+                        WHERE establecimiento_id = :est;
+                    """),
+                    {"est": tienda_id},
+                )
+            ).fetchone()
+            assert res_vigente is not None
+            assert res_vigente[0] == 0
+
+            res_perfil = (
+                await sesion.execute(
+                    text("SELECT rol::text, estado::text FROM perfil WHERE id = :uid;"),
+                    {"uid": uid},
+                )
+            ).fetchone()
+            assert res_perfil is not None
+            assert res_perfil[0] == "reportante"
+            assert res_perfil[1] == "eliminada"
+
             res_aud = (
                 await sesion.execute(
                     text("""
@@ -440,3 +489,17 @@ async def test_eliminar_cuenta_limpia_datos_comerciales_y_audita_sin_pii() -> No
             assert mensaje not in texto_auditoria
             assert alias not in texto_auditoria
             assert '"reclamos_pendientes_borrados": 1' in texto_auditoria
+
+        resp_token = await cliente.get(
+            "/v1/auth/perfil-actual", headers={"Authorization": f"Bearer {token}"}
+        )
+        assert resp_token.status_code == 401
+        assert resp_token.json()["codigo"] == "NO_AUTENTICADO"
+
+        resp_reauth = await cliente.post(
+            "/v1/mi-cuenta/autorizacion",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"alias": alias, "version_politica": "1.0", "acepta": True},
+        )
+        assert resp_reauth.status_code == 401
+        assert resp_reauth.json()["codigo"] == "NO_AUTENTICADO"

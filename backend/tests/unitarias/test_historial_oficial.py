@@ -30,6 +30,8 @@ ESTABLECIMIENTO_ID = UUID(int=1)
 PRODUCTO_ID = UUID(int=2)
 PRESENTACION_ID = UUID(int=3)
 COMERCIO_ID = UUID(int=4)
+PRODUCTO_ID_2 = UUID(int=5)
+PRESENTACION_ID_2 = UUID(int=6)
 CANTIDAD_BASE = Decimal("1000.000")
 USUARIO = UsuarioAutenticado(
     id=COMERCIO_ID,
@@ -120,6 +122,7 @@ def _preparar_publicacion(
     upserts: list[dict[str, Any]] | None = None,
     eventos: list[str] | None = None,
     params: ParametrosDominio | None = None,
+    presentaciones_extra: dict[UUID, dict[str, Any]] | None = None,
 ) -> None:
     """Instala un repositorio falso para el flujo de publicacion de precios."""
 
@@ -145,7 +148,7 @@ def _preparar_publicacion(
 
     async def obtener_presentaciones(*args: Any, **kwargs: Any) -> dict[UUID, dict[str, Any]]:
         anotar("presentaciones")
-        return {
+        presentaciones = {
             PRESENTACION_ID: {
                 "id": PRESENTACION_ID,
                 "producto_id": PRODUCTO_ID,
@@ -153,6 +156,9 @@ def _preparar_publicacion(
                 "activa": True,
             }
         }
+        if presentaciones_extra is not None:
+            presentaciones.update(presentaciones_extra)
+        return presentaciones
 
     async def obtener_precios_oficiales_cop(*args: Any, **kwargs: Any) -> dict[UUID, int]:
         anotar("precios_anteriores")
@@ -314,6 +320,7 @@ async def test_publicar_precios_adquiere_el_lock_antes_de_leer_el_precio_anterio
 
     await servicio.publicar_precios(ESTABLECIMIENTO_ID, _lote(2600), USUARIO)
 
+    assert eventos.index("lock") < eventos.index("autorizacion")
     assert eventos.index("lock") < eventos.index("precios_anteriores")
     assert eventos.index("lock") < eventos.index("upsert")
     assert eventos.count("lock") == 1
@@ -489,3 +496,80 @@ def test_el_esquema_acepta_un_valor_sobre_el_maximo_para_que_el_lote_lo_rechace(
     entrada = PrecioOficialEntrada(presentacion_id=PRESENTACION_ID, precio_cop=2_500_000)
 
     assert entrada.precio_cop == 2_500_000
+
+
+@pytest.mark.parametrize("precio_cop", [1000, 2000])
+@pytest.mark.asyncio
+async def test_los_limites_exactos_configurados_se_publican(
+    monkeypatch: pytest.MonkeyPatch,
+    precio_cop: int,
+) -> None:
+    """Los bordes del rango son inclusivos: min y max exactos son validos."""
+    historial: list[dict[str, Any]] = []
+    upserts: list[dict[str, Any]] = []
+    params = ParametrosDominio(precio_min_cop=1000, precio_max_cop=2000)
+    _preparar_publicacion(
+        monkeypatch,
+        anterior=None,
+        historial=historial,
+        upserts=upserts,
+        params=params,
+    )
+    servicio = ServicioComercial(
+        sesion=object(),  # type: ignore[arg-type]
+        puerto_cache=CacheEspia(),  # type: ignore[arg-type]
+        politica_precio=PoliticaEspia(),  # type: ignore[arg-type]
+    )
+
+    respuesta = await servicio.publicar_precios(ESTABLECIMIENTO_ID, _lote(precio_cop), USUARIO)
+
+    assert respuesta["actualizados"] == 1
+    assert respuesta["rechazados"] == []
+    assert upserts[0]["precio_cop"] == precio_cop
+
+
+@pytest.mark.asyncio
+async def test_lote_mixto_aplica_el_valido_y_rechaza_el_invalido(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Un item fuera de rango no tumba el lote ni impide publicar el resto."""
+    historial: list[dict[str, Any]] = []
+    upserts: list[dict[str, Any]] = []
+    params = ParametrosDominio(precio_min_cop=1000, precio_max_cop=2000)
+    extra = {
+        PRESENTACION_ID_2: {
+            "id": PRESENTACION_ID_2,
+            "producto_id": PRODUCTO_ID_2,
+            "cantidad_base": CANTIDAD_BASE,
+            "activa": True,
+        }
+    }
+    _preparar_publicacion(
+        monkeypatch,
+        anterior=None,
+        historial=historial,
+        upserts=upserts,
+        params=params,
+        presentaciones_extra=extra,
+    )
+    politica = PoliticaEspia()
+    servicio = ServicioComercial(
+        sesion=object(),  # type: ignore[arg-type]
+        puerto_cache=CacheEspia(),  # type: ignore[arg-type]
+        politica_precio=politica,  # type: ignore[arg-type]
+    )
+    lote = PreciosLoteEntrada(
+        precios=[
+            PrecioOficialEntrada(presentacion_id=PRESENTACION_ID, precio_cop=1500),
+            PrecioOficialEntrada(presentacion_id=PRESENTACION_ID_2, precio_cop=999),
+        ]
+    )
+
+    respuesta = await servicio.publicar_precios(ESTABLECIMIENTO_ID, lote, USUARIO)
+
+    assert respuesta["actualizados"] == 1
+    assert len(respuesta["rechazados"]) == 1
+    assert respuesta["rechazados"][0].presentacion_id == PRESENTACION_ID_2
+    assert [u["presentacion_id"] for u in upserts] == [PRESENTACION_ID]
+    assert [h["presentacion_id"] for h in historial] == [PRESENTACION_ID]
+    assert politica.pares == [(PRESENTACION_ID, ESTABLECIMIENTO_ID)]

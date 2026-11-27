@@ -70,6 +70,9 @@ class ServicioComercial:
         usuario: UsuarioAutenticado,
     ) -> dict[str, Any]:
         """Registra el reclamo de un establecimiento para que lo revise un moderador (D-09)."""
+        # El lock cierra la carrera entre la comprobacion de propiedad y la
+        # insercion: una aprobacion o una baja concurrente espera aqui.
+        await repositorio.bloquear_establecimiento(self.sesion, entrada.establecimiento_id)
         est = await repositorio.obtener_establecimiento(self.sesion, entrada.establecimiento_id)
         if est is None or not est["activo"]:
             raise NoEncontradoError("El establecimiento no existe.")
@@ -79,13 +82,16 @@ class ServicioComercial:
             raise ConflictoError("Ya hay un reclamo en revision para este establecimiento.")
 
         try:
-            reclamo = await repositorio.crear_reclamo(
-                self.sesion,
-                usuario.id,
-                entrada.establecimiento_id,
-                entrada.telefono_contacto,
-                entrada.mensaje,
-            )
+            # El SAVEPOINT deja la sesion utilizable si el indice unico parcial
+            # rechaza la insercion; el 409 se construye fuera del bloque.
+            async with self.sesion.begin_nested():
+                reclamo = await repositorio.crear_reclamo(
+                    self.sesion,
+                    usuario.id,
+                    entrada.establecimiento_id,
+                    entrada.telefono_contacto,
+                    entrada.mensaje,
+                )
         except IntegrityError as exc:
             # Dos reclamos simultaneos pasan la consulta previa; el indice unico
             # parcial deja ganar a uno y el otro debe recibir 409, no un 500.
@@ -199,10 +205,10 @@ class ServicioComercial:
         usuario: UsuarioAutenticado,
     ) -> dict[str, Any]:
         """Publica un lote de precios oficiales y recalcula el precio vigente de cada par."""
-        await self._establecimiento_propio(establecimiento_id, usuario)
-        # Serializa publicaciones concurrentes del mismo establecimiento antes de leer
-        # el precio anterior; sin el lock dos peticiones podrian duplicar el historial.
+        # El lock va antes de comprobar propiedad: si una baja o una aprobacion
+        # cambia el dueno, la revalidacion posterior ve el estado ya confirmado.
         await repositorio.bloquear_establecimiento(self.sesion, establecimiento_id)
+        await self._establecimiento_propio(establecimiento_id, usuario)
 
         ids = [p.presentacion_id for p in entrada.precios]
         presentaciones = await repositorio.obtener_presentaciones(self.sesion, ids)
@@ -333,6 +339,7 @@ class ServicioComercial:
         usuario: UsuarioAutenticado,
     ) -> dict[str, Any]:
         """Publica una promocion, previa validacion del articulo 33 de la Ley 1480."""
+        await repositorio.bloquear_establecimiento(self.sesion, establecimiento_id)
         await self._establecimiento_propio(establecimiento_id, usuario)
 
         motivos = validar_promocion(self._a_regla(entrada))

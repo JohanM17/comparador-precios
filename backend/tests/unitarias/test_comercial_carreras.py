@@ -7,6 +7,7 @@ comercios que intentan ganar la misma fila al mismo tiempo.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from typing import Any
 from uuid import UUID, uuid4
@@ -18,7 +19,11 @@ from app.compartido.errores import ConflictoError
 from app.compartido.seguridad import UsuarioAutenticado
 from app.modulos.comercial import repositorio
 from app.modulos.comercial import servicio as servicio_modulo
-from app.modulos.comercial.esquemas import ReclamoComercioEntrada, VerificarComercioEntrada
+from app.modulos.comercial.esquemas import (
+    PromocionEntrada,
+    ReclamoComercioEntrada,
+    VerificarComercioEntrada,
+)
 from app.modulos.comercial.servicio import ServicioComercial
 
 ESTABLECIMIENTO_ID = UUID(int=10)
@@ -56,6 +61,16 @@ class _ResultadoFalso:
         return [] if self._fila is None else [self._fila]
 
 
+class _TransaccionFalsa:
+    """SAVEPOINT falso para las pruebas del servicio."""
+
+    async def __aenter__(self) -> None:
+        return None
+
+    async def __aexit__(self, *args: Any) -> bool:
+        return False
+
+
 class _SesionFalsa:
     """Sesion minima que conserva el SQL y los parametros ejecutados."""
 
@@ -63,6 +78,9 @@ class _SesionFalsa:
         self.fila = fila
         self.sql = ""
         self.parametros: dict[str, Any] = {}
+
+    def begin_nested(self) -> _TransaccionFalsa:
+        return _TransaccionFalsa()
 
     async def execute(self, sql: Any, parametros: dict[str, Any]) -> _ResultadoFalso:
         self.sql = str(sql)
@@ -183,8 +201,18 @@ def _instalar_repositorio(
     monkeypatch.setattr(servicio_modulo, "registrar_auditoria", registrar_auditoria)
 
 
+class _CacheFalsa:
+    """Cache que registra las invalidaciones."""
+
+    def __init__(self) -> None:
+        self.productos: list[UUID] = []
+
+    async def invalidar_producto(self, producto_id: UUID) -> None:
+        self.productos.append(producto_id)
+
+
 def _servicio() -> ServicioComercial:
-    return ServicioComercial(sesion=object(), puerto_cache=object())  # type: ignore[arg-type]
+    return ServicioComercial(sesion=_SesionFalsa(), puerto_cache=_CacheFalsa())  # type: ignore[arg-type]
 
 
 @pytest.mark.asyncio
@@ -286,9 +314,15 @@ async def test_reclamo_simultaneo_traduce_integrity_error_en_409(
     async def crear_reclamo(*args: Any, **kwargs: Any) -> dict[str, Any]:
         raise IntegrityError("INSERT", {}, Exception("duplicate key value"))
 
+    async def bloquear_establecimiento(*args: Any, **kwargs: Any) -> None:
+        return None
+
     async def auditoria_inesperada(*args: Any, **kwargs: Any) -> None:
         raise AssertionError("Un reclamo rechazado no debe auditarse como creado.")
 
+    monkeypatch.setattr(
+        servicio_modulo.repositorio, "bloquear_establecimiento", bloquear_establecimiento
+    )
     monkeypatch.setattr(
         servicio_modulo.repositorio, "obtener_establecimiento", obtener_establecimiento
     )
@@ -303,6 +337,149 @@ async def test_reclamo_simultaneo_traduce_integrity_error_en_409(
         await servicio.reclamar_titularidad(entrada, SOLICITANTE)
 
     assert exc.value.codigo == "CONFLICTO"
+
+
+@pytest.mark.asyncio
+async def test_reclamar_bloquea_antes_de_comprobar_propiedad(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """El lock de la tienda se toma antes de leer dueno y reclamo abierto."""
+    eventos: list[str] = []
+    entrada = ReclamoComercioEntrada(
+        establecimiento_id=ESTABLECIMIENTO_ID,
+        telefono_contacto="3001234567",
+        mensaje="Soy el dueno de la tienda y atiendo de 7 a 8.",
+    )
+
+    async def bloquear_establecimiento(*args: Any, **kwargs: Any) -> None:
+        eventos.append("lock")
+
+    async def obtener_establecimiento(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        eventos.append("leer")
+        return {
+            "id": ESTABLECIMIENTO_ID,
+            "nombre": "Tienda sin dueno",
+            "tipo": "tienda_barrio",
+            "barrio": None,
+            "direccion": None,
+            "comercio_id": None,
+            "estado_verificacion": "sin_dueno",
+            "activo": True,
+        }
+
+    async def existe_reclamo_abierto(*args: Any, **kwargs: Any) -> bool:
+        eventos.append("reclamo")
+        return False
+
+    async def crear_reclamo(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        eventos.append("insert")
+        return {
+            "id": uuid4(),
+            "establecimiento_id": ESTABLECIMIENTO_ID,
+            "estado": "pendiente",
+            "creado_en": None,
+        }
+
+    async def registrar_auditoria(*args: Any, **kwargs: Any) -> None:
+        return None
+
+    monkeypatch.setattr(
+        servicio_modulo.repositorio, "bloquear_establecimiento", bloquear_establecimiento
+    )
+    monkeypatch.setattr(
+        servicio_modulo.repositorio, "obtener_establecimiento", obtener_establecimiento
+    )
+    monkeypatch.setattr(
+        servicio_modulo.repositorio, "existe_reclamo_abierto", existe_reclamo_abierto
+    )
+    monkeypatch.setattr(servicio_modulo.repositorio, "crear_reclamo", crear_reclamo)
+    monkeypatch.setattr(servicio_modulo, "registrar_auditoria", registrar_auditoria)
+    servicio = _servicio()
+
+    await servicio.reclamar_titularidad(entrada, SOLICITANTE)
+
+    assert eventos == ["lock", "leer", "reclamo", "insert"]
+
+
+@pytest.mark.asyncio
+async def test_crear_promocion_bloquea_antes_de_comprobar_propiedad(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """La promocion no puede nacer si una baja o aprobacion cambia el dueno."""
+    eventos: list[str] = []
+    producto_id = uuid4()
+    entrada = PromocionEntrada(
+        producto_id=producto_id,
+        titulo="Descuento de prueba",
+        tipo="porcentaje",
+        porcentaje_descuento=20,
+        condiciones="Valida en la sede del centro hasta agotar unidades.",
+        vigente_desde=datetime.now(UTC),
+        vigente_hasta=datetime.now(UTC) + timedelta(days=1),
+        hasta_revocar=False,
+    )
+
+    async def bloquear_establecimiento(*args: Any, **kwargs: Any) -> None:
+        eventos.append("lock")
+
+    async def obtener_establecimiento(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        eventos.append("autorizacion")
+        return {
+            "id": ESTABLECIMIENTO_ID,
+            "nombre": "Tienda propia",
+            "tipo": "tienda_barrio",
+            "barrio": None,
+            "direccion": None,
+            "comercio_id": COMERCIO_ID,
+            "estado_verificacion": "verificado",
+            "activo": True,
+        }
+
+    async def insertar_promocion(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        eventos.append("insert")
+        return {
+            "id": uuid4(),
+            "establecimiento_id": ESTABLECIMIENTO_ID,
+            "producto_id": producto_id,
+            "presentacion_id": None,
+            "titulo": entrada.titulo,
+            "tipo": "porcentaje",
+            "porcentaje_descuento": 20,
+            "precio_especial_cop": None,
+            "pague_x": None,
+            "lleve_y": None,
+            "condiciones": entrada.condiciones,
+            "vigente_desde": entrada.vigente_desde,
+            "vigente_hasta": entrada.vigente_hasta,
+            "hasta_revocar": False,
+            "activa": True,
+        }
+
+    async def registrar_auditoria(*args: Any, **kwargs: Any) -> None:
+        return None
+
+    monkeypatch.setattr(
+        servicio_modulo.repositorio, "bloquear_establecimiento", bloquear_establecimiento
+    )
+    monkeypatch.setattr(
+        servicio_modulo.repositorio, "obtener_establecimiento", obtener_establecimiento
+    )
+    monkeypatch.setattr(servicio_modulo.repositorio, "insertar_promocion", insertar_promocion)
+    monkeypatch.setattr(servicio_modulo, "registrar_auditoria", registrar_auditoria)
+    servicio = ServicioComercial(
+        sesion=_SesionFalsa(),  # type: ignore[arg-type]
+        puerto_cache=_CacheFalsa(),  # type: ignore[arg-type]
+    )
+    usuario = UsuarioAutenticado(
+        id=COMERCIO_ID,
+        email="comercio@armenia.co",
+        rol="comercio",
+        estado="activa",
+    )
+
+    await servicio.crear_promocion(ESTABLECIMIENTO_ID, entrada, usuario)
+
+    assert eventos == ["lock", "autorizacion", "insert"]
 
 
 def test_el_esquema_del_reclamo_sigue_siendo_estricto() -> None:

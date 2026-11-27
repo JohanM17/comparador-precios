@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 from uuid import UUID
 
@@ -31,6 +32,10 @@ from app.modulos.cuentas.repositorio import (
     verificar_alias_disponible,
 )
 from app.puertos.almacenamiento import PuertoAlmacenamientoFotos
+from app.puertos.auth_admin import PuertoAuthAdmin
+from app.puertos.cache import PuertoCache
+
+_logger = logging.getLogger("app")
 
 VERSION_POLITICA_VIGENTE = "1.0"
 MSG_AUTORIZACION_REQUERIDA = (
@@ -49,9 +54,13 @@ class ServicioCuentas:
         self,
         sesion: AsyncSession,
         puerto_almacenamiento: PuertoAlmacenamientoFotos | None = None,
+        puerto_cache: PuertoCache | None = None,
+        puerto_auth_admin: PuertoAuthAdmin | None = None,
     ) -> None:
         self.sesion = sesion
         self.puerto_almacenamiento = puerto_almacenamiento
+        self.puerto_cache = puerto_cache
+        self.puerto_auth_admin = puerto_auth_admin
         self.cfg = obtener_configuracion()
 
     def obtener_politica_tratamiento(self) -> PoliticaTratamientoRespuesta:
@@ -175,6 +184,8 @@ class ServicioCuentas:
 
         antes = {"alias": perfil["alias"]}
         perfil_act = await actualizar_alias_bd(self.sesion, usuario.id, entrada.alias)
+        if perfil_act is None:
+            raise ConflictoError("La cuenta ya no esta activa; no se puede actualizar el alias.")
 
         await registrar_auditoria(
             self.sesion,
@@ -204,9 +215,12 @@ class ServicioCuentas:
         """Anonimiza reportes, fotos, datos comerciales y revoca autorizaciones."""
         perfil = await self._exigir_perfil_autorizado(usuario.id)
 
-        perfil_anon, rutas_fotos, resumen_comercial = await anonimizar_y_dar_de_baja_cuenta(
-            self.sesion, usuario.id
-        )
+        (
+            perfil_anon,
+            rutas_fotos,
+            resumen_comercial,
+            productos_afectados,
+        ) = await anonimizar_y_dar_de_baja_cuenta(self.sesion, usuario.id)
 
         # La auditoria es inmutable y la consulta cualquier auditor: no puede
         # conservar el alias anterior ni telefonos o mensajes de reclamos.
@@ -221,6 +235,15 @@ class ServicioCuentas:
             despues={**perfil_anon, **resumen_comercial},
         )
 
+        if self.puerto_cache is not None:
+            for producto_id in productos_afectados:
+                try:
+                    await self.puerto_cache.invalidar_producto(producto_id)
+                except Exception:  # noqa: S110
+                    _logger.warning(
+                        "No se pudo invalidar la cache de un producto tras eliminar la cuenta."
+                    )
+
         if self.puerto_almacenamiento and rutas_fotos:
             try:
                 await self.puerto_almacenamiento.eliminar_fotos(rutas_fotos)
@@ -232,3 +255,25 @@ class ServicioCuentas:
             usuario_id=usuario.id,
             estado="eliminada",
         )
+
+    async def eliminar_credencial_auth(self, usuario_id: UUID) -> bool:
+        """Elimina la credencial de Supabase Auth despues del commit, sin romper la baja.
+
+        La operacion es best-effort: si el puerto no esta configurado o la API
+        externa falla, la cuenta ya quedo anonimizada en PostgreSQL y se registra
+        solo un warning generico, sin PII.
+        """
+        if self.puerto_auth_admin is None:
+            return False
+        try:
+            eliminada = await self.puerto_auth_admin.eliminar_usuario(usuario_id)
+        except Exception:
+            _logger.warning(
+                "No se pudo eliminar la credencial de autenticacion tras eliminar la cuenta."
+            )
+            return False
+        if not eliminada:
+            _logger.warning(
+                "No se pudo eliminar la credencial de autenticacion tras eliminar la cuenta."
+            )
+        return eliminada
