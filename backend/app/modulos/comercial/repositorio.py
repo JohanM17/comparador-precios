@@ -54,6 +54,23 @@ async def existe_reclamo_abierto(sesion: AsyncSession, establecimiento_id: UUID)
     return (await sesion.execute(sql, {"est_id": establecimiento_id})).first() is not None
 
 
+_SQL_USUARIO_PUEDE_RECLAMAR = text("""
+    SELECT 1
+    FROM public.perfil p
+    JOIN public.autorizacion_datos a ON a.usuario_id = p.id
+    WHERE p.id = :id
+      AND p.estado = 'activa'
+      AND a.revocada_en IS NULL
+    LIMIT 1;
+""")
+
+
+async def usuario_puede_reclamar(sesion: AsyncSession, usuario_id: UUID) -> bool:
+    """Revalida perfil activo y autorizacion vigente dentro de la transaccion del reclamo."""
+    fila = (await sesion.execute(_SQL_USUARIO_PUEDE_RECLAMAR, {"id": usuario_id})).first()
+    return fila is not None
+
+
 async def crear_reclamo(
     sesion: AsyncSession,
     usuario_id: UUID,

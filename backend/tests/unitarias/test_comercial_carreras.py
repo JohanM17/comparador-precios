@@ -15,7 +15,8 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from app.compartido.errores import ConflictoError
+from app.compartido.bloqueos import bloquear_por_usuario
+from app.compartido.errores import ConflictoError, NoAutenticadoError
 from app.compartido.seguridad import UsuarioAutenticado
 from app.modulos.comercial import repositorio
 from app.modulos.comercial import servicio as servicio_modulo
@@ -86,6 +87,19 @@ class _SesionFalsa:
         self.sql = str(sql)
         self.parametros = parametros
         return _ResultadoFalso(self.fila)
+
+
+@pytest.mark.asyncio
+async def test_el_bloqueo_por_usuario_es_advisory_transaccional() -> None:
+    """Baja y reclamo comparten la misma clave advisory por titular."""
+    sesion = _SesionFalsa()
+
+    await bloquear_por_usuario(sesion, COMERCIO_ID)  # type: ignore[arg-type]
+
+    assert "select pg_advisory_xact_lock(hashtext(:usuario_id_texto))" in _sql_normalizado(
+        sesion.sql
+    )
+    assert sesion.parametros == {"usuario_id_texto": str(COMERCIO_ID)}
 
 
 @pytest.mark.asyncio
@@ -317,9 +331,19 @@ async def test_reclamo_simultaneo_traduce_integrity_error_en_409(
     async def bloquear_establecimiento(*args: Any, **kwargs: Any) -> None:
         return None
 
+    async def bloquear_por_usuario(*args: Any, **kwargs: Any) -> None:
+        return None
+
+    async def usuario_puede_reclamar(*args: Any, **kwargs: Any) -> bool:
+        return True
+
     async def auditoria_inesperada(*args: Any, **kwargs: Any) -> None:
         raise AssertionError("Un reclamo rechazado no debe auditarse como creado.")
 
+    monkeypatch.setattr(servicio_modulo, "bloquear_por_usuario", bloquear_por_usuario)
+    monkeypatch.setattr(
+        servicio_modulo.repositorio, "usuario_puede_reclamar", usuario_puede_reclamar
+    )
     monkeypatch.setattr(
         servicio_modulo.repositorio, "bloquear_establecimiento", bloquear_establecimiento
     )
@@ -350,6 +374,13 @@ async def test_reclamar_bloquea_antes_de_comprobar_propiedad(
         telefono_contacto="3001234567",
         mensaje="Soy el dueno de la tienda y atiendo de 7 a 8.",
     )
+
+    async def bloquear_por_usuario(*args: Any, **kwargs: Any) -> None:
+        eventos.append("advisory")
+
+    async def usuario_puede_reclamar(*args: Any, **kwargs: Any) -> bool:
+        eventos.append("estado")
+        return True
 
     async def bloquear_establecimiento(*args: Any, **kwargs: Any) -> None:
         eventos.append("lock")
@@ -383,6 +414,10 @@ async def test_reclamar_bloquea_antes_de_comprobar_propiedad(
     async def registrar_auditoria(*args: Any, **kwargs: Any) -> None:
         return None
 
+    monkeypatch.setattr(servicio_modulo, "bloquear_por_usuario", bloquear_por_usuario)
+    monkeypatch.setattr(
+        servicio_modulo.repositorio, "usuario_puede_reclamar", usuario_puede_reclamar
+    )
     monkeypatch.setattr(
         servicio_modulo.repositorio, "bloquear_establecimiento", bloquear_establecimiento
     )
@@ -398,7 +433,50 @@ async def test_reclamar_bloquea_antes_de_comprobar_propiedad(
 
     await servicio.reclamar_titularidad(entrada, SOLICITANTE)
 
-    assert eventos == ["lock", "leer", "reclamo", "insert"]
+    assert eventos == ["advisory", "estado", "lock", "leer", "reclamo", "insert"]
+
+
+@pytest.mark.asyncio
+async def test_reclamo_rechaza_cuenta_eliminada_tras_el_advisory(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Si la baja gano el advisory, el reclamo ve el perfil eliminado y no inserta."""
+    eventos: list[str] = []
+    entrada = ReclamoComercioEntrada(
+        establecimiento_id=ESTABLECIMIENTO_ID,
+        telefono_contacto="3001234567",
+        mensaje="Soy el dueno de la tienda y atiendo de 7 a 8.",
+    )
+
+    async def bloquear_por_usuario(*args: Any, **kwargs: Any) -> None:
+        eventos.append("advisory")
+
+    async def usuario_puede_reclamar(*args: Any, **kwargs: Any) -> bool:
+        eventos.append("estado")
+        return False
+
+    async def bloquear_establecimiento(*args: Any, **kwargs: Any) -> None:
+        eventos.append("lock")
+
+    async def crear_reclamo(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        eventos.append("insert")
+        return {}
+
+    monkeypatch.setattr(servicio_modulo, "bloquear_por_usuario", bloquear_por_usuario)
+    monkeypatch.setattr(
+        servicio_modulo.repositorio, "usuario_puede_reclamar", usuario_puede_reclamar
+    )
+    monkeypatch.setattr(
+        servicio_modulo.repositorio, "bloquear_establecimiento", bloquear_establecimiento
+    )
+    monkeypatch.setattr(servicio_modulo.repositorio, "crear_reclamo", crear_reclamo)
+    servicio = _servicio()
+
+    with pytest.raises(NoAutenticadoError) as exc:
+        await servicio.reclamar_titularidad(entrada, SOLICITANTE)
+
+    assert exc.value.status == 401
+    assert eventos == ["advisory", "estado"]
 
 
 @pytest.mark.asyncio

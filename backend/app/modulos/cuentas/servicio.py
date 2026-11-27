@@ -62,6 +62,7 @@ class ServicioCuentas:
         self.puerto_cache = puerto_cache
         self.puerto_auth_admin = puerto_auth_admin
         self.cfg = obtener_configuracion()
+        self._productos_afectados_baja: list[UUID] = []
 
     def obtener_politica_tratamiento(self) -> PoliticaTratamientoRespuesta:
         """Retorna la version vigente y texto oficial de politica de tratamiento de datos."""
@@ -221,6 +222,7 @@ class ServicioCuentas:
             resumen_comercial,
             productos_afectados,
         ) = await anonimizar_y_dar_de_baja_cuenta(self.sesion, usuario.id)
+        self._productos_afectados_baja = productos_afectados
 
         # La auditoria es inmutable y la consulta cualquier auditor: no puede
         # conservar el alias anterior ni telefonos o mensajes de reclamos.
@@ -235,15 +237,6 @@ class ServicioCuentas:
             despues={**perfil_anon, **resumen_comercial},
         )
 
-        if self.puerto_cache is not None:
-            for producto_id in productos_afectados:
-                try:
-                    await self.puerto_cache.invalidar_producto(producto_id)
-                except Exception:  # noqa: S110
-                    _logger.warning(
-                        "No se pudo invalidar la cache de un producto tras eliminar la cuenta."
-                    )
-
         if self.puerto_almacenamiento and rutas_fotos:
             try:
                 await self.puerto_almacenamiento.eliminar_fotos(rutas_fotos)
@@ -255,6 +248,22 @@ class ServicioCuentas:
             usuario_id=usuario.id,
             estado="eliminada",
         )
+
+    async def invalidar_cache_baja(self) -> None:
+        """Invalida la cache de los productos afectados, solo despues del commit.
+
+        Se separa de `eliminar_mi_cuenta` para que una comparacion concurrente no
+        pueda repoblar la cache con la proyeccion anterior antes del commit.
+        """
+        if self.puerto_cache is None:
+            return
+        for producto_id in self._productos_afectados_baja:
+            try:
+                await self.puerto_cache.invalidar_producto(producto_id)
+            except Exception:  # noqa: S110
+                _logger.warning(
+                    "No se pudo invalidar la cache de un producto tras eliminar la cuenta."
+                )
 
     async def eliminar_credencial_auth(self, usuario_id: UUID) -> bool:
         """Elimina la credencial de Supabase Auth despues del commit, sin romper la baja.

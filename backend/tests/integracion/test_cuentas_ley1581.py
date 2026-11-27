@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from uuid import uuid4
 
 import jwt
@@ -10,6 +11,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 
 from app.bd import sesion_transaccional
+from app.compartido.bloqueos import bloquear_por_usuario
 from app.config import obtener_configuracion
 from app.main import app
 
@@ -251,6 +253,38 @@ async def test_eliminar_cuenta_anonimizacion_arco() -> None:
 
 
 @pytest.mark.asyncio
+async def test_el_advisory_lock_de_usuario_serializa_dos_transacciones() -> None:
+    """La baja y el reclamo comparten una clave que otra transaccion no puede tomar."""
+    usuario_id = uuid4()
+    tomado = asyncio.Event()
+    liberar = asyncio.Event()
+
+    async def mantener_bloqueo() -> None:
+        async with sesion_transaccional() as sesion:
+            await bloquear_por_usuario(sesion, usuario_id)
+            tomado.set()
+            await liberar.wait()
+
+    async def intentar_bloqueo() -> bool:
+        async with sesion_transaccional() as sesion:
+            resultado = await sesion.execute(
+                text("SELECT pg_try_advisory_xact_lock(hashtext(:usuario_id_texto));"),
+                {"usuario_id_texto": str(usuario_id)},
+            )
+            return bool(resultado.scalar())
+
+    tarea = asyncio.create_task(mantener_bloqueo())
+    try:
+        await asyncio.wait_for(tomado.wait(), timeout=10)
+        assert await intentar_bloqueo() is False
+    finally:
+        liberar.set()
+        await asyncio.wait_for(tarea, timeout=10)
+
+    assert await intentar_bloqueo() is True
+
+
+@pytest.mark.asyncio
 async def test_eliminar_cuenta_limpia_datos_comerciales_y_audita_sin_pii() -> None:
     """La supresion desvincula tiendas, apaga precios/promos y no deja PII en auditoria."""
     uid = str(uuid4())
@@ -260,6 +294,9 @@ async def test_eliminar_cuenta_limpia_datos_comerciales_y_audita_sin_pii() -> No
     mensaje = "Soy el dueno de la tienda y atiendo de 7 a 8."
     tienda_id = uuid4()
     tienda_historial_id = uuid4()
+    moderador_id = uuid4()
+    sancion_id = uuid4()
+    token_mod = generar_token(str(moderador_id))
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as cliente:
         resp_aut = await cliente.post(
@@ -285,6 +322,30 @@ async def test_eliminar_cuenta_limpia_datos_comerciales_y_audita_sin_pii() -> No
             await sesion.execute(
                 text("UPDATE perfil SET rol = 'moderador' WHERE id = :uid;"),
                 {"uid": uid},
+            )
+            await sesion.execute(
+                text("""
+                    INSERT INTO perfil (id, alias, rol, estado, reputacion)
+                    VALUES (:id, :alias, 'moderador', 'activa', 0.700);
+                """),
+                {"id": moderador_id, "alias": f"mod_{uid[:8]}"},
+            )
+            await sesion.execute(
+                text("""
+                    INSERT INTO autorizacion_datos (usuario_id, version_politica, finalidad)
+                    VALUES (:id, '1.0', 'Autorizacion de prueba para apelaciones');
+                """),
+                {"id": moderador_id},
+            )
+            await sesion.execute(
+                text("""
+                    INSERT INTO sancion
+                        (id, usuario_id, tipo, motivo, moderador_id, apelacion)
+                    VALUES
+                        (:id, :uid, 'suspension', 'Motivo de sancion de prueba',
+                         :mod, 'Apelacion con telefono 3001112233 y relato personal.');
+                """),
+                {"id": sancion_id, "uid": uid, "mod": moderador_id},
             )
 
             await sesion.execute(
@@ -473,6 +534,18 @@ async def test_eliminar_cuenta_limpia_datos_comerciales_y_audita_sin_pii() -> No
             assert res_perfil[0] == "reportante"
             assert res_perfil[1] == "eliminada"
 
+            res_sancion = (
+                await sesion.execute(
+                    text("""
+                        SELECT apelacion, apelacion_resuelta FROM sancion WHERE id = :id;
+                    """),
+                    {"id": sancion_id},
+                )
+            ).fetchone()
+            assert res_sancion is not None
+            assert res_sancion[0] is None
+            assert res_sancion[1] is None
+
             res_aud = (
                 await sesion.execute(
                     text("""
@@ -503,3 +576,29 @@ async def test_eliminar_cuenta_limpia_datos_comerciales_y_audita_sin_pii() -> No
         )
         assert resp_reauth.status_code == 401
         assert resp_reauth.json()["codigo"] == "NO_AUTENTICADO"
+
+        resp_apelacion = await cliente.post(
+            f"/v1/moderacion/sanciones/{sancion_id}/apelacion",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"apelacion": "Quiero apelar esta sancion."},
+        )
+        assert resp_apelacion.status_code == 401
+        assert resp_apelacion.json()["codigo"] == "NO_AUTENTICADO"
+
+        resp_resolver = await cliente.post(
+            f"/v1/moderacion/sanciones/{sancion_id}/resolver-apelacion",
+            headers={"Authorization": f"Bearer {token_mod}"},
+            json={"aprobar": True, "nota": "Apelacion aceptada"},
+        )
+        assert resp_resolver.status_code == 409
+        assert resp_resolver.json()["codigo"] == "CONFLICTO"
+
+        async with sesion_transaccional() as sesion:
+            res_estado = (
+                await sesion.execute(
+                    text("SELECT estado::text FROM perfil WHERE id = :uid;"),
+                    {"uid": uid},
+                )
+            ).fetchone()
+            assert res_estado is not None
+            assert res_estado[0] == "eliminada"

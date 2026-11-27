@@ -135,7 +135,8 @@ async def eliminar_cuenta_usuario(
         )
         resultado = await servicio.eliminar_mi_cuenta(usuario)
 
-    # La credencial de Auth se borra solo despues del commit de PostgreSQL. Si
-    # la API externa falla, la baja local ya quedo consumada y se responde 200.
+    # La cache y la credencial de Auth se tocan solo despues del commit. Si la
+    # API externa falla, la baja local ya quedo consumada y se responde 200.
+    await servicio.invalidar_cache_baja()
     await servicio.eliminar_credencial_auth(usuario.id)
     return resultado

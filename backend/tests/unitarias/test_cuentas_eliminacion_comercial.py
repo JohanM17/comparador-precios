@@ -64,10 +64,12 @@ async def test_anonimizar_limpia_comercial_y_elimina_precio_vigente() -> None:
     prod_vigente = uuid4()
     sesion = _SesionGuion(
         [
+            _ResultadoFalso(),  # advisory lock por usuario
             _ResultadoFalso(filas=[]),  # fotos del reportante
             _ResultadoFalso(),  # anonimizar reportes
             _ResultadoFalso(filas=[SimpleNamespace(id=uuid4())]),  # borrar pendientes
             _ResultadoFalso(filas=[SimpleNamespace(id=uuid4()), SimpleNamespace(id=uuid4())]),
+            _ResultadoFalso(filas=[SimpleNamespace(id=uuid4())]),  # sancion.apelacion
             _ResultadoFalso(filas=[SimpleNamespace(id=est_a), SimpleNamespace(id=est_b)]),
             _ResultadoFalso(
                 filas=[
@@ -112,9 +114,12 @@ async def test_anonimizar_limpia_comercial_y_elimina_precio_vigente() -> None:
         "precios_oficiales_desactivados": 3,
         "promociones_revocadas": 1,
         "precios_vigentes_eliminados": 2,
+        "apelaciones_anonimizadas": 1,
     }
 
     sqls = [sql for sql, _ in sesion.llamadas]
+    assert sqls[0].startswith("select pg_advisory_xact_lock")
+    assert any("update sancion set apelacion = null" in sql for sql in sqls)
     assert any(
         sql.startswith("delete from solicitud_verificacion_comercio")
         and "estado = 'pendiente'" in sql
@@ -134,6 +139,7 @@ async def test_anonimizar_limpia_comercial_y_elimina_precio_vigente() -> None:
         for i, sql in enumerate(sqls)
         if sql.startswith("delete from solicitud_verificacion_comercio")
     )
+    indice_sancion = next(i for i, sql in enumerate(sqls) if sql.startswith("update sancion"))
     indice_tienda = next(i for i, sql in enumerate(sqls) if "set comercio_id = null" in sql)
     indice_precio = next(i for i, sql in enumerate(sqls) if sql.startswith("update precio_oficial"))
     indice_promo = next(i for i, sql in enumerate(sqls) if sql.startswith("update promocion"))
@@ -143,6 +149,7 @@ async def test_anonimizar_limpia_comercial_y_elimina_precio_vigente() -> None:
     indice_perfil = next(i for i, sql in enumerate(sqls) if sql.startswith("update perfil"))
     assert (
         indice_reclamo
+        < indice_sancion
         < indice_tienda
         < indice_precio
         < indice_promo
@@ -173,8 +180,10 @@ async def test_sin_tiendas_no_ejecuta_updates_comerciales() -> None:
     """Un usuario sin establecimientos no dispara updates vacios de precios/promos."""
     sesion = _SesionGuion(
         [
+            _ResultadoFalso(),
             _ResultadoFalso(filas=[]),
             _ResultadoFalso(),
+            _ResultadoFalso(filas=[]),
             _ResultadoFalso(filas=[]),
             _ResultadoFalso(filas=[]),
             _ResultadoFalso(filas=[]),
@@ -247,6 +256,7 @@ async def test_la_baja_audita_sin_pii_e_invalida_cache(
         "precios_oficiales_desactivados": 2,
         "promociones_revocadas": 1,
         "precios_vigentes_eliminados": 2,
+        "apelaciones_anonimizadas": 1,
     }
     capturado: dict[str, Any] = {}
 
@@ -280,8 +290,11 @@ async def test_la_baja_audita_sin_pii_e_invalida_cache(
     cache = _CacheFalsa(eventos)
     servicio = ServicioCuentas(sesion=object(), puerto_cache=cache)  # type: ignore[arg-type]
     respuesta = await servicio.eliminar_mi_cuenta(usuario)
-
     assert respuesta.estado == "eliminada"
+    assert eventos == ["bd", "auditoria"]
+    assert cache.productos == []
+
+    await servicio.invalidar_cache_baja()
     assert eventos == ["bd", "auditoria", f"cache:{productos[0]}", f"cache:{productos[1]}"]
     assert cache.productos == productos
     assert capturado["antes"] == {"estado": "activa"}
@@ -303,6 +316,7 @@ async def test_la_baja_sin_cache_no_falla() -> None:
     """Sin puerto de cache la baja sigue funcionando."""
     servicio = ServicioCuentas(sesion=object())  # type: ignore[arg-type]
     assert servicio.puerto_cache is None
+    await servicio.invalidar_cache_baja()
 
 
 @pytest.mark.asyncio

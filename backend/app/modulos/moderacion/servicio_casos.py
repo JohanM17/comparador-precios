@@ -194,7 +194,11 @@ class ServicioCasosModeracion:
             nuevo_est = "bloqueada"
         else:
             nuevo_est = "advertencia"
-        await repositorio_sanciones.actualizar_estado_perfil_bd(self.sesion, uid, nuevo_est, hasta)
+        actualizado = await repositorio_sanciones.actualizar_estado_perfil_bd(
+            self.sesion, uid, nuevo_est, hasta
+        )
+        if not actualizado:
+            raise ConflictoError("La cuenta fue eliminada; no se puede sancionar.")
 
     @staticmethod
     def _referencias_disputa(caso: dict[str, Any]) -> tuple[UUID, UUID, UUID | None, int]:

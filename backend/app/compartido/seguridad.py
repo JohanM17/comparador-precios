@@ -108,6 +108,10 @@ async def requiere_usuario_autenticado_base(
 
     email = payload.get("email")
     rol, estado = await _consultar_perfil_bd(usuario_id, sesion)
+    if estado == "eliminada":
+        # Ninguna ruta que use la dependencia base puede operar con una cuenta
+        # suprimida, incluidas las apelaciones de sanciones.
+        raise NoAutenticadoError("La cuenta fue eliminada y no puede volver a autenticarse.")
 
     return UsuarioAutenticado(
         id=usuario_id,

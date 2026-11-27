@@ -10,8 +10,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.compartido.auditoria import registrar_auditoria
+from app.compartido.bloqueos import bloquear_por_usuario
 from app.compartido.errores import (
     ConflictoError,
+    NoAutenticadoError,
     NoEncontradoError,
     ProhibidoError,
     ValidacionError,
@@ -70,6 +72,14 @@ class ServicioComercial:
         usuario: UsuarioAutenticado,
     ) -> dict[str, Any]:
         """Registra el reclamo de un establecimiento para que lo revise un moderador (D-09)."""
+        # Misma clave que la baja de cuenta: si la baja gano, el perfil ya esta
+        # eliminado; si el reclamo gano, la baja lo borra despues.
+        await bloquear_por_usuario(self.sesion, usuario.id)
+        if not await repositorio.usuario_puede_reclamar(self.sesion, usuario.id):
+            raise NoAutenticadoError(
+                "La cuenta no esta activa o no tiene autorizacion vigente para reclamar."
+            )
+
         # El lock cierra la carrera entre la comprobacion de propiedad y la
         # insercion: una aprobacion o una baja concurrente espera aqui.
         await repositorio.bloquear_establecimiento(self.sesion, entrada.establecimiento_id)

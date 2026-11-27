@@ -44,15 +44,20 @@ async def insertar_sancion_bd(
 
 async def actualizar_estado_perfil_bd(
     sesion: AsyncSession, usuario_id: UUID, estado: str, suspendida_hasta: datetime | None
-) -> None:
+) -> bool:
+    """Cambia el estado solo si la cuenta no fue eliminada; False si no aplica."""
     sql = text("""
         UPDATE public.perfil
         SET estado = CAST(:estado AS estado_cuenta),
             suspendida_hasta = :hasta,
             actualizado_en = now()
-        WHERE id = :id;
+        WHERE id = :id AND estado <> 'eliminada'
+        RETURNING id;
     """)
-    await sesion.execute(sql, {"id": usuario_id, "estado": estado, "hasta": suspendida_hasta})
+    fila = (
+        await sesion.execute(sql, {"id": usuario_id, "estado": estado, "hasta": suspendida_hasta})
+    ).first()
+    return fila is not None
 
 
 async def registrar_apelacion_bd(

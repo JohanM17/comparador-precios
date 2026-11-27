@@ -8,6 +8,7 @@ from uuid import UUID
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.compartido.bloqueos import bloquear_por_usuario
 from app.compartido.errores import ConflictoError
 
 
@@ -143,6 +144,10 @@ async def anonimizar_y_dar_de_baja_cuenta(
     Devuelve el perfil anonimizado, las rutas de fotos a eliminar, un resumen
     con conteos sin PII para la auditoria y los productos a invalidar.
     """
+    # Misma clave que usa el reclamo de titularidad: serializa ambos flujos
+    # antes de tocar solicitudes, establecimientos o el perfil.
+    await bloquear_por_usuario(sesion, usuario_id)
+
     sql_fotos = text("""
         SELECT foto_prueba_path FROM reporte_precio
         WHERE reportante_id = :id AND foto_prueba_path IS NOT NULL;
@@ -190,7 +195,19 @@ async def anonimizar_y_dar_de_baja_cuenta(
         ).fetchall()
     )
 
-    # 4. Desvincular las tiendas del titular. La tienda sigue existiendo, pero
+    # 4. Borrar el texto de las apelaciones de sanciones. La sancion se
+    #    conserva como historial de moderacion, pero su relato puede tener PII.
+    sql_apelaciones = text("""
+        UPDATE sancion
+        SET apelacion = NULL
+        WHERE usuario_id = :id AND apelacion IS NOT NULL
+        RETURNING id;
+    """)
+    apelaciones_anonimizadas = len(
+        (await sesion.execute(sql_apelaciones, {"id": usuario_id})).fetchall()
+    )
+
+    # 5. Desvincular las tiendas del titular. La tienda sigue existiendo, pero
     #    queda sin dueno y sin verificar hasta que otro comercio la reclame.
     sql_desvincular = text("""
         UPDATE establecimiento
@@ -209,7 +226,7 @@ async def anonimizar_y_dar_de_baja_cuenta(
     precios_vigentes_eliminados = 0
     productos_afectados: set[UUID] = set()
     if establecimientos:
-        # 5. Desactivar los precios oficiales de esas tiendas. Se conserva la
+        # 6. Desactivar los precios oficiales de esas tiendas. Se conserva la
         #    fila historica para no perder trazabilidad de lo ya publicado.
         sql_precios = text("""
             UPDATE precio_oficial
@@ -223,7 +240,7 @@ async def anonimizar_y_dar_de_baja_cuenta(
         precios_desactivados = len(filas_precios)
         productos_afectados.update(fila.producto_id for fila in filas_precios)
 
-        # 6. Revocar las promociones activas de esas tiendas, conservando el
+        # 7. Revocar las promociones activas de esas tiendas, conservando el
         #    registro y su fecha de revocacion.
         sql_promociones = text("""
             UPDATE promocion
@@ -237,7 +254,7 @@ async def anonimizar_y_dar_de_baja_cuenta(
         promociones_revocadas = len(filas_promociones)
         productos_afectados.update(fila.producto_id for fila in filas_promociones)
 
-        # 7. Eliminar la proyeccion vigente. Si solo se desactivara el oficial,
+        # 8. Eliminar la proyeccion vigente. Si solo se desactivara el oficial,
         #    el comparador seguiria sirviendo `sello='oficial'` desde esta tabla
         #    hasta que el job de reconstruccion lo corrija.
         sql_precio_vigente = text("""
@@ -251,7 +268,7 @@ async def anonimizar_y_dar_de_baja_cuenta(
         precios_vigentes_eliminados = len(filas_vigentes)
         productos_afectados.update(fila.producto_id for fila in filas_vigentes)
 
-    # 8. Anonimizar el perfil al final, cuando ya se liberaron los bloqueos
+    # 9. Anonimizar el perfil al final, cuando ya se liberaron los bloqueos
     #    comerciales. Un moderador o admin eliminado pierde ademas su rol.
     alias_anonimo = f"eliminado_{str(usuario_id)[:8]}"
     sql_perfil = text("""
@@ -268,7 +285,7 @@ async def anonimizar_y_dar_de_baja_cuenta(
     ).fetchone()
     perfil_anon = dict(fila_perfil._mapping)  # type: ignore[union-attr]
 
-    # 9. Revocar autorizacion de datos
+    # 10. Revocar autorizacion de datos
     sql_aut = text("""
         UPDATE autorizacion_datos
         SET revocada_en = now()
@@ -283,5 +300,6 @@ async def anonimizar_y_dar_de_baja_cuenta(
         "precios_oficiales_desactivados": precios_desactivados,
         "promociones_revocadas": promociones_revocadas,
         "precios_vigentes_eliminados": precios_vigentes_eliminados,
+        "apelaciones_anonimizadas": apelaciones_anonimizadas,
     }
     return perfil_anon, rutas_fotos, resumen_comercial, sorted(productos_afectados)

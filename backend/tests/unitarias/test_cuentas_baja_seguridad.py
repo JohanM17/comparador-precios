@@ -12,8 +12,13 @@ import httpx
 import pytest
 
 from app.adaptadores.auth_supabase import AdaptadorAuthSupabase
+from app.compartido import seguridad
 from app.compartido.errores import NoAutenticadoError
-from app.compartido.seguridad import UsuarioAutenticado, requiere_usuario
+from app.compartido.seguridad import (
+    UsuarioAutenticado,
+    requiere_usuario,
+    requiere_usuario_autenticado_base,
+)
 from app.config import Configuracion
 from app.modulos.cuentas import api as cuentas_api
 from app.modulos.cuentas.esquemas import EliminarCuentaRespuesta
@@ -43,6 +48,27 @@ def test_requiere_usuario_rechaza_cuenta_eliminada() -> None:
 def test_requiere_usuario_permite_cuenta_activa() -> None:
     """La misma dependencia sigue permitiendo una cuenta activa."""
     assert requiere_usuario(_usuario("activa")).estado == "activa"
+
+
+@pytest.mark.asyncio
+async def test_la_dependencia_base_rechaza_cuenta_eliminada(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Toda ruta con la dependencia base cierra el paso a una cuenta eliminada."""
+
+    async def consultar_perfil(*args: Any, **kwargs: Any) -> tuple[str, str]:
+        return "reportante", "eliminada"
+
+    monkeypatch.setattr(seguridad, "decodificar_token", lambda token: {"sub": str(USUARIO_ID)})
+    monkeypatch.setattr(seguridad, "_consultar_perfil_bd", consultar_perfil)
+
+    with pytest.raises(NoAutenticadoError) as exc:
+        await requiere_usuario_autenticado_base(
+            f"Bearer token-{USUARIO_ID}",
+            object(),  # type: ignore[arg-type]
+        )
+
+    assert exc.value.status == 401
 
 
 class _AuthFalso:
@@ -104,6 +130,9 @@ async def test_la_api_elimina_la_credencial_despues_del_commit(
                 estado="eliminada",
             )
 
+        async def invalidar_cache_baja(self) -> None:
+            eventos.append("cache")
+
         async def eliminar_credencial_auth(self, usuario_id: UUID) -> bool:
             eventos.append("auth")
             return True
@@ -119,7 +148,7 @@ async def test_la_api_elimina_la_credencial_despues_del_commit(
     )
 
     assert respuesta.estado == "eliminada"
-    assert eventos == ["begin", "bd", "commit", "auth"]
+    assert eventos == ["begin", "bd", "commit", "cache", "auth"]
 
 
 def _config_auth() -> Configuracion:
