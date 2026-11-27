@@ -80,6 +80,13 @@ export default function SelloConfianza({
   const config = CONFIG_SELLOS[sello] ?? CONFIG_SELLOS.dudoso;
   const { clases, Icono, etiquetaFija, respaldo } = config;
   const texto = etiquetaFija ?? (motivoSello || respaldo);
+  /*
+   * El aviso D-02 describe la obsolescencia del precio oficial. En una fila
+   * `en_disputa` el motivo pertenece a la contradiccion, no al comercio, y el
+   * precio visible es el comunitario: mostrarlo ahi seria enganoso. La guarda
+   * vive tambien aqui para que ningun llamador pueda saltarsela.
+   */
+  const mostrarAviso = sello === "oficial" && Boolean(avisoRevalidacion);
 
   return (
     <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -89,7 +96,7 @@ export default function SelloConfianza({
         <Icono className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
         <span>{texto}</span>
       </output>
-      {avisoRevalidacion && (
+      {mostrarAviso && (
         <span
           data-prueba="aviso-revalidacion"
           className="inline-flex items-center gap-1 text-[12.5px] font-medium text-oro-700"

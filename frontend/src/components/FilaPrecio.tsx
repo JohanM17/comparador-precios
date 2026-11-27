@@ -106,6 +106,9 @@ export default function FilaPrecio({
           sello={item.sello}
           motivoSello={item.motivo_sello ?? null}
           avisoRevalidacion={
+            item.sello === "oficial" &&
+            item.precio_oficial_cop !== null &&
+            item.precio_oficial_cop !== undefined &&
             item.requiere_revalidacion
               ? item.motivo_sello || "Precio oficial por revalidar"
               : null

@@ -3,8 +3,11 @@
 import React, { useState } from "react";
 import { Scale } from "lucide-react";
 import { clienteModeracion, type CasoDetalle, type ResolverCasoEntrada } from "@/lib/api/clienteModeracion";
+import { etiquetaTipoCaso } from "@/lib/casosModeracion";
 import { formatearPesos } from "@/lib/formato";
 import SelloConfianza from "@/components/SelloConfianza";
+
+type DecisionCaso = "confirmar" | "descartar" | "sancionar" | "";
 
 export interface DetalleCasoPanelProps {
   readonly token: string;
@@ -43,7 +46,7 @@ export default function DetalleCasoPanel({
   onResuelto,
   onError,
 }: DetalleCasoPanelProps): React.JSX.Element {
-  const [decision, setDecision] = useState<"confirmar" | "descartar" | "sancionar">("descartar");
+  const [decision, setDecision] = useState<DecisionCaso>("");
   const [nota, setNota] = useState("");
   const [tipoSancion, setTipoSancion] = useState<"advertencia" | "suspension" | "bloqueo">("suspension");
   const [diasSuspension, setDiasSuspension] = useState(7);
@@ -73,11 +76,16 @@ export default function DetalleCasoPanel({
   /*
    * `sancionar` no existe para una disputa: el backend lo rechaza con 422. Si el
    * estado quedo en esa opcion por un caso anterior, se normaliza antes de enviar.
+   * Sin decision explicita no se envia nada: el moderador debe elegir.
    */
-  const decisionEnviada = esDisputa && decision === "sancionar" ? "descartar" : decision;
+  const decisionEnviada: "confirmar" | "descartar" | "sancionar" | null =
+    decision === "" ? null : esDisputa && decision === "sancionar" ? "descartar" : decision;
 
   const enviarResolucion = async (ev: React.FormEvent<HTMLFormElement>): Promise<void> => {
     ev.preventDefault();
+    if (decisionEnviada === null) {
+      return;
+    }
     setResolviendo(true);
     try {
       const payload: ResolverCasoEntrada = {
@@ -110,7 +118,7 @@ export default function DetalleCasoPanel({
     <section className="rounded-2xl border border-emerald-300 bg-superficie p-5">
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-base font-bold text-slate-900">
-          Caso {caso.tipo} ({caso.id.slice(0, 8)})
+          Caso {etiquetaTipoCaso(caso.tipo)} ({caso.id.slice(0, 8)})
         </h3>
         <button
           type="button"
@@ -193,12 +201,14 @@ export default function DetalleCasoPanel({
               </label>
               <select
                 id="decision-caso"
+                required
                 value={decision}
-                onChange={(e) =>
-                  setDecision(e.target.value as "confirmar" | "descartar" | "sancionar")
-                }
+                onChange={(e) => setDecision(e.target.value as DecisionCaso)}
                 className="mt-1 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
               >
+                <option value="" disabled>
+                  Elige una decisión
+                </option>
                 {esDisputa ? (
                   <>
                     <option value="confirmar">Dar la razón al comercio (confirmar)</option>

@@ -57,6 +57,12 @@ export interface OpcionesHistorialMock {
   readonly hasta?: string;
 }
 
+export type EscenarioComparacion =
+  | "normal"
+  | "oficial_revalidacion"
+  | "en_disputa_revalidacion"
+  | "comunidad_revalidacion";
+
 export interface OpcionesMock {
   rol?: "reportante" | "moderador" | "comercio";
   /** Presentaciones que el modo rapido muestra para la tienda del comercio. */
@@ -67,8 +73,8 @@ export interface OpcionesMock {
   selloPreciosOficiales?: "oficial" | "en_disputa";
   /** La ficha de tienda trae precios oficiales que piden revalidacion (D-02). */
   revalidacionComercio?: boolean;
-  /** El comparador trae un precio oficial que pide revalidacion (D-02). */
-  revalidacionComparacion?: boolean;
+  /** Escenario del comparador para probar los avisos D-02 y sus guardas. */
+  escenarioComparacion?: EscenarioComparacion;
   /** Tipo del unico caso que aparece en la cola de moderacion. */
   casoModeracion?: "reporte_dudoso" | "disputa_precio";
   /** Motivos de rechazo indexados por presentacion_id (pres-0, pres-1, ...). */
@@ -93,21 +99,45 @@ interface EstadoMock {
   readonly opts: OpcionesMock;
 }
 
-function construirComparacion(revalidacionOficial = false): unknown {
+function construirComparacion(escenario: EscenarioComparacion = "normal"): unknown {
   const ahora = new Date().toISOString();
-  const primerResultado = revalidacionOficial
-    ? {
-        establecimiento: { id: TIENDA_A, nombre: "Tienda La Esquina", tipo: "tienda_barrio", barrio: "Centro", direccion: "Cra 14 # 18-22", distancia_m: 420 },
-        presentacion: { id: PRES_1000, etiqueta: "Arroz Diana 1 kg", marca: "Diana", cantidad_base: 1000 },
-        precio_cop: 5000, precio_oficial_cop: 5000, requiere_revalidacion: true, precio_por_unidad: { valor_cop: 5000, por: "kg" },
-        sello: "oficial", motivo_sello: "Precio oficial por revalidar: 45 días sin cambios", n_reportes_validos: 0, n_fuentes: 0, ultimo_reporte_en: ahora, con_foto_prueba: false, es_bloque_secundario: false,
-      }
-    : {
-        establecimiento: { id: TIENDA_A, nombre: "Tienda La Esquina", tipo: "tienda_barrio", barrio: "Centro", direccion: "Cra 14 # 18-22", distancia_m: 420 },
-        presentacion: { id: PRES_1000, etiqueta: "Arroz Diana 1 kg", marca: "Diana", cantidad_base: 1000 },
-        precio_cop: 5000, precio_oficial_cop: null, precio_por_unidad: { valor_cop: 5000, por: "kg" },
-        sello: "confiable", motivo_sello: null, n_reportes_validos: 4, n_fuentes: 3, ultimo_reporte_en: ahora, con_foto_prueba: true, es_bloque_secundario: false,
-      };
+  const base = {
+    establecimiento: { id: TIENDA_A, nombre: "Tienda La Esquina", tipo: "tienda_barrio", barrio: "Centro", direccion: "Cra 14 # 18-22", distancia_m: 420 },
+    presentacion: { id: PRES_1000, etiqueta: "Arroz Diana 1 kg", marca: "Diana", cantidad_base: 1000 },
+    precio_por_unidad: { valor_cop: 5000, por: "kg" },
+    ultimo_reporte_en: ahora,
+    con_foto_prueba: false,
+    es_bloque_secundario: false,
+  };
+  const primerResultado =
+    escenario === "oficial_revalidacion"
+      ? {
+          ...base,
+          precio_cop: 5000, precio_oficial_cop: 5000, requiere_revalidacion: true,
+          sello: "oficial", motivo_sello: "Precio oficial por revalidar: 45 días sin cambios",
+          n_reportes_validos: 0, n_fuentes: 0,
+        }
+      : escenario === "en_disputa_revalidacion"
+        ? {
+            ...base,
+            precio_cop: 3000, precio_oficial_cop: 3700, requiere_revalidacion: true,
+            sello: "en_disputa",
+            motivo_sello: "La comunidad reporta un precio distinto al oficial de $3.700",
+            n_reportes_validos: 4, n_fuentes: 3,
+          }
+        : escenario === "comunidad_revalidacion"
+          ? {
+              ...base,
+              precio_cop: 5000, precio_oficial_cop: null, requiere_revalidacion: true,
+              sello: "confiable", motivo_sello: "3 reportes de 3 fuentes",
+              n_reportes_validos: 4, n_fuentes: 3,
+            }
+          : {
+              ...base,
+              precio_cop: 5000, precio_oficial_cop: null, requiere_revalidacion: false,
+              sello: "confiable", motivo_sello: null,
+              n_reportes_validos: 4, n_fuentes: 3, con_foto_prueba: true,
+            };
   return {
     datos: {
       producto: {
@@ -354,7 +384,7 @@ async function responderPublicos(
         unidad: "g", multiplicador: 1, cantidad_base: "500.000", etiqueta: "Arroz Diana 500 g", activa: true,
       }],
     },
-    [`/v1/productos/${PROD_ID}/comparacion`]: construirComparacion(opts.revalidacionComparacion),
+    [`/v1/productos/${PROD_ID}/comparacion`]: construirComparacion(opts.escenarioComparacion),
     "/v1/establecimientos": {
       datos: [{
         id: TIENDA_A, nombre: "Tienda La Esquina", tipo: "tienda_barrio", cadena: null,
@@ -455,9 +485,11 @@ export function presentacionesComercioMock(
       sello: tieneOficial ? selloOficial : "confiable",
       requiere_revalidacion: tieneOficial && revalidacion,
       motivo_sello: tieneOficial
-        ? revalidacion
-          ? "Precio oficial por revalidar: 45 días sin cambios"
-          : "Precio publicado por el comercio"
+        ? selloOficial === "en_disputa"
+          ? "La comunidad reporta un precio distinto al oficial"
+          : revalidacion
+            ? "Precio oficial por revalidar: 45 días sin cambios"
+            : "Precio publicado por el comercio"
         : "3 reportes de 3 fuentes",
       ultimo_reporte_en: new Date().toISOString(),
     };

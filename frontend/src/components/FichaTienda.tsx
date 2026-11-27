@@ -157,6 +157,9 @@ export default function FichaTienda({
                         sello={p.sello}
                         motivoSello={p.motivo_sello ?? null}
                         avisoRevalidacion={
+                          p.sello === "oficial" &&
+                          p.precio_oficial_cop !== null &&
+                          p.precio_oficial_cop !== undefined &&
                           p.requiere_revalidacion
                             ? p.motivo_sello || "Precio oficial por revalidar"
                             : null

@@ -29,6 +29,12 @@ async function analizarAxe(page: Page, contexto: string): Promise<void> {
 }
 
 test.describe("Panel de comercio en S6 (T-67)", () => {
+  /*
+   * axe recorre el DOM completo varias veces por test y en CI comparte CPU.
+   * 90 s por test evita falsos negativos por timeout sin reducir workers.
+   */
+  test.describe.configure({ timeout: 90_000 });
+
   test("un comercio corrige 20 precios en modo rápido en menos de un minuto", async ({ page }) => {
     let publicado: { precios?: { presentacion_id: string; precio_cop: number }[] } | undefined;
     await configurarMocksNucleo(page, {
@@ -413,6 +419,8 @@ test.describe("Panel de comercio en S6 (T-67)", () => {
 });
 
 test.describe("Disputa de precio en la cola de moderación (D-01)", () => {
+  test.describe.configure({ timeout: 90_000 });
+
   test("muestra ambos precios y solo las decisiones que el backend acepta", async ({ page }) => {
     let decisionEnviada: unknown;
     await configurarMocksNucleo(page, {
@@ -446,9 +454,12 @@ test.describe("Disputa de precio en la cola de moderación (D-01)", () => {
 
     const opciones = page.locator("#decision-caso option");
     await expect(opciones).toHaveText([
+      "Elige una decisión",
       "Dar la razón al comercio (confirmar)",
       "Dar la razón a la comunidad (descartar)",
     ]);
+    await expect(page.locator("#decision-caso")).toHaveValue("");
+    await expect(page.locator("#decision-caso")).toHaveAttribute("required", "");
     await expect(page.getByText(/sancionar/i)).toHaveCount(0);
 
     await page.selectOption("#decision-caso", "confirmar");
@@ -494,6 +505,8 @@ test.describe("Disputa de precio en la cola de moderación (D-01)", () => {
 });
 
 test.describe("Aviso D-02 de revalidación del precio oficial", () => {
+  test.describe.configure({ timeout: 90_000 });
+
   test("la ficha de tienda muestra el motivo sin romper el sello oficial", async ({ page }) => {
     await configurarMocksNucleo(page, {
       presentacionesComercio: 2,
@@ -515,7 +528,7 @@ test.describe("Aviso D-02 de revalidación del precio oficial", () => {
   });
 
   test("el comparador muestra el motivo del precio oficial por revalidar", async ({ page }) => {
-    await configurarMocksNucleo(page, { revalidacionComparacion: true });
+    await configurarMocksNucleo(page, { escenarioComparacion: "oficial_revalidacion" });
     await page.goto(`/producto/${PROD_ID}`, { waitUntil: "networkidle" });
 
     await expect(page.getByRole("heading", { name: "Arroz blanco", exact: true })).toBeVisible();
@@ -524,6 +537,36 @@ test.describe("Aviso D-02 de revalidación del precio oficial", () => {
     await expect(aviso).toContainText("Precio oficial por revalidar: 45 días sin cambios");
     await expect(page.getByText("Precio oficial", { exact: true })).toBeVisible();
     await analizarAxe(page, "comparador con aviso D-02");
+  });
+
+  test("el comparador no muestra aviso D-02 en una fila en disputa", async ({ page }) => {
+    await configurarMocksNucleo(page, { escenarioComparacion: "en_disputa_revalidacion" });
+    await page.goto(`/producto/${PROD_ID}`, { waitUntil: "networkidle" });
+
+    await expect(page.getByText("Contraste de precios en disputa")).toBeVisible();
+    await expect(page.getByText(/La comunidad reporta/).first()).toBeVisible();
+    await expect(page.locator('[data-prueba="aviso-revalidacion"]')).toHaveCount(0);
+  });
+
+  test("el comparador no muestra aviso D-02 si solo hay precio comunitario", async ({ page }) => {
+    await configurarMocksNucleo(page, { escenarioComparacion: "comunidad_revalidacion" });
+    await page.goto(`/producto/${PROD_ID}`, { waitUntil: "networkidle" });
+
+    await expect(page.getByText("Confiable", { exact: true })).toBeVisible();
+    await expect(page.locator('[data-prueba="aviso-revalidacion"]')).toHaveCount(0);
+  });
+
+  test("la ficha de tienda no muestra aviso D-02 en una fila en disputa", async ({ page }) => {
+    await configurarMocksNucleo(page, {
+      presentacionesComercio: 1,
+      preciosOficialesComercio: 1,
+      selloPreciosOficiales: "en_disputa",
+      revalidacionComercio: true,
+    });
+    await page.goto(`/tienda/${TIENDA_A}`, { waitUntil: "networkidle" });
+
+    await expect(page.getByText("En disputa: comercio vs. usuarios")).toBeVisible();
+    await expect(page.locator('[data-prueba="aviso-revalidacion"]')).toHaveCount(0);
   });
 });
 
