@@ -9,6 +9,9 @@ export interface TarjetaProductoProps {
   readonly precioDesdePorUnidadCop: number | null;
   readonly unidadVisualizacion: string;
   readonly nTiendas: number;
+  readonly presentaciones?: readonly {
+    readonly etiqueta: string;
+  }[];
 }
 
 /**
@@ -25,8 +28,10 @@ export default function TarjetaProducto({
   precioDesdePorUnidadCop,
   unidadVisualizacion,
   nTiendas,
+  presentaciones = [],
 }: TarjetaProductoProps): React.JSX.Element {
   const tienePrecio = precioDesdePorUnidadCop !== null;
+  const presentacionesVisibles = presentaciones.slice(0, 2);
 
   return (
     <Link
@@ -41,6 +46,14 @@ export default function TarjetaProducto({
           {categoriaNombre} ·{" "}
           {nTiendas === 1 ? "1 establecimiento" : `${nTiendas} establecimientos`}
         </span>
+        {presentacionesVisibles.length > 0 && (
+          <span className="mt-1 block text-[12.5px] leading-snug text-slate-500">
+            {presentacionesVisibles.map((presentacion) => presentacion.etiqueta).join(" · ")}
+            {presentaciones.length > presentacionesVisibles.length
+              ? ` · +${presentaciones.length - presentacionesVisibles.length} más`
+              : ""}
+          </span>
+        )}
       </span>
 
       {tienePrecio ? (

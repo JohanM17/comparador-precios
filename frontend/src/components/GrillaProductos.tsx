@@ -34,6 +34,7 @@ export default function GrillaProductos({
             precioDesdePorUnidadCop={producto.precio_desde_por_unidad_cop ?? null}
             unidadVisualizacion={producto.unidad_visualizacion}
             nTiendas={producto.n_tiendas_con_precio}
+            presentaciones={producto.presentaciones}
           />
         ))}
       </div>
