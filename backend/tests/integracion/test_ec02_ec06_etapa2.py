@@ -17,6 +17,9 @@ La prueba se ejecuta en la base aislada `comparador_pruebas` a traves de
 Cada escenario usa identificadores unicos y limpia lo que crea. El contraste
 de la migracion se ejecuta en una transaccion que termina en rollback porque
 `reporte_precio` es inmutable por diseno (sus triggers prohiben DELETE).
+
+Requiere la semilla de `scripts/semilla.py` (categoria_id=1) y una base aislada
+creada con `scripts/integracion_aislada.py --con-semilla`.
 """
 
 from __future__ import annotations

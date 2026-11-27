@@ -107,15 +107,15 @@ este indicador por una mejora cosmética.
 | Comprobación | Resultado |
 | :--- | :--- |
 | `ruff check` | limpio |
-| `mypy --strict backend/app` | sin problemas en 93 archivos |
+| `mypy --strict backend/app` | sin problemas en 94 archivos |
 | `lint-imports` | 3 contratos cumplidos, 0 rotos |
-| `pytest backend/tests/unitarias` | **288 pruebas, todas en verde** |
+| `pytest backend/tests/unitarias` | **371 pruebas, todas en verde** |
 | Sincronización del contrato OpenAPI | regenerado; sin rutas ni esquemas perdidos |
 | `tsc --noEmit` y `next lint` | limpios |
 | `scripts/migrar.py` sobre Supabase | `0006` aplicada; una sola migración pendiente |
 | API en vivo contra la base migrada | comparación, historial y catálogo en `200`; las tres rutas comerciales en `401` sin credencial |
 
-De esas 288 pruebas, 36 son del módulo comercial y se escribieron antes que el código que
+De esas 371 pruebas, 36 son del módulo comercial y se escribieron antes que el código que
 verifican: 12 de la regla de contraste `D-01`, 16 de la validación de promociones de la Ley 1480,
 4 de coherencia entre los parámetros nombrados en el SQL y las claves del diccionario, y 4 del
 puerto de promociones.
@@ -157,6 +157,10 @@ comprobar que el SQL era válido contra el esquema real.
 El orden del historial es la razón del renumerado. Con el nombre original se habría leído
 `0001, 0002, 0003, 0005, 0004`, y el orden de los archivos habría dejado de significar el orden
 de aplicación.
+
+La migración `0007_diferencia_pct_amplia.sql` se validó en la base aislada de T-68 y debe
+aplicarse a la base compartida antes del despliegue de Etapa 2, junto con el código que persiste
+contrastes con diferencias mayores a 99,9999 %.
 
 ---
 

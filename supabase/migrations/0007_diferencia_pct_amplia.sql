@@ -11,7 +11,8 @@
 -- (entero positivo en pesos) cabe sin desbordar. La migración es aditiva: no
 -- renombra ni elimina columnas, solo ensancha una columna anulable.
 --
--- Aplicada con scripts/migrar.py sobre comparador_pruebas (T-68).
+-- Debe aplicarse con scripts/migrar.py antes de desplegar el código que persiste
+-- contrastes con diferencias grandes; T-68 la validó en la base aislada.
 
 alter table public.precio_vigente
   alter column diferencia_pct type numeric(14,4);
