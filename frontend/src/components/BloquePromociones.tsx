@@ -33,9 +33,16 @@ function formatearVigencia(promo: ItemPromocion): string {
   return inicio;
 }
 
-/**
+/*
  * Contenedor independiente para promociones comerciales (EC-06 y Ley 1480).
  * Retorna null si el producto no tiene promociones activas.
+ *
+ * Es el unico bloque de la pantalla con marco cerrado: la ley exige que el
+ * contenido comercial se distinga del editorial, y el marco, el titulo y el
+ * sello legal son lo que lo distinguen. No lleva relleno: sobre una superficie
+ * tenida, slate-500 se queda en 4.23:1 y axe lo marca. El beneficio va en azul sobrio, el color reservado al dato que
+ * publica un comercio; en esmeralda leeria como ahorro verificado y sesgaria
+ * la comparacion, que es justo lo que EC-06 prohibe.
  */
 export default function BloquePromociones({
   promociones,
@@ -47,42 +54,37 @@ export default function BloquePromociones({
   return (
     <section
       aria-labelledby="titulo-bloque-promociones"
-      className="mt-8 rounded-2xl border border-slate-300 bg-slate-100/80 p-5 sm:p-6"
+      className="mt-12 border border-slate-300 px-5 py-4 sm:px-6"
     >
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-300 pb-3">
         <div className="flex items-center gap-2">
-          <Megaphone className="h-4 w-4 text-slate-700" aria-hidden="true" />
-          <h2 id="titulo-bloque-promociones" className="text-sm font-bold text-slate-900">
+          <Megaphone className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
+          <h2 id="titulo-bloque-promociones" className="rotulo">
             Promoción — Contenido comercial que no altera el ranking
           </h2>
         </div>
-        <span className="rounded-full border border-slate-300 bg-white px-2.5 py-0.5 text-xs font-semibold text-slate-700">
-          Ley 1480 de 2011
-        </span>
+        <span className="rotulo border border-slate-300 px-2 py-1">Ley 1480 de 2011</span>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="divide-y divide-slate-300">
         {promociones.map((promo, indice) => {
           const beneficio = describirBeneficio(promo);
           const clave = promo.id ?? `promo-${indice}`;
           return (
-            <article
-              key={clave}
-              className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="text-sm font-bold text-slate-900">
+            <article key={clave} className="py-4">
+              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                <h3 className="text-[15px] font-medium tracking-[-0.015em] text-slate-900">
                   {promo.titulo || "Promoción comercial vigente"}
                 </h3>
                 {beneficio && (
-                  <span className="flex-shrink-0 rounded-md bg-blue-50 px-2 py-0.5 text-xs font-bold text-blue-900">
+                  <span className="cifras flex-shrink-0 text-[13.5px] font-medium text-blue-700">
                     {beneficio}
                   </span>
                 )}
               </div>
 
               {(promo.establecimiento_nombre || promo.presentacion_etiqueta) && (
-                <p className="mt-1 text-xs font-medium text-slate-700">
+                <p className="mt-1 text-[13px] text-slate-600">
                   {[promo.establecimiento_nombre, promo.presentacion_etiqueta]
                     .filter(Boolean)
                     .join(" · ")}
@@ -90,12 +92,12 @@ export default function BloquePromociones({
               )}
 
               {promo.condiciones && (
-                <p className="mt-2 text-xs text-slate-600">
-                  <strong>Condiciones:</strong> {promo.condiciones}
+                <p className="mt-2 max-w-[62ch] text-[12.5px] leading-relaxed text-slate-600">
+                  <span className="text-slate-500">Condiciones:</span> {promo.condiciones}
                 </p>
               )}
 
-              <p className="mt-2 text-[11px] text-slate-500">{formatearVigencia(promo)}</p>
+              <p className="cifras mt-2 text-[12px] text-slate-500">{formatearVigencia(promo)}</p>
             </article>
           );
         })}

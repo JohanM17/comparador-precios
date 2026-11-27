@@ -1,7 +1,26 @@
 import type { Metadata, Viewport } from "next";
 import React from "react";
+import { Instrument_Serif, Schibsted_Grotesk } from "next/font/google";
 import "./globals.css";
 import AppShell from "@/components/AppShell";
+
+/**
+ * Una sola familia sostiene toda la interfaz. La cursiva con gracias aparece en
+ * dos o tres sitios contados y es el unico contraste tipografico del diseno.
+ */
+const fuenteCuerpo = Schibsted_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-cuerpo",
+  display: "swap",
+});
+
+const fuenteCursiva = Instrument_Serif({
+  subsets: ["latin"],
+  weight: "400",
+  style: ["normal", "italic"],
+  variable: "--font-cursiva",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -28,11 +47,17 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#047857",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f7f6f3" },
+    { media: "(prefers-color-scheme: dark)", color: "#141511" },
+  ],
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
 };
+
+/** Fija el tema antes del primer pintado para evitar el parpadeo claro a oscuro. */
+const SCRIPT_TEMA = `try{var t=localStorage.getItem("tema");var o=t?t==="oscuro":window.matchMedia("(prefers-color-scheme: dark)").matches;if(o)document.documentElement.classList.add("dark")}catch(e){}`;
 
 interface RootLayoutProps {
   readonly children: React.ReactNode;
@@ -42,8 +67,15 @@ export default function RootLayout({
   children,
 }: RootLayoutProps): React.JSX.Element {
   return (
-    <html lang="es-CO" className="h-full">
-      <body className="h-full bg-slate-50 font-sans text-slate-900 antialiased selection:bg-emerald-100 selection:text-emerald-900">
+    <html
+      lang="es-CO"
+      suppressHydrationWarning
+      className={`h-full ${fuenteCuerpo.variable} ${fuenteCursiva.variable}`}
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: SCRIPT_TEMA }} />
+      </head>
+      <body className="h-full bg-slate-50 font-sans text-slate-900 antialiased selection:bg-emerald-100 selection:text-slate-900">
         <AppShell>{children}</AppShell>
       </body>
     </html>

@@ -111,14 +111,14 @@ export default function PaginaGestion(): React.JSX.Element {
   if (eliminada) {
     return (
       <div className="mx-auto max-w-xl px-4 py-10 sm:px-6">
-        <section className="rounded-2xl border border-emerald-300 bg-white p-6 text-center shadow-sm">
+        <section className="rounded-2xl border border-emerald-300 bg-superficie p-6 text-center">
           <h1 className="text-xl font-bold text-slate-900">Cuenta suprimida y anonimizada</h1>
           <p className="mt-2 text-sm text-slate-600">
             Tus credenciales fueron eliminadas y tus reportes históricos quedaron anonimizados conforme a la Ley 1581.
           </p>
           <Link
             href="/"
-            className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-700 px-5 text-sm font-semibold text-white"
+            className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-bosque-800 px-5 text-sm font-semibold text-white"
           >
             Volver al inicio
           </Link>
@@ -130,7 +130,7 @@ export default function PaginaGestion(): React.JSX.Element {
   if (requiereIngreso || !token || !perfil) {
     return (
       <div className="mx-auto max-w-xl px-4 py-10 sm:px-6">
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
+        <section className="rounded-2xl border border-slate-300 bg-superficie p-6 text-center">
           <h1 className="text-2xl font-bold text-slate-900">Panel de gestión</h1>
           {error ? (
             <div className="mt-4 text-left">
@@ -148,7 +148,7 @@ export default function PaginaGestion(): React.JSX.Element {
               </p>
               <Link
                 href="/ingresar"
-                className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-700 px-5 text-sm font-semibold text-white hover:bg-emerald-800"
+                className="mt-5 inline-flex min-h-11 items-center justify-center rounded-xl bg-bosque-800 px-5 text-sm font-semibold text-white hover:bg-bosque-900"
               >
                 Ir a ingresar
               </Link>
@@ -163,7 +163,7 @@ export default function PaginaGestion(): React.JSX.Element {
     <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">Panel de gestión</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Panel de gestión</h1>
           <p className="mt-1 flex items-center gap-2 text-sm text-slate-600">
             <ShieldCheck className="h-4 w-4 text-emerald-700" aria-hidden="true" />
             <span>
@@ -173,7 +173,7 @@ export default function PaginaGestion(): React.JSX.Element {
         </div>
         <Link
           href="/reportar"
-          className="inline-flex min-h-11 items-center justify-center rounded-xl bg-emerald-700 px-4 text-sm font-semibold text-white hover:bg-emerald-800"
+          className="inline-flex min-h-11 items-center justify-center rounded-full bg-bosque-800 px-5 text-sm font-semibold text-white hover:bg-bosque-900"
         >
           Nuevo reporte
         </Link>
@@ -182,7 +182,7 @@ export default function PaginaGestion(): React.JSX.Element {
       <div
         role="tablist"
         aria-label="Secciones de gestión"
-        className="flex flex-wrap gap-2 border-b border-slate-200 pb-3"
+        className="flex flex-wrap gap-1 border-b border-slate-300"
       >
         {pestanasDisponibles.map((tab) => {
           const activa = tab.id === pestanaActiva;
@@ -193,10 +193,10 @@ export default function PaginaGestion(): React.JSX.Element {
               role="tab"
               aria-selected={activa}
               onClick={() => setPestanaActiva(tab.id)}
-              className={`min-h-11 rounded-xl px-4 text-sm font-semibold transition-colors ${
+              className={`-mb-px min-h-11 border-b-4 px-4 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 ${
                 activa
-                  ? "bg-emerald-700 text-white shadow-sm"
-                  : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  ? "border-cereza-600 text-slate-900"
+                  : "border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900"
               }`}
             >
               {tab.titulo}

@@ -36,15 +36,15 @@ export default function CampoPrecio({
   };
 
   return (
-    <div className="space-y-2 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="space-y-2 rounded-2xl border border-slate-300 bg-superficie p-4">
       <label htmlFor="campo-precio-cop" className="block text-sm font-bold text-slate-900">
-        3. Precio observado en góndola
+        <span className="cifras mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full bg-bosque-800 text-xs font-bold text-white">3</span>Precio observado en góndola
       </label>
 
       <div className="relative flex items-center">
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute left-4 text-xl font-black text-emerald-800"
+          className="pointer-events-none absolute left-4 font-display text-2xl font-bold text-emerald-800"
         >
           $
         </span>
@@ -60,10 +60,10 @@ export default function CampoPrecio({
           value={textoFormateado}
           onChange={manejarCambio}
           placeholder="2.600"
-          className={`min-h-14 w-full rounded-xl border py-3 pl-10 pr-16 text-2xl font-extrabold tracking-tight text-slate-900 focus:outline-none focus:ring-2 ${
+          className={`min-h-14 w-full rounded-xl border py-3 pl-10 pr-16 cifras font-display text-3xl font-bold tracking-tight text-slate-900 focus:outline-none focus:ring-2 ${
             error
               ? "border-rose-500 bg-rose-50/40 focus:border-rose-600 focus:ring-rose-600/20"
-              : "border-slate-300 bg-slate-50 focus:border-emerald-700 focus:bg-white focus:ring-emerald-700/20"
+              : "border-slate-300 bg-slate-50 focus:border-emerald-700 focus:bg-superficie focus:ring-emerald-700/20"
           }`}
         />
         <span className="pointer-events-none absolute right-4 text-xs font-bold text-slate-500">

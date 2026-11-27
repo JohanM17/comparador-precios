@@ -98,7 +98,7 @@ export default function PestanaAuditoria({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+      <div className="flex flex-wrap gap-3 rounded-2xl border border-slate-300 bg-superficie p-4">
         <div>
           <label htmlFor="filtro-entidad-aud" className="block text-xs font-semibold text-slate-600">
             Entidad
