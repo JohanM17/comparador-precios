@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
 from uuid import UUID
@@ -18,6 +20,8 @@ from app.dominio.contraste import (
 from app.dominio.parametros import ParametrosDominio
 from app.dominio.sello import ResultadoSelloYPrecio, evaluar_sello_y_precio
 from app.dominio.vigencia import CandidatoReporte
+
+logger = logging.getLogger(__name__)
 
 _SQL_UPSERT_PV = text("""
     INSERT INTO public.precio_vigente (
@@ -59,6 +63,31 @@ _SQL_DELETE_PV = text("""
 _SQL_DELETE_PV_PAR = text("""
     DELETE FROM public.precio_vigente
     WHERE presentacion_id = :p AND establecimiento_id = :e;
+""")
+
+# D-01: una contradiccion comunitaria abre un caso para que lo resuelva una persona.
+# El NOT EXISTS evita duplicar mientras el caso siga abierto o en revision. Si ya fue
+# resuelto, una nueva contradiccion puede abrir uno nuevo; el historial no se toca.
+_SQL_ABRIR_CASO_DISPUTA = text("""
+    INSERT INTO public.caso_moderacion (
+        tipo, referencia_tabla, referencia_id, detalle, prioridad, estado
+    )
+    SELECT
+        CAST('disputa_precio' AS tipo_caso),
+        'presentacion',
+        :pres_id,
+        CAST(:detalle AS jsonb),
+        2,
+        CAST('abierto' AS estado_caso)
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM public.caso_moderacion c
+        WHERE c.tipo = CAST('disputa_precio' AS tipo_caso)
+          AND c.referencia_tabla = 'presentacion'
+          AND c.referencia_id = :pres_id
+          AND c.estado IN ('abierto', 'en_revision')
+          AND c.detalle ->> 'establecimiento_id' = :est_id_txt
+    );
 """)
 
 
@@ -218,6 +247,59 @@ async def _leer_precio_oficial(
     )
 
 
+def _detalle_caso_disputa(
+    presentacion_id: UUID,
+    establecimiento_id: UUID,
+    producto_id: UUID,
+    contraste: ResultadoContraste,
+) -> dict[str, Any]:
+    """Datos que el moderador necesita para decidir sin volver a reconstruir el contraste."""
+    return {
+        "presentacion_id": str(presentacion_id),
+        "establecimiento_id": str(establecimiento_id),
+        "producto_id": str(producto_id),
+        "precio_oficial_cop": contraste.precio_oficial_cop,
+        "precio_comunidad_cop": contraste.resultado.precio_cop,
+        "diferencia_pct": (
+            float(contraste.diferencia_pct) if contraste.diferencia_pct is not None else None
+        ),
+        "n_reportes_validos": contraste.resultado.n_reportes_validos,
+        "n_fuentes": contraste.resultado.n_fuentes,
+        "sello": contraste.resultado.sello,
+    }
+
+
+async def _abrir_caso_disputa(
+    sesion: AsyncSession,
+    presentacion_id: UUID,
+    establecimiento_id: UUID,
+    producto_id: UUID,
+    contraste: ResultadoContraste,
+) -> None:
+    """Abre el caso de moderacion de una disputa sin poder tumbar el calculo del precio.
+
+    La insercion va dentro de un SAVEPOINT: si la tabla de casos falla, PostgreSQL
+    deshace solo ese INSERT y la transaccion que guarda `precio_vigente` sigue viva.
+    El precio es la funcion principal; el caso es una tarea de moderacion que puede
+    reintentarse en el siguiente recalculo.
+    """
+    detalle = json.dumps(
+        _detalle_caso_disputa(presentacion_id, establecimiento_id, producto_id, contraste),
+        ensure_ascii=False,
+    )
+    parametros = {
+        "pres_id": presentacion_id,
+        "est_id_txt": str(establecimiento_id),
+        "detalle": detalle,
+    }
+    try:
+        async with sesion.begin_nested():
+            await sesion.execute(_SQL_ABRIR_CASO_DISPUTA, parametros)
+    except Exception:  # noqa: BLE001
+        # Aviso generico: sin IDs ni coordenadas en el log (Ley 1581).
+        logger.warning("No se pudo abrir el caso de disputa; el precio vigente se calculo igual.")
+
+
 class SoloUsuarios:
     """Politica de la Etapa 1: calcula el precio vigente con reportes de usuarios y semilla.
 
@@ -326,6 +408,15 @@ class OficialConContraste:
                 contraste,
             ),
         )
+
+        if contraste.hay_disputa:
+            await _abrir_caso_disputa(
+                sesion,
+                presentacion_id,
+                establecimiento_id,
+                producto_final,
+                contraste,
+            )
 
         return contraste.resultado
 

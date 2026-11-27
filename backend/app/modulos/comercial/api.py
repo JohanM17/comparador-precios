@@ -10,7 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bd import obtener_sesion
 from app.compartido.dependencias import obtener_puerto_cache
-from app.compartido.seguridad import UsuarioAutenticado, requiere_rol, requiere_usuario
+from app.compartido.seguridad import (
+    UsuarioAutenticado,
+    requiere_autorizacion_datos,
+    requiere_rol,
+)
 from app.modulos.comercial.esquemas import (
     EstablecimientoComercioResumen,
     ListaSolicitudesRespuesta,
@@ -46,10 +50,14 @@ def obtener_servicio_comercial(
 )
 async def reclamar_titularidad(
     entrada: ReclamoComercioEntrada,
-    usuario: Annotated[UsuarioAutenticado, Depends(requiere_usuario)],
+    usuario: Annotated[UsuarioAutenticado, Depends(requiere_autorizacion_datos)],
     servicio: Annotated[ServicioComercial, Depends(obtener_servicio_comercial)],
 ) -> Any:
-    """Cualquier cuenta puede reclamar un establecimiento; la decision es de un moderador."""
+    """Cualquier cuenta autorizada puede reclamar; la decision es de un moderador.
+
+    El reclamo guarda telefono de contacto y mensaje, asi que exige autorizacion
+    previa y expresa de tratamiento de datos (Ley 1581, FR-006).
+    """
     return await servicio.reclamar_titularidad(entrada, usuario)
 
 

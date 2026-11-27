@@ -111,6 +111,118 @@ async def actualizar_caso_resuelto_bd(
     )
 
 
+_SQL_PRECIO_OFICIAL_DEL_PAR = text("""
+    SELECT po.precio_cop, po.precio_por_base, po.producto_id, pr.cantidad_base
+    FROM public.precio_oficial po
+    JOIN public.presentacion pr ON pr.id = po.presentacion_id
+    WHERE po.presentacion_id = :pres_id
+      AND po.establecimiento_id = :est_id;
+""")
+
+_SQL_REVALIDAR_OFICIAL_PAR = text("""
+    UPDATE public.precio_oficial
+    SET revalidado_en = :ahora
+    WHERE presentacion_id = :pres_id
+      AND establecimiento_id = :est_id;
+""")
+
+_SQL_FIJAR_PRECIO_VIGENTE_OFICIAL = text("""
+    INSERT INTO public.precio_vigente (
+        presentacion_id, establecimiento_id, producto_id,
+        precio_cop, precio_por_base, cantidad_base,
+        sello, motivo_sello, n_reportes_validos, n_fuentes,
+        dispersion, ultimo_reporte_en, reporte_origen_id, recalculado_en,
+        precio_oficial_cop, diferencia_pct, requiere_revalidacion
+    ) VALUES (
+        :pres_id, :est_id, :prod_id,
+        :precio_cop, :precio_por_base, :cantidad_base,
+        CAST('oficial' AS sello_precio),
+        'Precio oficial confirmado por moderacion',
+        0, 0, NULL, :ahora, NULL, now(),
+        :precio_oficial_cop, 0, false
+    )
+    ON CONFLICT (presentacion_id, establecimiento_id) DO UPDATE SET
+        producto_id = EXCLUDED.producto_id,
+        precio_cop = EXCLUDED.precio_cop,
+        precio_por_base = EXCLUDED.precio_por_base,
+        cantidad_base = EXCLUDED.cantidad_base,
+        sello = EXCLUDED.sello,
+        motivo_sello = EXCLUDED.motivo_sello,
+        precio_oficial_cop = EXCLUDED.precio_oficial_cop,
+        diferencia_pct = 0,
+        requiere_revalidacion = false,
+        recalculado_en = now();
+""")
+
+_SQL_DESACTIVAR_OFICIAL_PAR = text("""
+    UPDATE public.precio_oficial
+    SET activo = false
+    WHERE presentacion_id = :pres_id
+      AND establecimiento_id = :est_id
+    RETURNING producto_id;
+""")
+
+
+async def confirmar_disputa_precio_bd(
+    sesion: AsyncSession,
+    presentacion_id: UUID,
+    establecimiento_id: UUID,
+    ahora: datetime,
+) -> UUID | None:
+    """Deja ganar al precio oficial: lo revalida y fija la proyeccion vigente.
+
+    Solo toca `precio_oficial` y `precio_vigente`. Los reportes comunitarios y su
+    historial no se modifican: la decision es sobre que precio se muestra, no sobre
+    borrar la evidencia que levanto la mano.
+    """
+    fila = (
+        await sesion.execute(
+            _SQL_PRECIO_OFICIAL_DEL_PAR,
+            {"pres_id": presentacion_id, "est_id": establecimiento_id},
+        )
+    ).first()
+    if fila is None:
+        return None
+
+    await sesion.execute(
+        _SQL_REVALIDAR_OFICIAL_PAR,
+        {"pres_id": presentacion_id, "est_id": establecimiento_id, "ahora": ahora},
+    )
+    await sesion.execute(
+        _SQL_FIJAR_PRECIO_VIGENTE_OFICIAL,
+        {
+            "pres_id": presentacion_id,
+            "est_id": establecimiento_id,
+            "prod_id": fila.producto_id,
+            "precio_cop": fila.precio_cop,
+            "precio_oficial_cop": fila.precio_cop,
+            "precio_por_base": fila.precio_por_base,
+            "cantidad_base": fila.cantidad_base,
+            "ahora": ahora,
+        },
+    )
+    return UUID(str(fila.producto_id))
+
+
+async def desactivar_precio_oficial_bd(
+    sesion: AsyncSession,
+    presentacion_id: UUID,
+    establecimiento_id: UUID,
+) -> UUID | None:
+    """Deja ganar a la comunidad: apaga el precio oficial del par.
+
+    `precio_oficial` conserva la fila con `activo=false`; no se borra el historial.
+    El siguiente recalculo con la politica ya no encuentra oficial y usa la comunidad.
+    """
+    fila = (
+        await sesion.execute(
+            _SQL_DESACTIVAR_OFICIAL_PAR,
+            {"pres_id": presentacion_id, "est_id": establecimiento_id},
+        )
+    ).first()
+    return UUID(str(fila.producto_id)) if fila is not None else None
+
+
 async def actualizar_estado_reporte_bd(
     sesion: AsyncSession,
     reporte_id: UUID,

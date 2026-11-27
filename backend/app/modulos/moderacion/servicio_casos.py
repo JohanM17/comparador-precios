@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
@@ -74,6 +75,15 @@ class ServicioCasosModeracion:
 
         ahora = datetime.now(UTC)
         params = await obtener_parametros_dominio(self.sesion)
+
+        # D-01: una disputa de precio no cuelga de un reporte concreto. El caso guarda
+        # el par y los dos precios en `detalle`, asi que se resuelve antes del flujo
+        # generico de `reporte_precio`.
+        if caso["tipo"] == "disputa_precio":
+            await self._resolver_disputa_precio(caso, entrada, moderador, ahora, params)
+            await self.sesion.flush()
+            return await self.obtener_caso(caso_id)
+
         rep = await repositorio_casos.obtener_datos_referencia_bd(
             self.sesion, caso["referencia_tabla"], caso["referencia_id"]
         )
@@ -185,6 +195,93 @@ class ServicioCasosModeracion:
         else:
             nuevo_est = "advertencia"
         await repositorio_sanciones.actualizar_estado_perfil_bd(self.sesion, uid, nuevo_est, hasta)
+
+    @staticmethod
+    def _referencias_disputa(caso: dict[str, Any]) -> tuple[UUID, UUID, UUID | None]:
+        """Extrae el par y el producto del `detalle` guardado al abrir el caso."""
+        detalle = caso.get("detalle") or {}
+        if isinstance(detalle, str):
+            detalle = json.loads(detalle)
+
+        pres_raw = caso.get("referencia_id") or detalle.get("presentacion_id")
+        est_raw = detalle.get("establecimiento_id")
+        if not pres_raw or not est_raw:
+            raise ValidacionError("El caso de disputa no tiene las referencias del par.")
+        prod_raw = detalle.get("producto_id")
+        return (
+            UUID(str(pres_raw)),
+            UUID(str(est_raw)),
+            UUID(str(prod_raw)) if prod_raw else None,
+        )
+
+    async def _resolver_disputa_precio(
+        self,
+        caso: dict[str, Any],
+        entrada: ResolverCasoEntrada,
+        mod: UsuarioAutenticado,
+        ahora: datetime,
+        params: Any,
+    ) -> None:
+        """Resuelve una disputa D-01 entre el precio oficial y la comunidad.
+
+        - `confirmar`: gana el comercio; se revalida el oficial y se fija la proyeccion.
+        - `descartar`: gana la comunidad; se apaga el oficial y se recalcula sin el.
+        - `sancionar`: no aplica, porque no hay un unico reporte que sancionar.
+
+        No se modifican filas historicas. Si mas adelante vuelve a haber una
+        contradiccion, se abrira un caso nuevo (el anterior ya esta resuelto).
+        """
+        if entrada.decision == "sancionar":
+            raise ValidacionError(
+                "La decision 'sancionar' no aplica a una disputa de precio: "
+                "no hay un unico reporte que sancionar. Use 'confirmar' o 'descartar'."
+            )
+
+        pres_id, est_id, prod_id = self._referencias_disputa(caso)
+        producto_id: UUID | None
+
+        if entrada.decision == "confirmar":
+            producto_id = (
+                await repositorio_casos.confirmar_disputa_precio_bd(
+                    self.sesion, pres_id, est_id, ahora
+                )
+                or prod_id
+            )
+            precio_ganador = "oficial"
+        elif entrada.decision == "descartar":
+            producto_id = (
+                await repositorio_casos.desactivar_precio_oficial_bd(self.sesion, pres_id, est_id)
+                or prod_id
+            )
+            await self.politica.recalcular_par(self.sesion, pres_id, est_id, ahora, params)
+            precio_ganador = "comunidad"
+        else:  # pragma: no cover - Literal de Pydantic ya limita las decisiones
+            raise ValidacionError(f"Decision de disputa no soportada: {entrada.decision}")
+
+        if producto_id is not None:
+            await self.cache.invalidar_producto(producto_id)
+
+        await repositorio_casos.actualizar_caso_resuelto_bd(
+            self.sesion, caso["id"], entrada.decision, entrada.nota, mod.id, ahora
+        )
+        await registrar_auditoria(
+            self.sesion,
+            mod.id,
+            mod.rol,
+            f"resolver_caso_{entrada.decision}",
+            "caso_moderacion",
+            str(caso["id"]),
+            {"estado": caso["estado"], "tipo": caso["tipo"]},
+            {
+                "estado": "resuelto",
+                "decision": entrada.decision,
+                "nota": entrada.nota,
+                "tipo": "disputa_precio",
+                "precio_ganador": precio_ganador,
+                "presentacion_id": str(pres_id),
+                "establecimiento_id": str(est_id),
+            },
+        )
 
     async def recalcular_precio_vigente_manual(
         self, _mod: UsuarioAutenticado, pres_id: UUID | None = None, est_id: UUID | None = None
