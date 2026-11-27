@@ -225,7 +225,7 @@ export default function ComparadorProducto({
                   id="filtro-presentacion"
                   value={presentacionId}
                   onChange={(e) => manejarCambioPresentacion(e.target.value)}
-                  className="mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-0"
+                  className="mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
                 >
                   <option value="">Todas las presentaciones</option>
                   {datos.producto.presentaciones.map((p) => (
@@ -247,7 +247,7 @@ export default function ComparadorProducto({
                   id="selector-orden"
                   value={orden}
                   onChange={(e) => setOrden(e.target.value as CriterioOrden)}
-                  className="mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-0"
+                  className="mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
                 >
                   <option value="precio_unitario">
                     Precio por {datos.producto.unidad_visualizacion} (menor primero)
@@ -336,7 +336,7 @@ export default function ComparadorProducto({
                   id="selector-establecimiento-historial"
                   value={establecimientoHistorialId}
                   onChange={(e) => setEstablecimientoHistorialId(e.target.value)}
-                  className="mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-0"
+                  className="mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
                 >
                   {establecimientosHistorial.map((establecimiento) => (
                     <option key={establecimiento.id} value={establecimiento.id}>

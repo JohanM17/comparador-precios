@@ -182,7 +182,7 @@ export default function PestanaPreciosRapido({
             id="tienda-precios"
             value={tiendaId}
             onChange={(ev) => setTiendaId(ev.target.value)}
-            className="mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus:ring-0"
+            className="mt-1 min-h-11 w-full border-0 border-b border-slate-300 bg-transparent px-0 text-[15px] text-slate-900 focus:border-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
           >
             {tiendas.map((t) => (
               <option key={t.id} value={t.id}>
@@ -271,7 +271,7 @@ export default function PestanaPreciosRapido({
                         }))
                       }
                       onKeyDown={(ev) => alTeclear(ev, indice)}
-                      className={`cifras min-h-11 w-28 border-0 border-b bg-transparent px-0 text-right text-[15px] tabular-nums focus:outline-none focus:ring-0 ${
+                      className={`cifras min-h-11 w-28 border-0 border-b bg-transparent px-0 text-right text-[15px] tabular-nums focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 ${
                         cambio
                           ? "border-emerald-600 text-emerald-700"
                           : "border-slate-300 text-slate-900 focus:border-slate-900"
@@ -288,7 +288,7 @@ export default function PestanaPreciosRapido({
               type="button"
               onClick={() => void publicar()}
               disabled={guardando || cambiados.length === 0}
-              className="inline-flex min-h-11 items-center justify-center rounded-full bg-brasa-600 px-5 text-[13.5px] font-medium text-slate-50 transition-colors hover:bg-brasa-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:opacity-50"
+              className="inline-flex min-h-11 items-center justify-center rounded-full bg-brasa-600 px-5 text-[13.5px] font-medium text-white transition-colors hover:bg-brasa-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:opacity-50"
               data-prueba="publicar-precios"
             >
               {guardando

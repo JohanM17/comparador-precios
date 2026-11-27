@@ -61,7 +61,7 @@ export default function FilaPrecio({
       <span
         aria-hidden="true"
         className={`cifras w-6 text-[13px] font-medium ${
-          destacada ? "text-emerald-600" : "text-slate-400"
+          destacada ? "text-emerald-600" : "text-slate-500"
         }`}
       >
         {posicion !== undefined ? String(posicion).padStart(2, "0") : "—"}
@@ -97,7 +97,7 @@ export default function FilaPrecio({
           </span>
         </p>
         <p className="mt-1 text-[12.5px] text-slate-500">
-          {formatearPesos(item.precio_cop)} el empaque
+          {formatearPesos(item.precio_cop)} el empaque · COP IVA incluido
         </p>
       </div>
 

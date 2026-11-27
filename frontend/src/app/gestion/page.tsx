@@ -231,7 +231,7 @@ export default function PaginaGestion(): React.JSX.Element {
               onClick={() => setPestanaActiva(tab.id)}
               className={`-mb-px min-h-11 border-b-4 px-4 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 ${
                 activa
-                  ? "border-cereza-600 text-slate-900"
+                  ? "border-slate-900 text-slate-900"
                   : "border-transparent text-slate-600 hover:border-slate-300 hover:text-slate-900"
               }`}
             >

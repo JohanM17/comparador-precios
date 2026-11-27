@@ -34,9 +34,9 @@ export default function TarjetaProducto({
       className="group flex items-baseline justify-between gap-5 border-t border-slate-200 px-2 py-4 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-600 sm:px-3"
     >
       <span className="min-w-0 flex-1">
-        <span className="block text-[17px] font-medium leading-snug tracking-tight text-slate-900 underline decoration-transparent underline-offset-4 transition-colors group-hover:decoration-slate-400">
+        <h3 className="block text-[17px] font-medium leading-snug tracking-tight text-slate-900 underline decoration-transparent underline-offset-4 transition-colors group-hover:decoration-slate-400">
           {nombre}
-        </span>
+        </h3>
         <span className="mt-0.5 block text-[13px] text-slate-500">
           {categoriaNombre} ·{" "}
           {nTiendas === 1 ? "1 establecimiento" : `${nTiendas} establecimientos`}
