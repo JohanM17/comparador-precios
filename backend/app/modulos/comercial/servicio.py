@@ -17,6 +17,7 @@ from app.compartido.errores import (
 )
 from app.compartido.parametros import obtener_parametros_dominio
 from app.compartido.seguridad import UsuarioAutenticado
+from app.dominio.precio_oficial import requiere_historial_oficial
 from app.dominio.promocion import ReglaPromocion, esta_vigente, validar_promocion
 from app.dominio.unidades import calcular_precio_por_base
 from app.modulos.comercial import repositorio
@@ -160,6 +161,7 @@ class ServicioComercial:
         establecimiento_id: UUID,
         presentaciones: list[UUID],
         productos: dict[UUID, UUID],
+        ahora: datetime | None = None,
     ) -> None:
         """Recalcula el precio vigente de cada par e invalida la cache del producto.
 
@@ -167,7 +169,7 @@ class ServicioComercial:
         invalidacion de cache ocurre despues. Es la secuencia que EC-02 exige para que el
         precio anterior deje de mostrarse como vigente dentro del plazo.
         """
-        instante = datetime.now(UTC)
+        instante = ahora if ahora is not None else datetime.now(UTC)
         params = await obtener_parametros_dominio(self.sesion)
         for presentacion_id in presentaciones:
             await self.politica.recalcular_par(
@@ -187,6 +189,10 @@ class ServicioComercial:
 
         ids = [p.presentacion_id for p in entrada.precios]
         presentaciones = await repositorio.obtener_presentaciones(self.sesion, ids)
+        precios_anteriores = await repositorio.obtener_precios_oficiales_cop(
+            self.sesion, establecimiento_id, ids
+        )
+        instante = datetime.now(UTC)
 
         rechazados: list[PrecioRechazado] = []
         aplicados: list[UUID] = []
@@ -203,6 +209,7 @@ class ServicioComercial:
                 )
                 continue
 
+            precio_por_base = calcular_precio_por_base(item.precio_cop, pres["cantidad_base"])
             await repositorio.upsert_precio_oficial(
                 self.sesion,
                 presentacion_id=item.presentacion_id,
@@ -210,12 +217,26 @@ class ServicioComercial:
                 producto_id=pres["producto_id"],
                 comercio_id=usuario.id,
                 precio_cop=item.precio_cop,
-                precio_por_base=calcular_precio_por_base(item.precio_cop, pres["cantidad_base"]),
+                precio_por_base=precio_por_base,
             )
+            if requiere_historial_oficial(
+                precios_anteriores.get(item.presentacion_id), item.precio_cop
+            ):
+                await repositorio.insertar_reporte_oficial(
+                    self.sesion,
+                    presentacion_id=item.presentacion_id,
+                    establecimiento_id=establecimiento_id,
+                    producto_id=pres["producto_id"],
+                    precio_cop=item.precio_cop,
+                    cantidad_base=pres["cantidad_base"],
+                    precio_por_base=precio_por_base,
+                    observado_en=instante,
+                )
+            precios_anteriores[item.presentacion_id] = item.precio_cop
             aplicados.append(item.presentacion_id)
             productos[item.presentacion_id] = pres["producto_id"]
 
-        await self._refrescar_pares(establecimiento_id, aplicados, productos)
+        await self._refrescar_pares(establecimiento_id, aplicados, productos, instante)
         await registrar_auditoria(
             self.sesion,
             actor_id=usuario.id,
