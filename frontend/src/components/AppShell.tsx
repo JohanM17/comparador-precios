@@ -2,6 +2,7 @@ import React from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import BotonCaptura from "@/components/BotonCaptura";
+import Marca from "@/components/Marca";
 import ToggleTema from "@/components/ToggleTema";
 
 interface AppShellProps {
@@ -15,7 +16,7 @@ interface AppShellProps {
  * linea de un pixel, el area de contenido y un pie discreto. No hay franja de
  * color ni sombras, la jerarquia la pone la tipografia.
  *
- * - Barra superior pegajosa con marca, buscador global y accesos.
+ * - Barra superior pegajosa con el simbolo y el nombre, buscador global y accesos.
  * - Boton flotante de captura rapida, que se oculta solo donde estorbaria
  *   (ver `BotonCaptura`).
  * - Pie con enlace legal y atribucion obligatoria ODbL.
@@ -30,13 +31,21 @@ export default function AppShell({ children }: AppShellProps): React.JSX.Element
         <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-3 px-5 py-3.5 sm:px-6">
           <Link
             href="/"
-            className="text-[15px] font-semibold tracking-tight text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50"
+            className="flex items-center gap-2.5 text-[15px] font-semibold tracking-tight text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-50"
           >
-            La canasta de{" "}
-            <span className="font-cursiva text-[19px] font-normal italic tracking-normal">
-              Armenia
+            {/*
+              Decorativo: el nombre va escrito justo al lado. Va con contorno y
+              no macizo porque en tinta el nivel verde se perderia contra el
+              propio simbolo, y el nivel es lo unico que la marca mide.
+            */}
+            <Marca className="h-[26px] w-[26px] shrink-0" />
+            <span className="font-cursiva text-[23px] font-normal italic tracking-normal">
+              Quimbaya
             </span>
-            <span className="sr-only"> — Comparador de precios, ir al inicio</span>
+            <span className="sr-only">
+              {" "}
+              — precios de la canasta en Armenia y Quindío, ir al inicio
+            </span>
           </Link>
 
           <div className="order-last w-full sm:order-none sm:w-auto sm:max-w-xs sm:flex-1">
