@@ -16,7 +16,20 @@ from app.main import app
 async def test_comparador_contrato_json_y_neutralidad_ec06() -> None:
     async with sesion_transaccional() as sesion:
         res = (
-            await sesion.execute(text("SELECT id FROM producto WHERE activo = true LIMIT 1;"))
+            await sesion.execute(
+                text("""
+                    SELECT p.id
+                    FROM producto p
+                    WHERE p.activo = true
+                      AND NOT EXISTS (
+                          SELECT 1
+                          FROM promocion pr
+                          WHERE pr.producto_id = p.id AND pr.activa = true
+                      )
+                    ORDER BY p.id
+                    LIMIT 1;
+                """)
+            )
         ).first()
         assert res is not None
         producto_id = str(res[0])
@@ -67,7 +80,20 @@ async def test_comparador_validaciones_de_ordenamiento() -> None:
 async def test_comparador_con_coordenadas_calcula_distancia_ram() -> None:
     async with sesion_transaccional() as sesion:
         res = (
-            await sesion.execute(text("SELECT id FROM producto WHERE activo = true LIMIT 1;"))
+            await sesion.execute(
+                text("""
+                    SELECT p.id
+                    FROM producto p
+                    WHERE p.activo = true
+                      AND NOT EXISTS (
+                          SELECT 1
+                          FROM promocion pr
+                          WHERE pr.producto_id = p.id AND pr.activa = true
+                      )
+                    ORDER BY p.id
+                    LIMIT 1;
+                """)
+            )
         ).first()
         assert res is not None
         producto_id = str(res[0])

@@ -63,7 +63,7 @@ uv --directory backend sync --dev
 # Verificar conectividad PostgreSQL (Pooler), Redis y Supabase Storage
 uv --directory backend run python ../scripts/verificar_conexion.py
 
-# Aplicar migraciones idempotentes (0001, 0002, 0003)
+# Aplicar migraciones idempotentes (0001, 0002, 0003, 0005, 0006 y 0007)
 uv --directory backend run python ../scripts/migrar.py
 
 # Cargar catálogo inicial de productos, presentaciones, tiendas y precios semilla
