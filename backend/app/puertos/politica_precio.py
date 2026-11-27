@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any, Protocol
 from uuid import UUID
@@ -18,6 +20,8 @@ from app.dominio.contraste import (
 from app.dominio.parametros import ParametrosDominio
 from app.dominio.sello import ResultadoSelloYPrecio, evaluar_sello_y_precio
 from app.dominio.vigencia import CandidatoReporte
+
+logger = logging.getLogger(__name__)
 
 _SQL_UPSERT_PV = text("""
     INSERT INTO public.precio_vigente (
@@ -59,6 +63,31 @@ _SQL_DELETE_PV = text("""
 _SQL_DELETE_PV_PAR = text("""
     DELETE FROM public.precio_vigente
     WHERE presentacion_id = :p AND establecimiento_id = :e;
+""")
+
+# D-01: una contradiccion comunitaria abre un caso para que lo resuelva una persona.
+# El NOT EXISTS evita duplicar mientras el caso siga abierto o en revision. Si ya fue
+# resuelto, una nueva contradiccion puede abrir uno nuevo; el historial no se toca.
+_SQL_ABRIR_CASO_DISPUTA = text("""
+    INSERT INTO public.caso_moderacion (
+        tipo, referencia_tabla, referencia_id, detalle, prioridad, estado
+    )
+    SELECT
+        CAST('disputa_precio' AS tipo_caso),
+        'presentacion',
+        :pres_id,
+        CAST(:detalle AS jsonb),
+        2,
+        CAST('abierto' AS estado_caso)
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM public.caso_moderacion c
+        WHERE c.tipo = CAST('disputa_precio' AS tipo_caso)
+          AND c.referencia_tabla = 'presentacion'
+          AND c.referencia_id = :pres_id
+          AND c.estado IN ('abierto', 'en_revision')
+          AND c.detalle ->> 'establecimiento_id' = :est_id_txt
+    );
 """)
 
 
@@ -125,6 +154,21 @@ _SQL_PRECIO_OFICIAL_PAR = text("""
     WHERE po.presentacion_id = :pres_id
       AND po.establecimiento_id = :est_id
       AND po.activo = true;
+""")
+
+# D-01 durable: una disputa confirmada por un moderador vale como corte. Los reportes
+# anteriores a esa resolucion ya fueron juzgados y no pueden reabrir el mismo caso.
+# No se tocan ni se rechazan: solo dejan de alimentar la ventana de contradiccion.
+_SQL_CORTE_DISPUTA_CONFIRMADA = text("""
+    SELECT max(c.resuelto_en) AS corte
+    FROM public.caso_moderacion c
+    WHERE c.tipo = CAST('disputa_precio' AS tipo_caso)
+      AND c.referencia_tabla = 'presentacion'
+      AND c.referencia_id = :pres_id
+      AND c.estado = CAST('resuelto' AS estado_caso)
+      AND c.decision = CAST('confirmar' AS decision_caso)
+      AND c.resuelto_en IS NOT NULL
+      AND c.detalle ->> 'establecimiento_id' = :est_id_txt;
 """)
 
 _SQL_PARES_RECALCULO = text("""
@@ -218,6 +262,95 @@ async def _leer_precio_oficial(
     )
 
 
+async def _leer_corte_disputa_confirmada(
+    sesion: AsyncSession,
+    presentacion_id: UUID,
+    establecimiento_id: UUID,
+) -> datetime | None:
+    """Ultima resolucion `confirmar` del par, o None si nunca se confirmo una disputa."""
+    fila = (
+        await sesion.execute(
+            _SQL_CORTE_DISPUTA_CONFIRMADA,
+            {"pres_id": presentacion_id, "est_id_txt": str(establecimiento_id)},
+        )
+    ).first()
+    if fila is None:
+        return None
+    corte = fila.corte
+    return corte if isinstance(corte, datetime) else None
+
+
+def filtrar_candidatos_post_corte(
+    candidatos: list[CandidatoReporte],
+    corte: datetime | None,
+) -> list[CandidatoReporte]:
+    """Conserva solo los reportes posteriores a una disputa confirmada.
+
+    El corte es estrictamente posterior: un reporte observado en el mismo instante
+    de la resolucion ya estaba a la vista del moderador y no puede reabrir el caso.
+    Sin corte se conserva la lista completa, que es el comportamiento historico.
+    """
+    if corte is None:
+        return list(candidatos)
+    return [c for c in candidatos if c.observado_en > corte]
+
+
+def _detalle_caso_disputa(
+    presentacion_id: UUID,
+    establecimiento_id: UUID,
+    producto_id: UUID,
+    contraste: ResultadoContraste,
+) -> dict[str, Any]:
+    """Datos que el moderador necesita para decidir sin volver a reconstruir el contraste."""
+    return {
+        "presentacion_id": str(presentacion_id),
+        "establecimiento_id": str(establecimiento_id),
+        "producto_id": str(producto_id),
+        "precio_oficial_cop": contraste.precio_oficial_cop,
+        "precio_comunidad_cop": contraste.resultado.precio_cop,
+        "diferencia_pct": (
+            float(contraste.diferencia_pct) if contraste.diferencia_pct is not None else None
+        ),
+        "n_reportes_validos": contraste.resultado.n_reportes_validos,
+        "n_fuentes": contraste.resultado.n_fuentes,
+        "sello": contraste.resultado.sello,
+    }
+
+
+async def _abrir_caso_disputa(
+    sesion: AsyncSession,
+    presentacion_id: UUID,
+    establecimiento_id: UUID,
+    producto_id: UUID,
+    contraste: ResultadoContraste,
+) -> None:
+    """Abre el caso de moderacion de una disputa sin poder tumbar el calculo del precio.
+
+    La insercion va dentro de un SAVEPOINT: si la tabla de casos falla, PostgreSQL
+    deshace solo ese INSERT y la transaccion que guarda `precio_vigente` sigue viva.
+    El precio es la funcion principal; el caso es una tarea de moderacion que puede
+    reintentarse en el siguiente recalculo.
+    """
+    detalle = json.dumps(
+        _detalle_caso_disputa(presentacion_id, establecimiento_id, producto_id, contraste),
+        ensure_ascii=False,
+    )
+    parametros = {
+        "pres_id": presentacion_id,
+        "est_id_txt": str(establecimiento_id),
+        "detalle": detalle,
+    }
+    try:
+        async with sesion.begin_nested():
+            await sesion.execute(_SQL_ABRIR_CASO_DISPUTA, parametros)
+    except Exception as exc:  # noqa: BLE001
+        # Solo el tipo de error: sin IDs, SQL ni coordenadas en el log (Ley 1581).
+        logger.warning(
+            "No se pudo abrir el caso de disputa (%s); el precio vigente se calculo igual.",
+            type(exc).__name__,
+        )
+
+
 class SoloUsuarios:
     """Politica de la Etapa 1: calcula el precio vigente con reportes de usuarios y semilla.
 
@@ -292,9 +425,17 @@ class OficialConContraste:
         )
         oficial = await _leer_precio_oficial(sesion, presentacion_id, establecimiento_id)
 
+        # La comunidad completa alimenta el precio y los conteos del resultado oficial;
+        # solo la ventana de contradiccion ignora lo que un moderador ya confirmo.
         comunidad = evaluar_sello_y_precio(candidatos, instante, parametros) if candidatos else None
+        corte = (
+            await _leer_corte_disputa_confirmada(sesion, presentacion_id, establecimiento_id)
+            if oficial is not None
+            else None
+        )
+        candidatos_contraste = filtrar_candidatos_post_corte(candidatos, corte)
         contraste = contrastar_oficial_con_comunidad(
-            oficial, comunidad, candidatos, instante, parametros
+            oficial, comunidad, candidatos_contraste, instante, parametros
         )
 
         if contraste is None:
@@ -326,6 +467,15 @@ class OficialConContraste:
                 contraste,
             ),
         )
+
+        if contraste.hay_disputa:
+            await _abrir_caso_disputa(
+                sesion,
+                presentacion_id,
+                establecimiento_id,
+                producto_final,
+                contraste,
+            )
 
         return contraste.resultado
 

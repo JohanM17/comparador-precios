@@ -172,6 +172,9 @@ class ResultadoConsulta:
     def fetchone(self) -> Any:
         return self._fila
 
+    def first(self) -> Any:
+        return self._fila
+
 
 class SesionSoloOficial:
     """Sesion falsa que responde como una base con solo el precio oficial."""
@@ -192,6 +195,8 @@ class SesionSoloOficial:
             return ResultadoConsulta()
         if "from public.reporte_precio" in sql:
             return ResultadoConsulta(filas=[])
+        if "max(c.resuelto_en)" in sql:
+            return ResultadoConsulta(fila=SimpleNamespace(corte=None))
         if "from public.precio_oficial po" in sql:
             return ResultadoConsulta(
                 fila=SimpleNamespace(

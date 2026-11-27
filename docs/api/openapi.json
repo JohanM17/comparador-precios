@@ -4189,7 +4189,7 @@
     },
     "/v1/comercio/reclamos": {
       "post": {
-        "description": "Cualquier cuenta puede reclamar un establecimiento; la decision es de un moderador.",
+        "description": "Cualquier cuenta autorizada puede reclamar; la decision es de un moderador.\n\nEl reclamo guarda telefono de contacto y mensaje, asi que exige autorizacion\nprevia y expresa de tratamiento de datos (Ley 1581, FR-006).",
         "operationId": "reclamar_titularidad_v1_comercio_reclamos_post",
         "parameters": [
           {
