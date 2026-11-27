@@ -119,9 +119,14 @@ _SQL_DELETE_PV = text("""
     WHERE presentacion_id = :pres_id AND establecimiento_id = :est_id;
 """)
 
-_SQL_DELETE_PV_PAR = text("""
-    DELETE FROM public.precio_vigente
-    WHERE presentacion_id = :p AND establecimiento_id = :e;
+_SQL_DELETE_PV_FUERA_DE = text("""
+    DELETE FROM public.precio_vigente pv
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM jsonb_to_recordset(CAST(:pares AS jsonb)) AS activo(pres_id uuid, est_id uuid)
+        WHERE activo.pres_id = pv.presentacion_id
+          AND activo.est_id = pv.establecimiento_id
+    );
 """)
 
 # D-01: una contradiccion comunitaria abre un caso para que lo resuelva una persona.
@@ -217,7 +222,7 @@ _SQL_REPORTES_PAR = text("""
       AND estado IN ('aceptado', 'dudoso')
       AND es_demo = false
       AND fuente <> 'comercio'
-    ORDER BY observado_en DESC;
+    ORDER BY observado_en DESC, id DESC;
 """)
 
 _SQL_PRECIO_OFICIAL_PAR = text("""
@@ -269,7 +274,7 @@ _SQL_REPORTES_LOTE = text("""
       AND estado IN ('aceptado', 'dudoso')
       AND es_demo = false
       AND fuente <> 'comercio'
-    ORDER BY observado_en DESC;
+    ORDER BY observado_en DESC, id DESC;
 """)
 
 _SQL_OFICIALES_LOTE = text("""
@@ -756,18 +761,23 @@ async def _reconstruir_oficial_con_contraste(
     return len(lote)
 
 
+def _serializar_pares_activos(pares: set[tuple[UUID, UUID]]) -> str:
+    """Convierte el conjunto activo en el JSON que expande `jsonb_to_recordset`."""
+    return json.dumps(
+        [{"pres_id": str(pres_id), "est_id": str(est_id)} for pres_id, est_id in pares],
+        ensure_ascii=False,
+    )
+
+
 async def _borrar_pares_fuera_de(
     sesion: AsyncSession,
     pares_activos: set[tuple[UUID, UUID]],
 ) -> None:
     """Elimina proyecciones que ya no tienen comunidad vigente ni precio oficial."""
-    sql_todos_pv = text("SELECT presentacion_id, establecimiento_id FROM public.precio_vigente;")
-    filas_pv = (await sesion.execute(sql_todos_pv)).fetchall()
-    a_borrar = [
-        {"p": p_id, "e": e_id} for p_id, e_id in filas_pv if (p_id, e_id) not in pares_activos
-    ]
-    if a_borrar:
-        await sesion.execute(_SQL_DELETE_PV_PAR, a_borrar)
+    await sesion.execute(
+        _SQL_DELETE_PV_FUERA_DE,
+        {"pares": _serializar_pares_activos(pares_activos)},
+    )
 
 
 async def reconstruir_precio_vigente(

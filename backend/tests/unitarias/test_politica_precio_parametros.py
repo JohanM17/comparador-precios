@@ -22,7 +22,7 @@ from app.dominio.contraste import ResultadoContraste
 from app.dominio.sello import ResultadoSelloYPrecio
 from app.puertos.politica_precio import (
     _SQL_DELETE_PV,
-    _SQL_DELETE_PV_PAR,
+    _SQL_DELETE_PV_FUERA_DE,
     _SQL_PARES_RECALCULO,
     _SQL_PRECIO_OFICIAL_PAR,
     _SQL_REPORTES_PAR,
@@ -91,7 +91,7 @@ def test_sin_contraste_las_columnas_comerciales_quedan_vacias() -> None:
 
 def test_las_sentencias_auxiliares_declaran_los_parametros_esperados() -> None:
     assert _parametros(_SQL_DELETE_PV) == {"pres_id", "est_id"}
-    assert _parametros(_SQL_DELETE_PV_PAR) == {"p", "e"}
+    assert _parametros(_SQL_DELETE_PV_FUERA_DE) == {"pares"}
     assert _parametros(_SQL_REPORTES_PAR) == {"pres_id", "est_id", "limite"}
     assert _parametros(_SQL_PRECIO_OFICIAL_PAR) == {"pres_id", "est_id"}
     assert _parametros(_SQL_PARES_RECALCULO) == {"limite"}

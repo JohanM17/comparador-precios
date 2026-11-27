@@ -25,10 +25,13 @@ from app.dominio.parametros import ParametrosDominio
 from app.puertos import politica_precio as politica_modulo
 from app.puertos.politica_precio import (
     _SQL_CORTES_CONFIRMADOS_LOTE,
+    _SQL_DELETE_PV_FUERA_DE,
     _SQL_OFICIALES_LOTE,
     _SQL_REPORTES_LOTE,
+    _SQL_REPORTES_PAR,
     OficialConContraste,
     SoloUsuarios,
+    _serializar_pares_activos,
     reconstruir_precio_vigente,
 )
 
@@ -127,16 +130,14 @@ class SesionLoteFalsa:
         reportes: list[Any] | None = None,
         oficiales: list[Any] | None = None,
         cortes: list[Any] | None = None,
-        precio_vigente: list[tuple[UUID, UUID]] | None = None,
     ) -> None:
         self.reportes = reportes or []
         self.oficiales = oficiales or []
         self.cortes = cortes or []
-        self.precio_vigente = precio_vigente or []
         self.consultas: list[str] = []
         self.upserts: list[list[dict[str, Any]]] = []
         self.casos: list[dict[str, Any]] = []
-        self.borrados: list[list[dict[str, UUID]]] = []
+        self.borrados: list[list[dict[str, str]]] = []
 
     def begin_nested(self) -> _SavepointFalso:
         return _SavepointFalso(self)
@@ -161,11 +162,10 @@ class SesionLoteFalsa:
         if "max(c.resuelto_en)" in sql:
             self.consultas.append("cortes")
             return ResultadoConsulta(filas=self.cortes)
-        if sql.startswith("select presentacion_id, establecimiento_id from public.precio_vigente"):
-            return ResultadoConsulta(filas=list(self.precio_vigente))
         if sql.startswith("delete from public.precio_vigente"):
-            assert isinstance(parametros, list)
-            self.borrados.append(parametros)
+            assert isinstance(parametros, dict), "el borrado debe ser una sola sentencia"
+            assert isinstance(parametros["pares"], str)
+            self.borrados.append(json.loads(parametros["pares"]))
             return ResultadoConsulta()
         raise AssertionError(f"SQL inesperado: {sql}")
 
@@ -281,14 +281,14 @@ async def test_un_par_sin_contraste_no_queda_activo_y_se_borra_su_proyeccion() -
     """Un reporte dudoso fuera de la vigencia no crea precio ni conserva la fila vieja."""
     sesion = SesionLoteFalsa(
         reportes=[
+            _reporte(PAR_SOLO_COMUNIDAD, 2500),
             _reporte(
                 PAR_SIN_CONTRASTE,
                 2000,
                 estado="dudoso",
                 observado_en=AHORA - timedelta(days=10),
-            )
+            ),
         ],
-        precio_vigente=[PAR_SIN_CONTRASTE],
     )
 
     reconstruidos = await politica_modulo._reconstruir_oficial_con_contraste(
@@ -298,9 +298,11 @@ async def test_un_par_sin_contraste_no_queda_activo_y_se_borra_su_proyeccion() -
         ParametrosDominio(),
     )
 
-    assert reconstruidos == 0
-    assert sesion.upserts == []
-    assert sesion.borrados == [[{"p": PAR_SIN_CONTRASTE[0], "e": PAR_SIN_CONTRASTE[1]}]]
+    assert reconstruidos == 1
+    assert len(sesion.upserts) == 1
+    assert sesion.borrados == [
+        [{"pres_id": str(PAR_SOLO_COMUNIDAD[0]), "est_id": str(PAR_SOLO_COMUNIDAD[1])}]
+    ]
 
 
 # Un solo dos puntos introduce un parametro; dos seguidos son un cast de PostgreSQL.
@@ -331,6 +333,26 @@ def test_las_consultas_del_lote_excluyen_demo_comercio_y_oficiales_inactivos() -
     assert "max(c.resuelto_en)" in cortes
     assert "cast('confirmar' as decision_caso)" in cortes
     assert "group by c.referencia_id" in cortes
+
+
+def test_las_consultas_de_reportes_desempatan_por_id() -> None:
+    """Dos reportes con el mismo `observado_en` no pueden depender del orden fisico."""
+    for sentencia in (_SQL_REPORTES_PAR, _SQL_REPORTES_LOTE):
+        assert "order by observado_en desc, id desc" in _sql_compacto(sentencia)
+
+
+def test_el_borrado_fuera_del_conjunto_activo_es_una_sola_sentencia() -> None:
+    """El barrido final no puede volver a hacer un DELETE por par."""
+    sql = _sql_compacto(_SQL_DELETE_PV_FUERA_DE)
+
+    assert _PARAMETRO.findall(str(_SQL_DELETE_PV_FUERA_DE)) == ["pares"]
+    assert "delete from public.precio_vigente pv" in sql
+    assert "not exists" in sql
+    assert "jsonb_to_recordset(cast(:pares as jsonb))" in sql
+    assert json.loads(_serializar_pares_activos({PAR_MIXTO})) == [
+        {"pres_id": str(PAR_MIXTO[0]), "est_id": str(PAR_MIXTO[1])}
+    ]
+    assert json.loads(_serializar_pares_activos(set())) == []
 
 
 class _PoliticaPersonalizada:

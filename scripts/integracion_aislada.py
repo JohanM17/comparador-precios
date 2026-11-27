@@ -8,10 +8,14 @@ y elimina la base al terminar. Nunca imprime credenciales.
 Uso:
     backend/.venv/bin/python scripts/integracion_aislada.py --recrear
     backend/.venv/bin/python scripts/integracion_aislada.py --recrear --con-semilla -- --maxfail=1
+    backend/.venv/bin/python scripts/integracion_aislada.py --mantener -- \
+        -q tests/integracion/test_disputa_durabilidad.py
     backend/.venv/bin/python scripts/integracion_aislada.py --eliminar
 
 La base de pruebas es independiente de la base de la aplicacion. Este script no
-debe apuntar nunca a la base ``postgres`` ni a produccion.
+debe apuntar nunca a la base ``postgres`` ni a produccion. Las corridas sobre
+``comparador_pruebas`` deben serializarse; ``--recrear``/``--eliminar`` abortan si
+hay conexiones ajenas y solo las cierran con ``--force``.
 """
 
 from __future__ import annotations
@@ -30,6 +34,8 @@ RAIZ = Path(__file__).resolve().parent.parent
 BACKEND = RAIZ / "backend"
 NOMBRE_BASE_PRUEBAS = "comparador_pruebas"
 SEPARADOR = "=" * 68
+# Clave estable para el advisory lock que serializa crear/eliminar la base.
+CLAVE_BLOQUEO = 0x434F4D50  # "COMP"
 
 
 def cargar_env(ruta: Path) -> None:
@@ -95,12 +101,98 @@ def validar_nombre_base(nombre_base: str) -> None:
         )
 
 
-async def crear_base(url_mantenimiento: str, recrear: bool) -> str:
+def _ref_de_supabase(supabase_url: str) -> str | None:
+    """Extrae el project ref de una URL ``https://<ref>.supabase.co``."""
+    host = urlsplit(supabase_url).hostname or ""
+    sufijo = ".supabase.co"
+    if not host.endswith(sufijo):
+        return None
+    ref = host[: -len(sufijo)]
+    return ref if ref and "." not in ref else None
+
+
+def _ref_del_usuario_bd(url: str) -> str | None:
+    """Extrae el project ref del usuario ``postgres.<ref>`` de la URL de BD."""
+    usuario = urlsplit(url).username or ""
+    prefijo = "postgres."
+    if not usuario.startswith(prefijo):
+        return None
+    ref = usuario[len(prefijo) :]
+    return ref or None
+
+
+def validar_cluster(url_mantenimiento: str, supabase_url: str | None) -> str:
+    """Comprueba que la BD y ``SUPABASE_URL`` apuntan al mismo proyecto Supabase."""
+    if not supabase_url:
+        raise SystemExit("[ERROR] SUPABASE_URL no esta definida; no se puede validar el cluster.")
+    ref_supabase = _ref_de_supabase(supabase_url)
+    if ref_supabase is None:
+        raise SystemExit(
+            "[ERROR] SUPABASE_URL no tiene un project ref reconocible "
+            "(se espera https://<ref>.supabase.co)."
+        )
+    ref_bd = _ref_del_usuario_bd(url_mantenimiento)
+    if ref_bd is None:
+        raise SystemExit(
+            "[ERROR] La URL de BD no usa el usuario 'postgres.<project_ref>'; "
+            "no se puede validar el cluster."
+        )
+    if ref_bd != ref_supabase:
+        raise SystemExit(
+            f"[ERROR] El project ref de la BD ({ref_bd}) no coincide con SUPABASE_URL "
+            f"({ref_supabase}). Se aborta para no tocar otro cluster."
+        )
+    print(f"[OK] Cluster Supabase validado: {ref_bd}")
+    print(f"[*] Host de BD: {url_ofuscada(url_mantenimiento)}")
+    return ref_bd
+
+
+async def _adquirir_bloqueo(conexion: asyncpg.Connection) -> None:
+    """Toma el advisory lock que serializa recrear/eliminar la base de pruebas."""
+    adquirido = await conexion.fetchval("SELECT pg_try_advisory_lock($1);", CLAVE_BLOQUEO)
+    if not adquirido:
+        raise SystemExit(
+            f"[ERROR] Otra corrida ya tiene el bloqueo de {NOMBRE_BASE_PRUEBAS}. "
+            "Espera a que termine antes de recrearla o eliminarla."
+        )
+
+
+async def _liberar_bloqueo(conexion: asyncpg.Connection) -> None:
+    """Libera el advisory lock; si no se tenia, PostgreSQL responde false."""
+    await conexion.execute("SELECT pg_advisory_unlock($1);", CLAVE_BLOQUEO)
+
+
+async def _exigir_sin_conexiones_ajenas(
+    conexion: asyncpg.Connection,
+    force: bool,
+) -> None:
+    """Aborta si otra corrida usa la base, salvo que se pase ``--force``."""
+    total = await conexion.fetchval(
+        """
+        SELECT count(*)
+        FROM pg_stat_activity
+        WHERE datname = $1 AND pid <> pg_backend_pid();
+        """,
+        NOMBRE_BASE_PRUEBAS,
+    )
+    if not total:
+        return
+    if not force:
+        raise SystemExit(
+            f"[ERROR] Hay {total} conexion(es) abiertas a {NOMBRE_BASE_PRUEBAS}. "
+            "Otra corrida puede estar en curso; espera a que termine o usa --force "
+            "para cerrarlas."
+        )
+    print(f"[AVISO] --force: se cerraran {total} conexion(es) ajenas a {NOMBRE_BASE_PRUEBAS}.")
+
+
+async def crear_base(url_mantenimiento: str, recrear: bool, force: bool = False) -> str:
     """Crea la base de pruebas y retorna su URL."""
     validar_nombre_base(NOMBRE_BASE_PRUEBAS)
     dsn_pruebas = url_con_base(url_mantenimiento, NOMBRE_BASE_PRUEBAS)
     conexion = await asyncpg.connect(dsn=url_mantenimiento, statement_cache_size=0)
     try:
+        await _adquirir_bloqueo(conexion)
         existe = await conexion.fetchval(
             "SELECT 1 FROM pg_database WHERE datname = $1;", NOMBRE_BASE_PRUEBAS
         )
@@ -109,6 +201,7 @@ async def crear_base(url_mantenimiento: str, recrear: bool) -> str:
             return dsn_pruebas
 
         if existe:
+            await _exigir_sin_conexiones_ajenas(conexion, force)
             print(f"[*] Cerrando conexiones y eliminando {NOMBRE_BASE_PRUEBAS}...")
             await conexion.execute(
                 """
@@ -124,14 +217,17 @@ async def crear_base(url_mantenimiento: str, recrear: bool) -> str:
         print(f"[OK] Base {NOMBRE_BASE_PRUEBAS} creada en {url_ofuscada(dsn_pruebas)}")
         return dsn_pruebas
     finally:
+        await _liberar_bloqueo(conexion)
         await conexion.close()
 
 
-async def eliminar_base(url_mantenimiento: str) -> None:
-    """Elimina la base de pruebas y sus conexiones activas."""
+async def eliminar_base(url_mantenimiento: str, force: bool = False) -> None:
+    """Elimina la base de pruebas; aborta si otra corrida la esta usando."""
     validar_nombre_base(NOMBRE_BASE_PRUEBAS)
     conexion = await asyncpg.connect(dsn=url_mantenimiento, statement_cache_size=0)
     try:
+        await _adquirir_bloqueo(conexion)
+        await _exigir_sin_conexiones_ajenas(conexion, force)
         await conexion.execute(
             """
             SELECT pg_terminate_backend(pid)
@@ -143,6 +239,7 @@ async def eliminar_base(url_mantenimiento: str) -> None:
         await conexion.execute(f'DROP DATABASE IF EXISTS "{NOMBRE_BASE_PRUEBAS}";')
         print(f"[OK] Base {NOMBRE_BASE_PRUEBAS} eliminada.")
     finally:
+        await _liberar_bloqueo(conexion)
         await conexion.close()
 
 
@@ -165,6 +262,28 @@ def ejecutar(comando: list[str], entorno: dict[str, str], cwd: Path) -> int:
     # El comando se construye internamente con sys.executable y rutas del repo.
     proceso = subprocess.run(comando, cwd=cwd, env=entorno, check=False)  # noqa: S603
     return proceso.returncode
+
+
+def _es_target_pytest(argumento: str) -> bool:
+    """True si el argumento parece una ruta de archivo, directorio o node id."""
+    if not argumento or argumento.startswith("-"):
+        return False
+    return argumento.endswith(".py") or "::" in argumento or "/" in argumento
+
+
+def construir_comando_pytest(argumentos: list[str]) -> list[str]:
+    """Arma el comando de pytest conservando el target enfocado si lo hay.
+
+    Sin target se ejecuta toda la suite de integracion. Con un archivo, directorio
+    o node id se usa tal cual: antes el script anteponia siempre ``tests/integracion``
+    y una corrida "enfocada" terminaba ejecutando la suite completa.
+    """
+    limpios = [argumento for argumento in argumentos if argumento != "--"]
+    comando = [sys.executable, "-m", "pytest"]
+    if not any(_es_target_pytest(argumento) for argumento in limpios):
+        comando.append("tests/integracion")
+    comando.extend(["-q", *limpios])
+    return comando
 
 
 def main() -> None:
@@ -197,6 +316,11 @@ def main() -> None:
         help="Crea la base y aplica migraciones, sin ejecutar pytest.",
     )
     parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Cierra conexiones ajenas al recrear o eliminar la base de pruebas.",
+    )
+    parser.add_argument(
         "pytest_args",
         nargs=argparse.REMAINDER,
         help="Argumentos adicionales para pytest (despues de --).",
@@ -209,12 +333,13 @@ def main() -> None:
 
     cargar_env(RAIZ / ".env")
     dsn_mantenimiento = url_base()
+    validar_cluster(dsn_mantenimiento, os.getenv("SUPABASE_URL"))
 
     if args.eliminar:
-        asyncio.run(eliminar_base(dsn_mantenimiento))
+        asyncio.run(eliminar_base(dsn_mantenimiento, force=args.force))
         return
 
-    dsn_pruebas = asyncio.run(crear_base(dsn_mantenimiento, recrear=args.recrear))
+    dsn_pruebas = asyncio.run(crear_base(dsn_mantenimiento, recrear=args.recrear, force=args.force))
     entorno = entorno_pruebas(dsn_pruebas)
 
     codigo_migraciones = ejecutar(
@@ -239,15 +364,15 @@ def main() -> None:
     if args.solo_preparar:
         print(f"[OK] Base preparada. Mantenida: {'si' if args.mantener else 'no'}")
         if not args.mantener:
-            asyncio.run(eliminar_base(dsn_mantenimiento))
+            asyncio.run(eliminar_base(dsn_mantenimiento, force=args.force))
         return
 
     argumentos_pytest = [arg for arg in args.pytest_args if arg != "--"]
-    comando = [sys.executable, "-m", "pytest", "tests/integracion", "-q", *argumentos_pytest]
+    comando = construir_comando_pytest(argumentos_pytest)
     codigo_pruebas = ejecutar(comando, entorno, BACKEND)
 
     if codigo_pruebas == 0 and not args.mantener:
-        asyncio.run(eliminar_base(dsn_mantenimiento))
+        asyncio.run(eliminar_base(dsn_mantenimiento, force=args.force))
     elif codigo_pruebas != 0:
         print(
             f"\n[AVISO] La base {NOMBRE_BASE_PRUEBAS} se conserva para depuracion.\n"

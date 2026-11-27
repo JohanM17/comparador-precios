@@ -21,7 +21,7 @@ from app.compartido.seguridad import UsuarioAutenticado
 from app.config import obtener_configuracion
 from app.modulos.moderacion.esquemas_casos import ResolverCasoEntrada
 from app.modulos.moderacion.servicio_casos import ServicioCasosModeracion
-from app.puertos.politica_precio import OficialConContraste
+from app.puertos.politica_precio import OficialConContraste, reconstruir_precio_vigente
 
 
 def _hay_url_bd() -> bool:
@@ -170,6 +170,7 @@ async def _crear_contexto() -> dict[str, Any]:
         "producto_id": producto_id,
         "presentacion_id": presentacion_id,
         "establecimiento_id": establecimiento_id,
+        "comercio_id": comercio_id,
         "moderador_id": moderador_id,
         "reportantes": reportantes,
         "reporte_ids": reporte_ids,
@@ -325,6 +326,128 @@ async def test_confirmar_es_durable_y_solo_reportes_posteriores_reabren() -> Non
             )
         ).scalar_one()
     assert intactos == 3
+
+
+@pytest.mark.asyncio
+async def test_reconstruccion_batch_respeta_el_corte_confirmado() -> None:
+    """Tras confirmar, la reconstruccion completa no revive la disputa ni abre otro caso."""
+    ctx = await _crear_contexto()
+    pres = ctx["presentacion_id"]
+    est = ctx["establecimiento_id"]
+
+    async with sesion_transaccional() as sesion:
+        resultado = await OficialConContraste().recalcular_par(sesion, pres, est, ctx["ahora"])
+    assert resultado is not None and resultado.sello == "en_disputa"
+    caso = await _caso_abierto(pres, est)
+    assert caso is not None
+    await _resolver(caso["id"], "confirmar", ctx["moderador_id"], CacheNula())
+
+    async with sesion_transaccional() as sesion:
+        resuelto = (
+            await sesion.execute(
+                text("SELECT resuelto_en FROM public.caso_moderacion WHERE id = :id;"),
+                {"id": caso["id"]},
+            )
+        ).scalar_one()
+
+    async with sesion_transaccional() as sesion:
+        reconstruidos = await reconstruir_precio_vigente(
+            sesion,
+            ahora=resuelto + timedelta(minutes=5),
+            politica=OficialConContraste(),
+        )
+    assert reconstruidos >= 1
+
+    async with sesion_transaccional() as sesion:
+        vigente = (
+            await sesion.execute(
+                text("""
+                    SELECT precio_cop, sello::text, precio_oficial_cop
+                    FROM public.precio_vigente
+                    WHERE presentacion_id = :pres AND establecimiento_id = :est;
+                """),
+                {"pres": pres, "est": est},
+            )
+        ).first()
+    assert vigente is not None
+    assert vigente.sello == "oficial"
+    assert vigente.precio_cop == 3050
+    assert vigente.precio_oficial_cop == 3050
+    assert await _caso_abierto(pres, est) is None
+
+
+@pytest.mark.asyncio
+async def test_lote_equivale_a_recalcular_par_en_mixto_y_solo_oficial() -> None:
+    """El lote produce las mismas filas que la ruta par a par para ambos tipos de par."""
+    ctx = await _crear_contexto()
+    pres_mixto = ctx["presentacion_id"]
+    est = ctx["establecimiento_id"]
+    ahora = ctx["ahora"]
+    sufijo = uuid4().hex[:10]
+
+    async with sesion_transaccional() as sesion:
+        pres_oficial = (
+            await sesion.execute(
+                text("""
+                    INSERT INTO public.presentacion
+                        (producto_id, marca, valor_cantidad, unidad, multiplicador,
+                         cantidad_base, etiqueta, etiqueta_norm)
+                    VALUES (:prod, :marca, 1000, 'g', 1, 1000, :etiqueta, :etiqueta_norm)
+                    RETURNING id;
+                """),
+                {
+                    "prod": ctx["producto_id"],
+                    "marca": f"Solo oficial {sufijo}",
+                    "etiqueta": f"Paquete solo oficial {sufijo}",
+                    "etiqueta_norm": f"solo_oficial_{sufijo}",
+                },
+            )
+        ).scalar_one()
+        await sesion.execute(
+            text("""
+                INSERT INTO public.precio_oficial (
+                    presentacion_id, establecimiento_id, producto_id, comercio_id,
+                    precio_cop, precio_por_base
+                ) VALUES (:pres, :est, :prod, :comercio, 3300, 3.300000);
+            """),
+            {
+                "pres": pres_oficial,
+                "est": est,
+                "prod": ctx["producto_id"],
+                "comercio": ctx["comercio_id"],
+            },
+        )
+
+    sql_vigente = text("""
+        SELECT presentacion_id, establecimiento_id, precio_cop, precio_por_base,
+               sello::text, motivo_sello, n_reportes_validos, n_fuentes,
+               dispersion, precio_oficial_cop, diferencia_pct,
+               requiere_revalidacion, ultimo_reporte_en, reporte_origen_id
+        FROM public.precio_vigente
+        WHERE establecimiento_id = :est
+          AND presentacion_id IN (:pres_mixto, :pres_oficial);
+    """)
+    parametros = {"est": est, "pres_mixto": pres_mixto, "pres_oficial": pres_oficial}
+
+    async with sesion_transaccional() as sesion:
+        politica = OficialConContraste()
+        await politica.recalcular_par(sesion, pres_mixto, est, ahora)
+        await politica.recalcular_par(sesion, pres_oficial, est, ahora)
+        filas_par = {
+            f.presentacion_id: dict(f._mapping)
+            for f in (await sesion.execute(sql_vigente, parametros)).fetchall()
+        }
+
+    async with sesion_transaccional() as sesion:
+        await reconstruir_precio_vigente(sesion, ahora=ahora, politica=OficialConContraste())
+        filas_lote = {
+            f.presentacion_id: dict(f._mapping)
+            for f in (await sesion.execute(sql_vigente, parametros)).fetchall()
+        }
+
+    assert filas_par.keys() == filas_lote.keys() == {pres_mixto, pres_oficial}
+    for presentacion_id in (pres_mixto, pres_oficial):
+        assert filas_lote[presentacion_id] == filas_par[presentacion_id]
 
 
 @pytest.mark.asyncio
