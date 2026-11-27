@@ -119,6 +119,7 @@ def _preparar_publicacion(
     historial: list[dict[str, Any]],
     upserts: list[dict[str, Any]] | None = None,
     eventos: list[str] | None = None,
+    params: ParametrosDominio | None = None,
 ) -> None:
     """Instala un repositorio falso para el flujo de publicacion de precios."""
 
@@ -168,7 +169,7 @@ def _preparar_publicacion(
         return uuid4()
 
     async def obtener_parametros_dominio(*args: Any, **kwargs: Any) -> ParametrosDominio:
-        return ParametrosDominio()
+        return params if params is not None else ParametrosDominio()
 
     async def registrar_auditoria(*args: Any, **kwargs: Any) -> None:
         return None
@@ -389,3 +390,102 @@ async def test_revalidar_no_escribe_historial_ni_republica_el_precio(
     respuesta = await servicio.revalidar(ESTABLECIMIENTO_ID, USUARIO)
 
     assert respuesta["revalidados"] == 1
+
+
+@pytest.mark.asyncio
+async def test_precio_bajo_el_minimo_configurado_se_rechaza_sin_romper_el_lote(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """El minimo sale de config_parametro y el rechazo viaja en el bloque del lote."""
+    historial: list[dict[str, Any]] = []
+    upserts: list[dict[str, Any]] = []
+    params = ParametrosDominio(precio_min_cop=1000, precio_max_cop=2000)
+    _preparar_publicacion(
+        monkeypatch,
+        anterior=None,
+        historial=historial,
+        upserts=upserts,
+        params=params,
+    )
+    servicio = ServicioComercial(
+        sesion=object(),  # type: ignore[arg-type]
+        puerto_cache=CacheEspia(),  # type: ignore[arg-type]
+        politica_precio=PoliticaEspia(),  # type: ignore[arg-type]
+    )
+
+    respuesta = await servicio.publicar_precios(ESTABLECIMIENTO_ID, _lote(999), USUARIO)
+
+    assert respuesta["actualizados"] == 0
+    assert len(respuesta["rechazados"]) == 1
+    rechazo = respuesta["rechazados"][0]
+    assert rechazo.presentacion_id == PRESENTACION_ID
+    assert "1000" in rechazo.motivo
+    assert "2000" in rechazo.motivo
+    assert upserts == []
+    assert historial == []
+
+
+@pytest.mark.asyncio
+async def test_precio_sobre_el_maximo_configurado_se_rechaza_sin_romper_el_lote(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """El maximo tambien sale de config_parametro, no del esquema Pydantic."""
+    historial: list[dict[str, Any]] = []
+    upserts: list[dict[str, Any]] = []
+    params = ParametrosDominio(precio_min_cop=1000, precio_max_cop=2000)
+    _preparar_publicacion(
+        monkeypatch,
+        anterior=None,
+        historial=historial,
+        upserts=upserts,
+        params=params,
+    )
+    servicio = ServicioComercial(
+        sesion=object(),  # type: ignore[arg-type]
+        puerto_cache=CacheEspia(),  # type: ignore[arg-type]
+        politica_precio=PoliticaEspia(),  # type: ignore[arg-type]
+    )
+
+    respuesta = await servicio.publicar_precios(ESTABLECIMIENTO_ID, _lote(2001), USUARIO)
+
+    assert respuesta["actualizados"] == 0
+    assert len(respuesta["rechazados"]) == 1
+    assert upserts == []
+    assert historial == []
+
+
+@pytest.mark.asyncio
+async def test_precio_dentro_del_rango_configurado_se_publica(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Un valor valido cruza el mismo camino y actualiza el precio oficial."""
+    historial: list[dict[str, Any]] = []
+    upserts: list[dict[str, Any]] = []
+    params = ParametrosDominio(precio_min_cop=1000, precio_max_cop=2000)
+    _preparar_publicacion(
+        monkeypatch,
+        anterior=None,
+        historial=historial,
+        upserts=upserts,
+        params=params,
+    )
+    servicio = ServicioComercial(
+        sesion=object(),  # type: ignore[arg-type]
+        puerto_cache=CacheEspia(),  # type: ignore[arg-type]
+        politica_precio=PoliticaEspia(),  # type: ignore[arg-type]
+    )
+
+    respuesta = await servicio.publicar_precios(ESTABLECIMIENTO_ID, _lote(1500), USUARIO)
+
+    assert respuesta["actualizados"] == 1
+    assert respuesta["rechazados"] == []
+    assert len(upserts) == 1
+    assert upserts[0]["precio_cop"] == 1500
+    assert len(historial) == 1
+
+
+def test_el_esquema_acepta_un_valor_sobre_el_maximo_para_que_el_lote_lo_rechace() -> None:
+    """El esquema ya no fija 2M: ese limite se decide con config_parametro."""
+    entrada = PrecioOficialEntrada(presentacion_id=PRESENTACION_ID, precio_cop=2_500_000)
+
+    assert entrada.precio_cop == 2_500_000

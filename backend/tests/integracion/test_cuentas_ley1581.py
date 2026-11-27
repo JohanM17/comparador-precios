@@ -248,3 +248,195 @@ async def test_eliminar_cuenta_anonimizacion_arco() -> None:
             ).fetchone()
             assert res_aut is not None
             assert res_aut[0] is not None
+
+
+@pytest.mark.asyncio
+async def test_eliminar_cuenta_limpia_datos_comerciales_y_audita_sin_pii() -> None:
+    """La supresion desvincula tiendas, apaga precios/promos y no deja PII en auditoria."""
+    uid = str(uuid4())
+    token = generar_token(uid)
+    alias = f"comercio_{uid[:8]}"
+    telefono = "3007654321"
+    mensaje = "Soy el dueno de la tienda y atiendo de 7 a 8."
+    tienda_id = uuid4()
+    tienda_historial_id = uuid4()
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as cliente:
+        resp_aut = await cliente.post(
+            "/v1/mi-cuenta/autorizacion",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"alias": alias, "version_politica": "1.0", "acepta": True},
+        )
+        assert resp_aut.status_code == 201
+
+        async with sesion_transaccional() as sesion:
+            fila_pres = (
+                await sesion.execute(
+                    text("SELECT id, producto_id FROM presentacion WHERE activa = true LIMIT 1;")
+                )
+            ).first()
+            assert fila_pres is not None
+            pres_id, prod_id = fila_pres[0], fila_pres[1]
+
+            await sesion.execute(
+                text("""
+                    INSERT INTO establecimiento
+                        (id, nombre, tipo, direccion, ubicacion, comercio_id, estado_verificacion)
+                    VALUES
+                        (:id, :nombre, 'tienda_barrio', :direccion,
+                         ST_SetSRID(ST_MakePoint(-75.681, 4.534), 4326)::geography,
+                         :uid, 'verificado');
+                """),
+                {
+                    "id": tienda_id,
+                    "nombre": f"Tienda Ley1581 {uid[:8]}",
+                    "direccion": f"Cra 14 # 30-{uid[:4]}",
+                    "uid": uid,
+                },
+            )
+            # Segundo local solo para conservar un reclamo ya resuelto: su PII
+            # tambien debe quedar anonimizada aunque la tienda no sea del titular.
+            await sesion.execute(
+                text("""
+                    INSERT INTO establecimiento
+                        (id, nombre, tipo, direccion, ubicacion)
+                    VALUES
+                        (:id, :nombre, 'tienda_barrio', :direccion,
+                         ST_SetSRID(ST_MakePoint(-75.682, 4.535), 4326)::geography);
+                """),
+                {
+                    "id": tienda_historial_id,
+                    "nombre": f"Tienda historial {uid[:8]}",
+                    "direccion": f"Cra 14 # 31-{uid[:4]}",
+                },
+            )
+
+            await sesion.execute(
+                text("""
+                    INSERT INTO solicitud_verificacion_comercio
+                        (usuario_id, establecimiento_id, telefono_contacto, mensaje)
+                    VALUES (:uid, :est, :telefono, :mensaje);
+                """),
+                {
+                    "uid": uid,
+                    "est": tienda_id,
+                    "telefono": telefono,
+                    "mensaje": mensaje,
+                },
+            )
+            await sesion.execute(
+                text("""
+                    INSERT INTO solicitud_verificacion_comercio
+                        (usuario_id, establecimiento_id, telefono_contacto, mensaje,
+                         estado, verificado_en)
+                    VALUES (:uid, :est, :telefono, :mensaje, 'verificado', now());
+                """),
+                {
+                    "uid": uid,
+                    "est": tienda_historial_id,
+                    "telefono": telefono,
+                    "mensaje": mensaje,
+                },
+            )
+
+            await sesion.execute(
+                text("""
+                    INSERT INTO precio_oficial
+                        (presentacion_id, establecimiento_id, producto_id, comercio_id,
+                         precio_cop, precio_por_base)
+                    VALUES (:pres, :est, :prod, :uid, 3500, 3.5);
+                """),
+                {"pres": pres_id, "est": tienda_id, "prod": prod_id, "uid": uid},
+            )
+            await sesion.execute(
+                text("""
+                    INSERT INTO promocion
+                        (establecimiento_id, producto_id, presentacion_id, comercio_id,
+                         titulo, tipo, porcentaje_descuento, condiciones,
+                         vigente_desde, vigente_hasta, hasta_revocar)
+                    VALUES
+                        (:est, :prod, :pres, :uid, 'Descuento de prueba', 'porcentaje', 20,
+                         'Valida en la sede del centro hasta agotar unidades.',
+                         now(), now() + interval '7 days', false);
+                """),
+                {"est": tienda_id, "prod": prod_id, "pres": pres_id, "uid": uid},
+            )
+
+        resp_del = await cliente.delete(
+            "/v1/mi-cuenta", headers={"Authorization": f"Bearer {token}"}
+        )
+        assert resp_del.status_code == 200
+        assert resp_del.json()["estado"] == "eliminada"
+
+        async with sesion_transaccional() as sesion:
+            res_est = (
+                await sesion.execute(
+                    text("""
+                        SELECT comercio_id, estado_verificacion::text
+                        FROM establecimiento WHERE id = :est;
+                    """),
+                    {"est": tienda_id},
+                )
+            ).fetchone()
+            assert res_est is not None
+            assert res_est[0] is None
+            assert res_est[1] == "sin_dueno"
+
+            res_reclamos = (
+                await sesion.execute(
+                    text("""
+                        SELECT estado::text, telefono_contacto, mensaje
+                        FROM solicitud_verificacion_comercio
+                        WHERE usuario_id = :uid;
+                    """),
+                    {"uid": uid},
+                )
+            ).fetchall()
+            # El pendiente se borra; el resuelto se conserva sin telefono ni mensaje.
+            assert len(res_reclamos) == 1
+            assert res_reclamos[0][0] == "verificado"
+            assert res_reclamos[0][1] == "anonimizado"
+            assert telefono not in res_reclamos[0][1]
+            assert mensaje not in res_reclamos[0][2]
+
+            res_precio = (
+                await sesion.execute(
+                    text("""
+                        SELECT activo FROM precio_oficial
+                        WHERE presentacion_id = :pres AND establecimiento_id = :est;
+                    """),
+                    {"pres": pres_id, "est": tienda_id},
+                )
+            ).fetchone()
+            assert res_precio is not None
+            assert res_precio[0] is False
+
+            res_promo = (
+                await sesion.execute(
+                    text("""
+                        SELECT activa, revocada_en FROM promocion
+                        WHERE establecimiento_id = :est;
+                    """),
+                    {"est": tienda_id},
+                )
+            ).fetchone()
+            assert res_promo is not None
+            assert res_promo[0] is False
+            assert res_promo[1] is not None
+
+            res_aud = (
+                await sesion.execute(
+                    text("""
+                        SELECT antes::text, despues::text FROM auditoria
+                        WHERE actor_id = :uid AND accion = 'eliminar_cuenta_anonimizar'
+                        ORDER BY creado_en DESC LIMIT 1;
+                    """),
+                    {"uid": uid},
+                )
+            ).fetchone()
+            assert res_aud is not None
+            texto_auditoria = (res_aud[0] or "") + (res_aud[1] or "")
+            assert telefono not in texto_auditoria
+            assert mensaje not in texto_auditoria
+            assert alias not in texto_auditoria
+            assert '"reclamos_pendientes_borrados": 1' in texto_auditoria

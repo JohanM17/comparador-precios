@@ -201,11 +201,15 @@ class ServicioCuentas:
         )
 
     async def eliminar_mi_cuenta(self, usuario: UsuarioAutenticado) -> EliminarCuentaRespuesta:
-        """Anonimiza reportes, fotos, revoca autorizaciones y marca perfil como eliminada."""
+        """Anonimiza reportes, fotos, datos comerciales y revoca autorizaciones."""
         perfil = await self._exigir_perfil_autorizado(usuario.id)
 
-        perfil_anon, rutas_fotos = await anonimizar_y_dar_de_baja_cuenta(self.sesion, usuario.id)
+        perfil_anon, rutas_fotos, resumen_comercial = await anonimizar_y_dar_de_baja_cuenta(
+            self.sesion, usuario.id
+        )
 
+        # La auditoria es inmutable y la consulta cualquier auditor: no puede
+        # conservar el alias anterior ni telefonos o mensajes de reclamos.
         await registrar_auditoria(
             self.sesion,
             actor_id=usuario.id,
@@ -213,8 +217,8 @@ class ServicioCuentas:
             accion="eliminar_cuenta_anonimizar",
             entidad="perfil",
             entidad_id=str(usuario.id),
-            antes=perfil,
-            despues=perfil_anon,
+            antes={"estado": perfil["estado"]},
+            despues={**perfil_anon, **resumen_comercial},
         )
 
         if self.puerto_almacenamiento and rutas_fotos:

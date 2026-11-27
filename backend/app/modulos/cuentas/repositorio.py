@@ -113,11 +113,25 @@ async def actualizar_alias_bd(
     return dict(fila._mapping)  # type: ignore[union-attr]
 
 
+_TEXTO_TELEFONO_ANONIMIZADO = "anonimizado"
+_TEXTO_MENSAJE_ANONIMIZADO = "Dato anonimizado por supresion de cuenta (Ley 1581)."
+
+
 async def anonimizar_y_dar_de_baja_cuenta(
     sesion: AsyncSession,
     usuario_id: UUID,
-) -> tuple[dict[str, Any], list[str]]:
-    """Ejecuta en transaccion atomica la anonimizacion completa segun FR-007."""
+) -> tuple[dict[str, Any], list[str], dict[str, int]]:
+    """Ejecuta en transaccion atomica la anonimizacion completa segun FR-007.
+
+    Ademas de los reportes y la autorizacion, limpia los datos comerciales del
+    titular: borra sus reclamos pendientes, anonimiza telefono y mensaje de los
+    reclamos ya resueltos, desvincula sus establecimientos, y desactiva los
+    precios oficiales y las promociones de esas tiendas. La operacion sigue
+    siendo reversible solo por rollback: no se borra el perfil ni el historial.
+
+    Devuelve el perfil anonimizado, las rutas de fotos a eliminar y un resumen
+    con conteos sin PII para la auditoria.
+    """
     sql_fotos = text("""
         SELECT foto_prueba_path FROM reporte_precio
         WHERE reportante_id = :id AND foto_prueba_path IS NOT NULL;
@@ -154,4 +168,86 @@ async def anonimizar_y_dar_de_baja_cuenta(
     """)
     await sesion.execute(sql_aut, {"id": usuario_id})
 
-    return perfil_anon, rutas_fotos
+    # 4. Borrar reclamos pendientes: un titular eliminado no puede quedar en la
+    #    cola de moderacion con telefono y mensaje.
+    sql_borrar_reclamos = text("""
+        DELETE FROM solicitud_verificacion_comercio
+        WHERE usuario_id = :id AND estado = 'pendiente'
+        RETURNING id;
+    """)
+    reclamos_borrados = len(
+        (await sesion.execute(sql_borrar_reclamos, {"id": usuario_id})).fetchall()
+    )
+
+    # 5. Anonimizar telefono y mensaje de los reclamos ya resueltos. La fila se
+    #    conserva porque es historial de moderacion; la PII no.
+    sql_anonimizar_reclamos = text("""
+        UPDATE solicitud_verificacion_comercio
+        SET telefono_contacto = :telefono, mensaje = :mensaje
+        WHERE usuario_id = :id
+        RETURNING id;
+    """)
+    reclamos_anonimizados = len(
+        (
+            await sesion.execute(
+                sql_anonimizar_reclamos,
+                {
+                    "id": usuario_id,
+                    "telefono": _TEXTO_TELEFONO_ANONIMIZADO,
+                    "mensaje": _TEXTO_MENSAJE_ANONIMIZADO,
+                },
+            )
+        ).fetchall()
+    )
+
+    # 6. Desvincular las tiendas del titular. La tienda sigue existiendo, pero
+    #    queda sin dueno y sin verificar hasta que otro comercio la reclame.
+    sql_desvincular = text("""
+        UPDATE establecimiento
+        SET comercio_id = NULL,
+            estado_verificacion = 'sin_dueno',
+            actualizado_en = now()
+        WHERE comercio_id = :id
+        RETURNING id;
+    """)
+    establecimientos = [
+        fila.id for fila in (await sesion.execute(sql_desvincular, {"id": usuario_id})).fetchall()
+    ]
+
+    precios_desactivados = 0
+    promociones_revocadas = 0
+    if establecimientos:
+        # 7. Desactivar los precios oficiales de esas tiendas. Se conserva la
+        #    fila historica para no perder trazabilidad de lo ya publicado.
+        sql_precios = text("""
+            UPDATE precio_oficial
+            SET activo = false
+            WHERE establecimiento_id = ANY(:establecimientos) AND activo = true
+            RETURNING presentacion_id;
+        """)
+        precios_desactivados = len(
+            (await sesion.execute(sql_precios, {"establecimientos": establecimientos})).fetchall()
+        )
+
+        # 8. Revocar las promociones activas de esas tiendas, conservando el
+        #    registro y su fecha de revocacion.
+        sql_promociones = text("""
+            UPDATE promocion
+            SET activa = false, revocada_en = now()
+            WHERE establecimiento_id = ANY(:establecimientos) AND activa = true
+            RETURNING id;
+        """)
+        promociones_revocadas = len(
+            (
+                await sesion.execute(sql_promociones, {"establecimientos": establecimientos})
+            ).fetchall()
+        )
+
+    resumen_comercial = {
+        "reclamos_pendientes_borrados": reclamos_borrados,
+        "reclamos_anonimizados": reclamos_anonimizados,
+        "establecimientos_desvinculados": len(establecimientos),
+        "precios_oficiales_desactivados": precios_desactivados,
+        "promociones_revocadas": promociones_revocadas,
+    }
+    return perfil_anon, rutas_fotos, resumen_comercial

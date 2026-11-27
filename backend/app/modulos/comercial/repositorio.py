@@ -112,14 +112,40 @@ async def listar_solicitudes_pendientes(
     return [dict(f._mapping) for f in filas]
 
 
+_SQL_SOLICITUD_PARA_RESOLVER = text("""
+    SELECT id, usuario_id, establecimiento_id, estado::text AS estado, creado_en
+    FROM public.solicitud_verificacion_comercio
+    WHERE id = :id
+    FOR UPDATE;
+""")
+
+_SQL_RESOLVER_SOLICITUD_PENDIENTE = text("""
+    UPDATE public.solicitud_verificacion_comercio
+    SET estado = CAST(:estado AS estado_verificacion),
+        verificado_por = :moderador_id,
+        verificado_en = now()
+    WHERE id = :id AND estado = 'pendiente'
+    RETURNING id;
+""")
+
+_SQL_ENLAZAR_ESTABLECIMIENTO_LIBRE = text("""
+    UPDATE public.establecimiento
+    SET comercio_id = :comercio_id,
+        estado_verificacion = 'verificado'
+    WHERE id = :est_id AND comercio_id IS NULL
+    RETURNING id;
+""")
+
+
 async def obtener_solicitud(sesion: AsyncSession, solicitud_id: UUID) -> dict[str, Any] | None:
-    """Solicitud de verificacion con el usuario y el establecimiento implicados."""
-    sql = text("""
-        SELECT id, usuario_id, establecimiento_id, estado::text AS estado, creado_en
-        FROM public.solicitud_verificacion_comercio
-        WHERE id = :id;
-    """)
-    fila = (await sesion.execute(sql, {"id": solicitud_id})).first()
+    """Solicitud de verificacion bloqueada hasta que termine la resolucion.
+
+    Dos moderadores que abren la misma solicitud se serializan aqui: el segundo
+    espera al commit del primero y encuentra el estado ya resuelto, que el
+    servicio rechaza con 409. Sin el bloqueo ambos leerian `pendiente` y
+    podrian aprobar dos veces.
+    """
+    fila = (await sesion.execute(_SQL_SOLICITUD_PARA_RESOLVER, {"id": solicitud_id})).first()
     return dict(fila._mapping) if fila else None
 
 
@@ -128,38 +154,34 @@ async def resolver_solicitud(
     solicitud_id: UUID,
     moderador_id: UUID,
     aprobada: bool,
-) -> None:
-    """Marca la solicitud como verificada o la devuelve a sin dueno."""
-    sql = text("""
-        UPDATE public.solicitud_verificacion_comercio
-        SET estado = CAST(:estado AS estado_verificacion),
-            verificado_por = :moderador_id,
-            verificado_en = now()
-        WHERE id = :id;
-    """)
-    await sesion.execute(
-        sql,
-        {
-            "id": solicitud_id,
-            "moderador_id": moderador_id,
-            "estado": "verificado" if aprobada else "sin_dueno",
-        },
-    )
+) -> bool:
+    """Marca la solicitud solo si sigue pendiente; False si otro la resolvio."""
+    fila = (
+        await sesion.execute(
+            _SQL_RESOLVER_SOLICITUD_PENDIENTE,
+            {
+                "id": solicitud_id,
+                "moderador_id": moderador_id,
+                "estado": "verificado" if aprobada else "sin_dueno",
+            },
+        )
+    ).first()
+    return fila is not None
 
 
 async def enlazar_comercio(
     sesion: AsyncSession,
     establecimiento_id: UUID,
     comercio_id: UUID,
-) -> None:
-    """Asigna el dueno del establecimiento y lo marca como verificado."""
-    sql = text("""
-        UPDATE public.establecimiento
-        SET comercio_id = :comercio_id,
-            estado_verificacion = 'verificado'
-        WHERE id = :est_id;
-    """)
-    await sesion.execute(sql, {"est_id": establecimiento_id, "comercio_id": comercio_id})
+) -> bool:
+    """Asigna el dueno solo si la tienda sigue libre; False si ya tiene dueno."""
+    fila = (
+        await sesion.execute(
+            _SQL_ENLAZAR_ESTABLECIMIENTO_LIBRE,
+            {"est_id": establecimiento_id, "comercio_id": comercio_id},
+        )
+    ).first()
+    return fila is not None
 
 
 async def asignar_rol_comercio(sesion: AsyncSession, usuario_id: UUID) -> None:

@@ -1822,7 +1822,6 @@
         "properties": {
           "precio_cop": {
             "exclusiveMinimum": 0.0,
-            "maximum": 2000000.0,
             "title": "Precio Cop",
             "type": "integer"
           },

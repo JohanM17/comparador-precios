@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.compartido.auditoria import registrar_auditoria
@@ -17,6 +18,7 @@ from app.compartido.errores import (
 )
 from app.compartido.parametros import obtener_parametros_dominio
 from app.compartido.seguridad import UsuarioAutenticado
+from app.dominio.parametros import ParametrosDominio
 from app.dominio.precio_oficial import requiere_historial_oficial
 from app.dominio.promocion import ReglaPromocion, esta_vigente, validar_promocion
 from app.dominio.unidades import calcular_precio_por_base
@@ -76,13 +78,20 @@ class ServicioComercial:
         if await repositorio.existe_reclamo_abierto(self.sesion, entrada.establecimiento_id):
             raise ConflictoError("Ya hay un reclamo en revision para este establecimiento.")
 
-        reclamo = await repositorio.crear_reclamo(
-            self.sesion,
-            usuario.id,
-            entrada.establecimiento_id,
-            entrada.telefono_contacto,
-            entrada.mensaje,
-        )
+        try:
+            reclamo = await repositorio.crear_reclamo(
+                self.sesion,
+                usuario.id,
+                entrada.establecimiento_id,
+                entrada.telefono_contacto,
+                entrada.mensaje,
+            )
+        except IntegrityError as exc:
+            # Dos reclamos simultaneos pasan la consulta previa; el indice unico
+            # parcial deja ganar a uno y el otro debe recibir 409, no un 500.
+            raise ConflictoError(
+                "Ya hay un reclamo en revision para este establecimiento."
+            ) from exc
         await registrar_auditoria(
             self.sesion,
             actor_id=usuario.id,
@@ -121,15 +130,19 @@ class ServicioComercial:
         if solicitud["estado"] != "pendiente":
             raise ConflictoError("La solicitud ya fue resuelta.")
 
-        await repositorio.resolver_solicitud(
+        resuelta = await repositorio.resolver_solicitud(
             self.sesion, solicitud_id, moderador.id, entrada.aprobar
         )
+        if not resuelta:
+            raise ConflictoError("La solicitud ya fue resuelta.")
         comercio_id: UUID | None = None
         if entrada.aprobar:
-            comercio_id = solicitud["usuario_id"]
-            await repositorio.enlazar_comercio(
+            enlazado = await repositorio.enlazar_comercio(
                 self.sesion, solicitud["establecimiento_id"], solicitud["usuario_id"]
             )
+            if not enlazado:
+                raise ConflictoError("El establecimiento ya tiene un dueno verificado.")
+            comercio_id = solicitud["usuario_id"]
             await repositorio.asignar_rol_comercio(self.sesion, solicitud["usuario_id"])
 
         await registrar_auditoria(
@@ -162,6 +175,7 @@ class ServicioComercial:
         presentaciones: list[UUID],
         productos: dict[UUID, UUID],
         ahora: datetime | None = None,
+        params: ParametrosDominio | None = None,
     ) -> None:
         """Recalcula el precio vigente de cada par e invalida la cache del producto.
 
@@ -170,10 +184,10 @@ class ServicioComercial:
         precio anterior deje de mostrarse como vigente dentro del plazo.
         """
         instante = ahora if ahora is not None else datetime.now(UTC)
-        params = await obtener_parametros_dominio(self.sesion)
+        parametros = params if params is not None else await obtener_parametros_dominio(self.sesion)
         for presentacion_id in presentaciones:
             await self.politica.recalcular_par(
-                self.sesion, presentacion_id, establecimiento_id, instante, params
+                self.sesion, presentacion_id, establecimiento_id, instante, parametros
             )
         for producto_id in set(productos.values()):
             await self.cache.invalidar_producto(producto_id)
@@ -195,13 +209,26 @@ class ServicioComercial:
         precios_anteriores = await repositorio.obtener_precios_oficiales_cop(
             self.sesion, establecimiento_id, ids
         )
+        params = await obtener_parametros_dominio(self.sesion)
         instante = datetime.now(UTC)
 
         rechazados: list[PrecioRechazado] = []
         aplicados: list[UUID] = []
         productos: dict[UUID, UUID] = {}
+        rango = f"[{params.precio_min_cop}, {params.precio_max_cop}]"
 
         for item in entrada.precios:
+            # El rango de precios vive en config_parametro, no en el esquema:
+            # un valor fuera de rango se rechaza sin tumbar el resto del lote.
+            if item.precio_cop < params.precio_min_cop or item.precio_cop > params.precio_max_cop:
+                rechazados.append(
+                    PrecioRechazado(
+                        presentacion_id=item.presentacion_id,
+                        motivo=f"El precio esta fuera del rango permitido {rango} COP.",
+                    )
+                )
+                continue
+
             pres = presentaciones.get(item.presentacion_id)
             if pres is None:
                 rechazados.append(
@@ -239,7 +266,7 @@ class ServicioComercial:
             aplicados.append(item.presentacion_id)
             productos[item.presentacion_id] = pres["producto_id"]
 
-        await self._refrescar_pares(establecimiento_id, aplicados, productos, instante)
+        await self._refrescar_pares(establecimiento_id, aplicados, productos, instante, params)
         await registrar_auditoria(
             self.sesion,
             actor_id=usuario.id,
